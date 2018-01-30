@@ -14,6 +14,8 @@ typedef enum {
   OMF_LEDATA  = 0xA0,  // (0xA1) Logical Enumerated Data Record
   OMF_LIDATA  = 0xA2,  // (0xA3) Logical Iterated Data Record
   OMF_COMDEF  = 0xB0,  // Communal Names Definition Record
+  OMF_LEXTDEF = 0xB4,  // Local External Names Definition Record
+  OMF_LPUBDEF = 0xB6,  // (0xB7) Local Public Names Definition Record
   OMF_CEXTDEF = 0xBC,  // COMDAT External Names Definition Record
   OMF_COMDAT  = 0xC2,  // (0xC3) Initialized Communal Data Record
 } xlink_omf_record_type;
@@ -350,6 +352,8 @@ static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
     case OMF_LEDATA : return "LEDATA";
     case OMF_LIDATA : return "LIDATA";
     case OMF_COMDEF : return "COMDEF";
+    case OMF_LEXTDEF : return "LEXTDEF";
+    case OMF_LPUBDEF : return "LPUBDEF";
     case OMF_CEXTDEF : return "CEXTDEF";
     case OMF_COMDAT : return "COMDAT";
     default : return "??????";
@@ -368,6 +372,8 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
     case OMF_LEDATA : return "Logical Enumerated Data";
     case OMF_LIDATA : return "Logical Iterated Data";
     case OMF_COMDEF : return "Communal Names Definition";
+    case OMF_LEXTDEF : return "Local External Names Definition";
+    case OMF_LPUBDEF : return "Local Public Names";
     case OMF_CEXTDEF : return "COMDAT External Names Definition";
     case OMF_COMDAT : return "Initialized Communal Data";
     default : return "Unknown or Unsupported";
@@ -439,7 +445,8 @@ void xlink_omf_dump_symbols(xlink_omf *omf) {
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
     switch (rec->type) {
-      case OMF_PUBDEF : {
+      case OMF_PUBDEF :
+      case OMF_LPUBDEF : {
         int group_idx;
         int segment_idx;
         int base_frame;
@@ -463,7 +470,8 @@ void xlink_omf_dump_symbols(xlink_omf *omf) {
         }
         break;
       }
-      case OMF_EXTDEF : {
+      case OMF_EXTDEF :
+      case OMF_LEXTDEF : {
         printf("External names:\n");
         for (j = 0; xlink_omf_record_has_data(rec); j++) {
           const char *str;
@@ -601,7 +609,8 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         xlink_omf_add_group_idx(omf, xlink_omf_record_read_index(&rec));
         break;
       }
-      case OMF_EXTDEF : {
+      case OMF_EXTDEF :
+      case OMF_LEXTDEF : {
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_add_symbol_idx(omf,
            xlink_omf_add_name(omf, xlink_omf_record_read_string(&rec)));
