@@ -113,6 +113,15 @@ struct xlink_omf {
   int nsymbols;
 };
 
+#define XLINK_ERROR(cond, err) \
+  do { \
+    if (cond) { \
+      fprintf(stderr, "Error: %s\n", err); \
+      exit(-1); \
+    } \
+  } \
+  while (0)
+
 void xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   omf->recs[omf->nrecs++] = *rec;
 }
@@ -129,8 +138,7 @@ const char *xlink_omf_get_name(xlink_omf *omf, int name_idx) {
 }
 
 void xlink_omf_add_segment_idx(xlink_omf *omf, int segment_idx) {
-  /*XLINK_ERROR(omf, omf->nlabels < segment_idx - 1,
-   "Error, segment name index not defined");*/
+  XLINK_ERROR(omf->nlabels < segment_idx - 1, "Segment name index not defined");
   omf->segments[omf->nsegments++] = segment_idx;
 }
 
@@ -143,8 +151,7 @@ const char *xlink_omf_get_segment_name(xlink_omf *omf, int segment_idx) {
 }
 
 void xlink_omf_add_group_idx(xlink_omf *omf, int group_idx) {
-  /*XLINK_ERROR(omf, omf->nlabels < group_idx - 1,
-   "Error, segment name index not defined");*/
+  XLINK_ERROR(omf->nlabels < group_idx - 1, "Segment name index not defined");
   omf->groups[omf->ngroups++] = group_idx;
 }
 
@@ -157,8 +164,7 @@ const char *xlink_omf_get_group_name(xlink_omf *omf, int group_idx) {
 }
 
 void xlink_omf_add_symbol_idx(xlink_omf *omf, int symbol_idx) {
-  /*XLINK_ERROR(omf, omf->nlabels < symbol_idx - 1,
-   "Error, segment name index not defined");*/
+  XLINK_ERROR(omf->nlabels < symbol_idx - 1, "Segment name index not defined");
   omf->symbols[omf->nsymbols++] = symbol_idx;
 }
 
@@ -267,7 +273,7 @@ unsigned int xlink_omf_record_read_length(xlink_omf_record *rec) {
       return xlink_omf_record_read_dword(rec);
     }
     default : {
-      //XLINK_ERROR(rec, length > 0x80, "Error, invalid length.");
+      XLINK_ERROR(length > 0x80, "Invalid length");
       return length;
     }
   }
@@ -309,25 +315,15 @@ unsigned int xlink_omf_record_read_lidata_block(xlink_omf_record *rec) {
   return repeat_count * size;
 }
 
-#define XLINK_ERROR(ctx, cond, err) \
-  do { \
-    if (cond) { \
-      (ctx)->error = (err); \
-      return; \
-    } \
-  } \
-  while (0)
-
 static void xlink_parse_omf_record(xlink_omf_record *rec,
  xlink_parse_ctx *ctx) {
   unsigned char checksum;
-  XLINK_ERROR(ctx, ctx->size < 3, "Error, 3 bytes needed for a record.");
+  XLINK_ERROR(ctx->size < 3, "3 bytes needed for a record");
   rec->buf = ctx->pos;
   rec->idx = 0;
   rec->type = xlink_omf_record_read_byte(rec);
   rec->size = xlink_omf_record_read_word(rec);
-  XLINK_ERROR(ctx, ctx->size - 3 < rec->size,
-   "Error, record extends past the end of file.");
+  XLINK_ERROR(ctx->size - 3 < rec->size, "Record extends past the end of file");
   ctx->pos += 3 + rec->size;
   ctx->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
@@ -337,7 +333,7 @@ static void xlink_parse_omf_record(xlink_omf_record *rec,
       checksum += rec->buf[i];
     }
   }
-  XLINK_ERROR(ctx, checksum != 0, "Error, invalid checksum.");
+  XLINK_ERROR(checksum != 0, "Invalid checksum.");
 }
 
 static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
@@ -522,7 +518,7 @@ void xlink_omf_dump_segments(xlink_omf *omf) {
           frame = offset = 0;
         }
         length = xlink_omf_record_read_numeric(rec);
-        XLINK_ERROR(rec, attrib.big && length != 0, "Invalid length field.");
+        XLINK_ERROR(attrib.big && length != 0, "Invalid length field");
         name_idx = xlink_omf_record_read_index(rec);
         class_idx = xlink_omf_record_read_index(rec);
         overlay_idx = xlink_omf_record_read_index(rec);
@@ -539,7 +535,7 @@ void xlink_omf_dump_segments(xlink_omf *omf) {
         for (j = 0; xlink_omf_record_has_data(rec); j++) {
           unsigned char index;
           index = xlink_omf_record_read_byte(rec);
-          XLINK_ERROR(rec, index != 0xFF, "Error, invalid segment index.");
+          XLINK_ERROR(index != 0xFF, "Invalid segment index");
           printf("%2i : %s\n", j,
            xlink_omf_get_name(omf, xlink_omf_record_read_index(rec)));
         }
