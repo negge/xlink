@@ -338,23 +338,39 @@ static void xlink_parse_omf_record(xlink_omf_record *rec,
   XLINK_ERROR(ctx, checksum != 0, "Error, invalid checksum.");
 }
 
+static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
+  switch (type & ~1) {
+    case OMF_THEADR : return "THEADR";
+    case OMF_LHEADR : return "LHEADR";
+    case OMF_EXTDEF : return "EXTDEF";
+    case OMF_PUBDEF : return "PUBDEF";
+    case OMF_GRPDEF : return "GRPDEF";
+    case OMF_LNAMES : return "LNAMES";
+    case OMF_SEGDEF : return "SEGDEF";
+    case OMF_LEDATA : return "LEDATA";
+    case OMF_LIDATA : return "LIDATA";
+    case OMF_COMDEF : return "COMDEF";
+    case OMF_CEXTDEF : return "CEXTDEF";
+    case OMF_COMDAT : return "COMDAT";
+    default : return "??????";
+  }
+}
+
 static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
   switch (type & ~1) {
-    case OMF_THEADR : return "THEADR - Translator Header Record";
-    case OMF_LHEADR : return "LHEADR - Library Module Header Record";
-    case OMF_EXTDEF : return "EXTDEF - External Names Definition Record";
-    case OMF_PUBDEF : return "PUBDEF - Public Names Definition Record";
-    case OMF_GRPDEF : return "GRPDEF - Group Definition Record";
-    case OMF_LNAMES : return "LNAMES - List of Names Record";
-    case OMF_SEGDEF : return "SEGDEF - Segment Definition Record";
-    case OMF_LEDATA : return "LEDATA - Logical Enumerated Data Record";
-    case OMF_LIDATA : return "LIDATA - Logical Iterated Data Record";
-    case OMF_COMDEF : return "COMDEF - Communal Names Definition Record";
-    case OMF_CEXTDEF : {
-      return "CEXTDEF - COMDAT External Names Definition Record";
-    }
-    case OMF_COMDAT : return "COMDAT -  Initialized Communal Data Record";
-    default : return "?????? - Unknown or Unsupported Record";
+    case OMF_THEADR : return "Translator Header";
+    case OMF_LHEADR : return "Library Module Header";
+    case OMF_EXTDEF : return "External Names Definition";
+    case OMF_PUBDEF : return "Public Names Definition";
+    case OMF_GRPDEF : return "Group Definition";
+    case OMF_LNAMES : return "List of Names";
+    case OMF_SEGDEF : return "Segment Definition";
+    case OMF_LEDATA : return "Logical Enumerated Data";
+    case OMF_LIDATA : return "Logical Iterated Data";
+    case OMF_COMDEF : return "Communal Names Definition";
+    case OMF_CEXTDEF : return "COMDAT External Names Definition";
+    case OMF_COMDAT : return "Initialized Communal Data";
+    default : return "Unknown or Unsupported";
   }
 }
 
@@ -363,9 +379,9 @@ void xlink_omf_dump_records(xlink_omf *omf) {
   xlink_omf_record *rec;
   printf("Summary of records:\n");
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
-    printf("  %02Xh %-48s%3i bytes%s\n", rec->type,
-     xlink_omf_record_get_desc(rec->type), 3 + rec->size - 1,
-     rec->type & 1 ? " 32-bit" : "");
+    printf("  %02Xh %-7s - %-32s%6i bytes%s\n", rec->type,
+     xlink_omf_record_get_name(rec->type), xlink_omf_record_get_desc(rec->type),
+     3 + rec->size - 1, rec->type & 1 ? " 32-bit" : "");
   }
 }
 
