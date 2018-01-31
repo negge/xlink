@@ -20,6 +20,7 @@ typedef enum {
   OMF_LPUBDEF = 0xB6,  // (0xB7) Local Public Names Definition Record
   OMF_CEXTDEF = 0xBC,  // COMDAT External Names Definition Record
   OMF_COMDAT  = 0xC2,  // (0xC3) Initialized Communal Data Record
+  OMF_LLNAMES = 0xCA,  // Local Logical Names Definition Record
 } xlink_omf_record_type;
 
 typedef enum {
@@ -481,6 +482,7 @@ static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
     case OMF_LPUBDEF : return "LPUBDEF";
     case OMF_CEXTDEF : return "CEXTDEF";
     case OMF_COMDAT : return "COMDAT";
+    case OMF_LLNAMES : return "LLNAMES";
     default : return "??????";
   }
 }
@@ -501,6 +503,7 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
     case OMF_LPUBDEF : return "Local Public Names";
     case OMF_CEXTDEF : return "COMDAT External Names Definition";
     case OMF_COMDAT : return "Initialized Communal Data";
+    case OMF_LLNAMES : return "Local Logical Names Definition";
     default : return "Unknown or Unsupported";
   }
 }
@@ -681,7 +684,8 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         strcpy(omf->name, xlink_omf_record_read_string(&rec));
         break;
       }
-      case OMF_LNAMES : {
+      case OMF_LNAMES :
+      case OMF_LLNAMES : {
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_name name;
           strcpy(name.name, xlink_omf_record_read_string(&rec));
