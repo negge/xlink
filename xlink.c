@@ -112,6 +112,14 @@ struct xlink_omf_segment {
   int overlay_idx;
 };
 
+typedef struct xlink_omf_group xlink_omf_group;
+
+struct xlink_omf_group {
+  int name_idx;
+  int segments[256];
+  int nsegments;
+};
+
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
@@ -121,7 +129,7 @@ struct xlink_omf {
   int nlabels;
   xlink_omf_segment *segments;
   int nsegments;
-  int groups[XLINK_MAX_NAMES];
+  xlink_omf_group *groups;
   int ngroups;
   int symbols[XLINK_MAX_NAMES];
   int nsymbols;
@@ -143,6 +151,7 @@ void xlink_omf_init(xlink_omf *omf) {
 void xlink_omf_clear(xlink_omf *omf) {
   free(omf->labels);
   free(omf->segments);
+  free(omf->groups);
   memset(omf, 0, sizeof(xlink_omf));
 }
 
@@ -179,15 +188,17 @@ const char *xlink_omf_get_segment_name(xlink_omf *omf, int segment_idx) {
   return "?";
 }
 
-void xlink_omf_add_group_idx(xlink_omf *omf, int group_idx) {
-  XLINK_ERROR(omf->nlabels < group_idx - 1, "Segment name index not defined");
-  omf->groups[omf->ngroups++] = group_idx;
+int xlink_omf_add_group(xlink_omf *omf, xlink_omf_group *group) {
+  omf->ngroups++;
+  omf->groups = realloc(omf->groups, omf->ngroups*sizeof(xlink_omf_group));
+  omf->groups[omf->ngroups - 1] = *group;
+  return omf->ngroups;
 }
 
 const char *xlink_omf_get_group_name(xlink_omf *omf, int group_idx) {
   if (group_idx == 0) return "none";
   if (group_idx <= omf->ngroups) {
-    return omf->labels[omf->groups[group_idx - 1] - 1];
+    return xlink_omf_get_name(omf, omf->groups[group_idx - 1].name_idx);
   }
   return "?";
 }
@@ -524,7 +535,6 @@ void xlink_omf_dump_symbols(xlink_omf *omf) {
 
 void xlink_omf_dump_segments(xlink_omf *omf) {
   int i, j;
-  xlink_omf_record *rec;
   printf("Segment records:\n");
   for (i = 0; i < omf->nsegments; i++) {
     xlink_omf_segment *seg;
@@ -536,21 +546,12 @@ void xlink_omf_dump_segments(xlink_omf *omf) {
      xlink_omf_get_name(omf, seg->class_idx), seg->length,
      seg->attrib.big ? ", big" : "");
   }
-  for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
-    xlink_omf_record_reset(rec);
-    switch (rec->type) {
-      case OMF_GRPDEF : {
-        printf("Group: %s\n",
-         xlink_omf_get_name(omf, xlink_omf_record_read_index(rec)));
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          unsigned char index;
-          index = xlink_omf_record_read_byte(rec);
-          XLINK_ERROR(index != 0xFF, "Invalid segment index");
-          printf("%2i : %s\n", j,
-           xlink_omf_get_name(omf, xlink_omf_record_read_index(rec)));
-        }
-        break;
-      }
+  for (i = 0; i < omf->ngroups; i++) {
+    xlink_omf_group *grp;
+    grp = &omf->groups[i];
+    printf("Group: %s\n", xlink_omf_get_name(omf, grp->name_idx));
+    for (j = 0; j < grp->nsegments; j++) {
+      printf("%2i : %s\n", j, xlink_omf_get_name(omf, grp->segments[j]));
     }
   }
 }
@@ -628,7 +629,18 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         break;
       }
       case OMF_GRPDEF : {
-        xlink_omf_add_group_idx(omf, xlink_omf_record_read_index(&rec));
+        xlink_omf_group grp;
+        grp.name_idx = xlink_omf_record_read_index(&rec);
+        XLINK_ERROR(grp.name_idx > omf->nlabels,
+         "Group name index not defined");
+        grp.nsegments = 0;
+        while (xlink_omf_record_has_data(&rec)) {
+          unsigned char index;
+          index = xlink_omf_record_read_byte(&rec);
+          XLINK_ERROR(index != 0xFF, "Invalid segment index");
+          grp.segments[grp.nsegments++] = xlink_omf_record_read_index(&rec);
+        }
+        xlink_omf_add_group(omf, &grp);
         break;
       }
       case OMF_EXTDEF :
