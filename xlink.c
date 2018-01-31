@@ -104,6 +104,8 @@ struct xlink_omf_name {
   xlink_omf_string name;
 };
 
+#define SEG_HAS_DATA 0x1
+
 typedef struct xlink_omf_segment xlink_omf_segment;
 
 struct xlink_omf_segment {
@@ -114,7 +116,19 @@ struct xlink_omf_segment {
   int name_idx;
   int class_idx;
   int overlay_idx;
+
+  unsigned int info;
+  unsigned char *data;
+  unsigned char *mask;
 };
+
+void xlink_omf_segment_clear(xlink_omf_segment *segment);
+
+#define CEIL2(len, bits) (((len) + ((1 << (bits)) - 1)) >> (bits))
+
+#define CLEARBIT(mask, idx)  (mask)[(idx)/8] &= ~(1 << ((idx)%8))
+#define SETBIT(mask, idx)    (mask)[(idx)/8] |=  (1 << ((idx)%8))
+#define GETBIT(mask, idx)   ((mask)[(idx)/8] &   (1 << ((idx)%8)))
 
 typedef struct xlink_omf_group xlink_omf_group;
 
@@ -198,8 +212,12 @@ void xlink_omf_init(xlink_omf *omf) {
 }
 
 void xlink_omf_clear(xlink_omf *omf) {
+  int i;
   free(omf->recs);
   free(omf->names);
+  for (i = 0; i < omf->nsegments; i++) {
+    xlink_omf_segment_clear(&omf->segments[i]);
+  }
   free(omf->segments);
   free(omf->groups);
   free(omf->publics);
@@ -233,6 +251,12 @@ int xlink_omf_add_segment(xlink_omf *omf, xlink_omf_segment *segment) {
    xlink_realloc(omf->segments, omf->nsegments*sizeof(xlink_omf_segment));
   omf->segments[omf->nsegments - 1] = *segment;
   return omf->nsegments;
+}
+
+xlink_omf_segment *xlink_omf_get_segment(xlink_omf *omf, int segment_idx) {
+  XLINK_ERROR(segment_idx < 1 || segment_idx > omf->nsegments,
+   ("Could not get segment %i, nsegments = %i", segment_idx, omf->nsegments));
+  return &omf->segments[segment_idx - 1];
 }
 
 const char *xlink_omf_get_segment_name(xlink_omf *omf, int segment_idx) {
@@ -281,6 +305,12 @@ const char *xlink_omf_get_extern_name(xlink_omf *omf, int extern_idx) {
     return omf->externs[extern_idx - 1].name;
   }
   return "?";
+}
+
+void xlink_omf_segment_clear(xlink_omf_segment *segment) {
+  free(segment->data);
+  free(segment->mask);
+  memset(segment, 0, sizeof(xlink_omf_segment));
 }
 
 void xlink_file_clear(xlink_file *file) {
@@ -594,8 +624,19 @@ void xlink_omf_dump_segments(xlink_omf *omf) {
 }
 
 void xlink_omf_dump_relocations(xlink_omf *omf) {
-  int i;
+  int i, j;
   xlink_omf_record *rec;
+  for (i = 0; i < omf->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = &omf->segments[i];
+    if (seg->info & SEG_HAS_DATA) {
+      for (j = 0; j < seg->length; j++) {
+        XLINK_ERROR(GETBIT(seg->mask, j) == 0,
+         ("Missing data for segment %s, offset = %i",
+         xlink_omf_get_segment_name(omf, i + 1), j));
+      }
+    }
+  }
   printf("LEDATA, LIDATA, COMDAT and FIXUPP records:\n");
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
@@ -670,6 +711,10 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         seg.overlay_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg.overlay_idx > omf->nnames,
          ("Segment overlay index %i not defined", seg.overlay_idx));
+        seg.info = 0;
+        seg.data = xlink_malloc(seg.length);
+        seg.mask = xlink_malloc(CEIL2(seg.length, 3));
+        memset(seg.mask, 0, CEIL2(seg.length, 3));
         xlink_omf_add_segment(omf, &seg);
         break;
       }
@@ -712,6 +757,26 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
           strcpy(ext.name, xlink_omf_record_read_string(&rec));
           ext.type_idx = xlink_omf_record_read_index(&rec);
           xlink_omf_add_extern(omf, &ext);
+        }
+        break;
+      }
+      case OMF_LEDATA : {
+        int segment_idx;
+        int offset;
+        xlink_omf_segment *seg;
+        segment_idx = xlink_omf_record_read_index(&rec);
+        offset = xlink_omf_record_read_numeric(&rec);
+        seg = xlink_omf_get_segment(omf, segment_idx);
+        seg->info |= SEG_HAS_DATA;
+        for (; xlink_omf_record_has_data(&rec); offset++) {
+          XLINK_ERROR(offset >= seg->length,
+           ("LEDATA wrote past end of segment, offset = %i but length = %i",
+           offset, seg->length));
+          XLINK_ERROR(GETBIT(seg->mask, offset),
+           ("LEDATA overwrote existing data in segment %s, offset = %i",
+           xlink_omf_get_segment_name(omf, segment_idx), offset));
+          seg->data[offset] = xlink_omf_record_read_byte(&rec);
+          SETBIT(seg->mask, offset);
         }
         break;
       }
