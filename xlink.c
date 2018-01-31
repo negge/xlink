@@ -144,6 +144,7 @@ struct xlink_omf_extern {
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
+  xlink_omf_string name;
   xlink_omf_record *recs;
   int nrecs;
   xlink_omf_name *names;
@@ -484,6 +485,7 @@ void xlink_omf_dump_records(xlink_omf *omf) {
 void xlink_omf_dump_names(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
+  printf("Module: %s\n", omf->name);
   if (omf->nnames > 0) {
     printf("Local names:\n");
     for (i = 0; i < omf->nnames; i++) {
@@ -493,11 +495,6 @@ void xlink_omf_dump_names(xlink_omf *omf) {
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
     switch (rec->type) {
-      case OMF_THEADR :
-      case OMF_LHEADR : {
-        printf("Module: %s\n", xlink_omf_record_read_string(rec));
-        break;
-      }
       case OMF_COMDEF : {
         printf("Communal names:\n");
         for (j = 0; xlink_omf_record_has_data(rec); j++) {
@@ -634,6 +631,11 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
     xlink_parse_omf_record(&rec, &ctx);
     xlink_omf_add_record(omf, &rec);
     switch (rec.type) {
+      case OMF_THEADR :
+      case OMF_LHEADR : {
+        strcpy(omf->name, xlink_omf_record_read_string(&rec));
+        break;
+      }
       case OMF_LNAMES : {
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_name name;
