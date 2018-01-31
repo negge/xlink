@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <getopt.h>
 
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
@@ -623,9 +624,41 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
   xlink_omf_dump_relocations(omf);
 }
 
+const char *OPTSTRING = "h";
+
+const struct option OPTIONS[] = {
+  { "help", no_argument,       NULL, 'h' },
+  { NULL,   0,                 NULL,  0  }
+};
+
+static void usage(const char *argv0) {
+  fprintf(stderr, "Usage: %s [options]\n\n"
+   "Options: \n\n"
+   "  -h --help                       Display this help and exit.\n",
+   argv0);
+}
+
 int main(int argc, char *argv[]) {
-  xlink_file file;
-  xlink_omf omf;
-  xlink_file_init(&file, argv[1]);
-  xlink_omf_load(&omf, &file);
+  int c;
+  int opt_index;
+  xlink_omf *modules;
+  int nmodules;
+  while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &opt_index)) != EOF) {
+    switch (c) {
+      case 'h' :
+      default : {
+        usage(argv[0]);
+        return EXIT_FAILURE;
+      }
+    }
+  }
+  for (nmodules = 0, modules = NULL, c = optind; c < argc; c++) {
+    xlink_file file;
+    xlink_file_init(&file, argv[c]);
+    nmodules++;
+    modules = realloc(modules, nmodules*sizeof(xlink_omf));
+    xlink_omf_load(&modules[nmodules - 1], &file);
+    xlink_file_clear(&file);
+  }
+  free(modules);
 }
