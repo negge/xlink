@@ -97,6 +97,12 @@ struct xlink_omf_record {
 
 typedef char xlink_omf_string[256];
 
+typedef struct xlink_omf_name xlink_omf_name;
+
+struct xlink_omf_name {
+  xlink_omf_string name;
+};
+
 typedef struct xlink_omf_segment xlink_omf_segment;
 
 struct xlink_omf_segment {
@@ -140,8 +146,8 @@ typedef struct xlink_omf xlink_omf;
 struct xlink_omf {
   xlink_omf_record *recs;
   int nrecs;
-  xlink_omf_string *labels;
-  int nlabels;
+  xlink_omf_name *names;
+  int nnames;
   xlink_omf_segment *segments;
   int nsegments;
   xlink_omf_group *groups;
@@ -180,7 +186,7 @@ void xlink_omf_init(xlink_omf *omf) {
 
 void xlink_omf_clear(xlink_omf *omf) {
   free(omf->recs);
-  free(omf->labels);
+  free(omf->names);
   free(omf->segments);
   free(omf->groups);
   free(omf->publics);
@@ -195,17 +201,16 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   return omf->nrecs;
 }
 
-int xlink_omf_add_name(xlink_omf *omf, const char *label) {
-  omf->nlabels++;
-  omf->labels =
-   xlink_realloc(omf->labels, omf->nlabels*sizeof(xlink_omf_string));
-  strcpy(omf->labels[omf->nlabels - 1], label);
-  return omf->nlabels;
+int xlink_omf_add_name(xlink_omf *omf, xlink_omf_name *name) {
+  omf->nnames++;
+  omf->names = xlink_realloc(omf->names, omf->nnames*sizeof(xlink_omf_name));
+  omf->names[omf->nnames - 1] = *name;
+  return omf->nnames;
 }
 
 const char *xlink_omf_get_name(xlink_omf *omf, int name_idx) {
   if (name_idx == 0) return "none";
-  if (name_idx <= omf->nlabels) return omf->labels[name_idx - 1];
+  if (name_idx <= omf->nnames) return omf->names[name_idx - 1].name;
   return "?";
 }
 
@@ -479,9 +484,9 @@ void xlink_omf_dump_records(xlink_omf *omf) {
 void xlink_omf_dump_names(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
-  if (omf->nlabels > 0) {
+  if (omf->nnames > 0) {
     printf("Local names:\n");
-    for (i = 0; i < omf->nlabels; i++) {
+    for (i = 0; i < omf->nnames; i++) {
       printf("%2i : '%s'\n", i, xlink_omf_get_name(omf, i + 1));
     }
   }
@@ -631,7 +636,9 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
     switch (rec.type) {
       case OMF_LNAMES : {
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_add_name(omf, xlink_omf_record_read_string(&rec));
+          xlink_omf_name name;
+          strcpy(name.name, xlink_omf_record_read_string(&rec));
+          xlink_omf_add_name(omf, &name);
         }
         break;
       }
@@ -648,13 +655,13 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         seg.length = xlink_omf_record_read_numeric(&rec);
         XLINK_ERROR(seg.attrib.big && seg.length != 0, "Invalid length field");
         seg.name_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg.name_idx > omf->nlabels,
+        XLINK_ERROR(seg.name_idx > omf->nnames,
          "Segment name index not defined");
         seg.class_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg.class_idx > omf->nlabels,
+        XLINK_ERROR(seg.class_idx > omf->nnames,
          "Segment class index not defined");
         seg.overlay_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg.overlay_idx > omf->nlabels,
+        XLINK_ERROR(seg.overlay_idx > omf->nnames,
          "Segment overlay index not defined");
         xlink_omf_add_segment(omf, &seg);
         break;
@@ -662,7 +669,7 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
       case OMF_GRPDEF : {
         xlink_omf_group grp;
         grp.name_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(grp.name_idx > omf->nlabels,
+        XLINK_ERROR(grp.name_idx > omf->nnames,
          "Group name index not defined");
         grp.nsegments = 0;
         while (xlink_omf_record_has_data(&rec)) {
