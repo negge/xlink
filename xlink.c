@@ -95,8 +95,6 @@ struct xlink_omf_record {
   const char *error;
 };
 
-#define XLINK_MAX_NAMES (1024)
-
 typedef char xlink_omf_string[256];
 
 typedef struct xlink_omf_segment xlink_omf_segment;
@@ -119,6 +117,13 @@ struct xlink_omf_group {
   int nsegments;
 };
 
+typedef struct xlink_omf_extern xlink_omf_extern;
+
+struct xlink_omf_extern {
+  xlink_omf_string name;
+  int type_idx;
+};
+
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
@@ -130,8 +135,8 @@ struct xlink_omf {
   int nsegments;
   xlink_omf_group *groups;
   int ngroups;
-  int symbols[XLINK_MAX_NAMES];
-  int nsymbols;
+  xlink_omf_extern *externs;
+  int nexterns;
 };
 
 #define XLINK_ERROR(cond, err) \
@@ -165,6 +170,7 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->labels);
   free(omf->segments);
   free(omf->groups);
+  free(omf->externs);
   memset(omf, 0, sizeof(xlink_omf));
 }
 
@@ -221,15 +227,18 @@ const char *xlink_omf_get_group_name(xlink_omf *omf, int group_idx) {
   return "?";
 }
 
-void xlink_omf_add_symbol_idx(xlink_omf *omf, int symbol_idx) {
-  XLINK_ERROR(omf->nlabels < symbol_idx - 1, "Segment name index not defined");
-  omf->symbols[omf->nsymbols++] = symbol_idx;
+int xlink_omf_add_extern(xlink_omf *omf, xlink_omf_extern *ext) {
+  omf->nexterns++;
+  omf->externs =
+   xlink_realloc(omf->externs, omf->nexterns*sizeof(xlink_omf_extern));
+  omf->externs[omf->nexterns - 1] = *ext;
+  return omf->nexterns;
 }
 
-const char *xlink_omf_get_symbol_name(xlink_omf *omf, int symbol_idx) {
-  if (symbol_idx == 0) return "none";
-  if (symbol_idx <= omf->nsymbols) {
-    return omf->labels[omf->symbols[symbol_idx - 1] - 1];
+const char *xlink_omf_get_extern_name(xlink_omf *omf, int extern_idx) {
+  if (extern_idx == 0) return "none";
+  if (extern_idx <= omf->nexterns) {
+    return omf->externs[extern_idx - 1].name;
   }
   return "?";
 }
@@ -495,6 +504,14 @@ void xlink_omf_dump_names(xlink_omf *omf) {
 void xlink_omf_dump_symbols(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
+  if (omf->nexterns > 0) {
+    printf("External names:\n");
+    for (i = 0; i < omf->nexterns; i++) {
+      xlink_omf_extern *ext;
+      ext = &omf->externs[i];
+      printf("%2i : '%s', type %i\n", i, ext->name, ext->type_idx);
+    }
+  }
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
     switch (rec->type) {
@@ -520,18 +537,6 @@ void xlink_omf_dump_symbols(xlink_omf *omf) {
           printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n",
            j, str, xlink_omf_get_segment_name(omf, segment_idx),
            xlink_omf_get_group_name(omf, group_idx), offset, type_idx);
-        }
-        break;
-      }
-      case OMF_EXTDEF :
-      case OMF_LEXTDEF : {
-        printf("External names:\n");
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          const char *str;
-          int type_idx;
-          str = xlink_omf_record_read_string(rec);
-          type_idx = xlink_omf_record_read_index(rec);
-          printf("%2i : '%s', type %i\n", j, str, type_idx);
         }
         break;
       }
@@ -664,9 +669,10 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
       case OMF_EXTDEF :
       case OMF_LEXTDEF : {
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_add_symbol_idx(omf,
-           xlink_omf_add_name(omf, xlink_omf_record_read_string(&rec)));
-          xlink_omf_record_read_index(&rec);
+          xlink_omf_extern ext;
+          strcpy(ext.name, xlink_omf_record_read_string(&rec));
+          ext.type_idx = xlink_omf_record_read_index(&rec);
+          xlink_omf_add_extern(omf, &ext);
         }
         break;
       }
