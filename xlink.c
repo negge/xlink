@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 #include <getopt.h>
 
@@ -72,7 +73,7 @@ struct xlink_file {
 };
 
 void xlink_file_clear(xlink_file *file);
-int xlink_file_init(xlink_file *file, const char *name);
+void xlink_file_init(xlink_file *file, const char *name);
 
 typedef struct xlink_parse_ctx xlink_parse_ctx;
 
@@ -159,10 +160,21 @@ struct xlink_omf {
   int nexterns;
 };
 
+void xlink_log(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  fprintf(stderr, "Error: ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  va_end(ap);
+}
+
+#define XLINK_LOG(err) xlink_log err
+
 #define XLINK_ERROR(cond, err) \
   do { \
     if (cond) { \
-      fprintf(stderr, "Error: %s\n", err); \
+      XLINK_LOG(err); \
       exit(-1); \
     } \
   } \
@@ -171,13 +183,13 @@ struct xlink_omf {
 void *xlink_malloc(size_t size) {
   void *ptr;
   ptr = malloc(size);
-  XLINK_ERROR(ptr == NULL, "Insufficient memory for malloc");
+  XLINK_ERROR(ptr == NULL, ("Insufficient memory for malloc"));
   return ptr;
 }
 
 void *xlink_realloc(void *ptr, size_t size) {
   ptr = realloc(ptr, size);
-  XLINK_ERROR(ptr == NULL, "Insufficient memory for realloc");
+  XLINK_ERROR(ptr == NULL, ("Insufficient memory for realloc"));
   return ptr;
 }
 
@@ -276,32 +288,22 @@ void xlink_file_clear(xlink_file *file) {
   memset(file, 0, sizeof(xlink_file));
 }
 
-int xlink_file_init(xlink_file *file, const char *name) {
+void xlink_file_init(xlink_file *file, const char *name) {
   FILE *fp;
   int size;
   fp = fopen(name, "rb");
-  if (fp == NULL) {
-    fprintf(stderr, "Error, could not open OMF file %s\n", name);
-    return EXIT_FAILURE;
-  }
+  XLINK_ERROR(fp == NULL, ("Could not open OMF file %s", name));
   memset(file, 0, sizeof(xlink_file));
   file->name = name;
   fseek(fp, 0, SEEK_END);
   file->size = ftell(fp);
   file->buf = xlink_malloc(file->size);
-  if (file->buf == NULL) {
-    fprintf(stderr, "Error, could not allocate %i bytes\n", file->size);
-    return EXIT_FAILURE;
-  }
+  XLINK_ERROR(file->buf == NULL, ("Could not allocate %i bytes", file->size));
   fseek(fp, 0, SEEK_SET);
   size = fread(file->buf, 1, file->size, fp);
-  if (size != file->size) {
-    fprintf(stderr, "Error reading OMF file, got %i of %i bytes\n", size,
-     file->size);
-    return EXIT_FAILURE;
-  }
+  XLINK_ERROR(size != file->size,
+   ("Problem reading OMF file, got %i of %i bytes", size, file->size));
   fclose(fp);
-  return EXIT_SUCCESS;
 }
 
 void xlink_parse_ctx_init(xlink_parse_ctx *ctx, const unsigned char *buf,
@@ -368,7 +370,7 @@ unsigned int xlink_omf_record_read_length(xlink_omf_record *rec) {
       return xlink_omf_record_read_dword(rec);
     }
     default : {
-      XLINK_ERROR(length > 0x80, "Invalid length");
+      XLINK_ERROR(length > 0x80, ("Invalid length"));
       return length;
     }
   }
@@ -413,12 +415,13 @@ unsigned int xlink_omf_record_read_lidata_block(xlink_omf_record *rec) {
 static void xlink_parse_omf_record(xlink_omf_record *rec,
  xlink_parse_ctx *ctx) {
   unsigned char checksum;
-  XLINK_ERROR(ctx->size < 3, "3 bytes needed for a record");
+  XLINK_ERROR(ctx->size < 3, ("3 bytes needed for a record"));
   rec->buf = ctx->pos;
   rec->idx = 0;
   rec->type = xlink_omf_record_read_byte(rec);
   rec->size = xlink_omf_record_read_word(rec);
-  XLINK_ERROR(ctx->size - 3 < rec->size, "Record extends past the end of file");
+  XLINK_ERROR(ctx->size - 3 < rec->size,
+   ("Record extends past the end of file"));
   ctx->pos += 3 + rec->size;
   ctx->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
@@ -428,7 +431,7 @@ static void xlink_parse_omf_record(xlink_omf_record *rec,
       checksum += rec->buf[i];
     }
   }
-  XLINK_ERROR(checksum != 0, "Invalid checksum.");
+  XLINK_ERROR(checksum != 0, ("Invalid checksum."));
 }
 
 static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
@@ -655,16 +658,17 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
           seg.frame = seg.offset = 0;
         }
         seg.length = xlink_omf_record_read_numeric(&rec);
-        XLINK_ERROR(seg.attrib.big && seg.length != 0, "Invalid length field");
+        XLINK_ERROR(seg.attrib.big && seg.length != 0,
+         ("Invalid length field"));
         seg.name_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg.name_idx > omf->nnames,
-         "Segment name index not defined");
+         ("Segment name index %i not defined", seg.name_idx));
         seg.class_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg.class_idx > omf->nnames,
-         "Segment class index not defined");
+         ("Segment class index %i not defined", seg.class_idx));
         seg.overlay_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg.overlay_idx > omf->nnames,
-         "Segment overlay index not defined");
+         ("Segment overlay index %i not defined", seg.overlay_idx));
         xlink_omf_add_segment(omf, &seg);
         break;
       }
@@ -672,12 +676,12 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         xlink_omf_group grp;
         grp.name_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(grp.name_idx > omf->nnames,
-         "Group name index not defined");
+         ("Group name index %i not defined", grp.name_idx));
         grp.nsegments = 0;
         while (xlink_omf_record_has_data(&rec)) {
           unsigned char index;
           index = xlink_omf_record_read_byte(&rec);
-          XLINK_ERROR(index != 0xFF, "Invalid segment index");
+          XLINK_ERROR(index != 0xFF, ("Invalid segment index %i", index));
           grp.segments[grp.nsegments++] = xlink_omf_record_read_index(&rec);
         }
         xlink_omf_add_group(omf, &grp);
