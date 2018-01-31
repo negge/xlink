@@ -123,6 +123,14 @@ struct xlink_omf {
   } \
   while (0)
 
+void xlink_omf_init(xlink_omf *omf) {
+  memset(omf, 0, sizeof(xlink_omf));
+}
+
+void xlink_omf_clear(xlink_omf *omf) {
+  memset(omf, 0, sizeof(xlink_omf));
+}
+
 void xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   omf->recs[omf->nrecs++] = *rec;
 }
@@ -581,7 +589,7 @@ void xlink_omf_dump_relocations(xlink_omf *omf) {
 
 void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
   xlink_parse_ctx ctx;
-  memset(omf, 0, sizeof(xlink_omf));
+  xlink_omf_init(omf);
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   while (ctx.size > 0) {
     xlink_omf_record rec;
@@ -659,6 +667,9 @@ int main(int argc, char *argv[]) {
     modules = realloc(modules, nmodules*sizeof(xlink_omf));
     xlink_omf_load(&modules[nmodules - 1], &file);
     xlink_file_clear(&file);
+  }
+  for (c = 0; c < nmodules; c++) {
+    xlink_omf_clear(&modules[c]);
   }
   free(modules);
 }
