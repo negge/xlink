@@ -96,15 +96,16 @@ struct xlink_omf_record {
 };
 
 #define XLINK_MAX_RECORDS (1024)
-#define XLINK_MAX_STRLEN (256)
 #define XLINK_MAX_NAMES (1024)
+
+typedef char xlink_omf_string[256];
 
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
   xlink_omf_record recs[XLINK_MAX_RECORDS];
   int nrecs;
-  char labels[XLINK_MAX_NAMES][XLINK_MAX_STRLEN];
+  xlink_omf_string *labels;
   int nlabels;
   int segments[XLINK_MAX_NAMES];
   int nsegments;
@@ -128,6 +129,7 @@ void xlink_omf_init(xlink_omf *omf) {
 }
 
 void xlink_omf_clear(xlink_omf *omf) {
+  free(omf->labels);
   memset(omf, 0, sizeof(xlink_omf));
 }
 
@@ -136,7 +138,9 @@ void xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
 }
 
 int xlink_omf_add_name(xlink_omf *omf, const char *label) {
-  strcpy(omf->labels[omf->nlabels++], label);
+  omf->nlabels++;
+  omf->labels = realloc(omf->labels, omf->nlabels*sizeof(xlink_omf_string));
+  strcpy(omf->labels[omf->nlabels - 1], label);
   return omf->nlabels;
 }
 
@@ -399,19 +403,18 @@ void xlink_omf_dump_records(xlink_omf *omf) {
 void xlink_omf_dump_names(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
+  if (omf->nlabels > 0) {
+    printf("Local names:\n");
+    for (i = 0; i < omf->nlabels; i++) {
+      printf("%2i : '%s'\n", i, xlink_omf_get_name(omf, i + 1));
+    }
+  }
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
     switch (rec->type) {
       case OMF_THEADR :
       case OMF_LHEADR : {
         printf("Module: %s\n", xlink_omf_record_read_string(rec));
-        break;
-      }
-      case OMF_LNAMES : {
-        printf("Local names:\n");
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          printf("%2i : '%s'\n", j, xlink_omf_record_read_string(rec));
-        }
         break;
       }
       case OMF_COMDEF : {
