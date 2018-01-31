@@ -95,7 +95,6 @@ struct xlink_omf_record {
   const char *error;
 };
 
-#define XLINK_MAX_RECORDS (1024)
 #define XLINK_MAX_NAMES (1024)
 
 typedef char xlink_omf_string[256];
@@ -123,7 +122,7 @@ struct xlink_omf_group {
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
-  xlink_omf_record recs[XLINK_MAX_RECORDS];
+  xlink_omf_record *recs;
   int nrecs;
   xlink_omf_string *labels;
   int nlabels;
@@ -149,14 +148,18 @@ void xlink_omf_init(xlink_omf *omf) {
 }
 
 void xlink_omf_clear(xlink_omf *omf) {
+  free(omf->recs);
   free(omf->labels);
   free(omf->segments);
   free(omf->groups);
   memset(omf, 0, sizeof(xlink_omf));
 }
 
-void xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
-  omf->recs[omf->nrecs++] = *rec;
+int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
+  omf->nrecs++;
+  omf->recs = realloc(omf->recs, omf->nrecs*sizeof(xlink_omf_record));
+  omf->recs[omf->nrecs - 1] = *rec;
+  return omf->nrecs;
 }
 
 int xlink_omf_add_name(xlink_omf *omf, const char *label) {
