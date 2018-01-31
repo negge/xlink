@@ -260,11 +260,11 @@ xlink_omf_segment *xlink_omf_get_segment(xlink_omf *omf, int segment_idx) {
 }
 
 const char *xlink_omf_get_segment_name(xlink_omf *omf, int segment_idx) {
-  if (segment_idx == 0) return "none";
-  if (segment_idx <= omf->nsegments) {
-    return xlink_omf_get_name(omf, omf->segments[segment_idx - 1].name_idx);
-  }
-  return "?";
+  xlink_omf_segment *seg;
+  static char name[256];
+  seg = xlink_omf_get_segment(omf, segment_idx);
+  sprintf(name, "%s:%i", xlink_omf_get_name(omf, seg->name_idx), segment_idx);
+  return name;
 }
 
 int xlink_omf_add_group(xlink_omf *omf, xlink_omf_group *group) {
