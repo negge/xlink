@@ -143,6 +143,19 @@ struct xlink_omf {
   } \
   while (0)
 
+void *xlink_malloc(size_t size) {
+  void *ptr;
+  ptr = malloc(size);
+  XLINK_ERROR(ptr == NULL, "Insufficient memory for malloc");
+  return ptr;
+}
+
+void *xlink_realloc(void *ptr, size_t size) {
+  ptr = realloc(ptr, size);
+  XLINK_ERROR(ptr == NULL, "Insufficient memory for realloc");
+  return ptr;
+}
+
 void xlink_omf_init(xlink_omf *omf) {
   memset(omf, 0, sizeof(xlink_omf));
 }
@@ -157,14 +170,15 @@ void xlink_omf_clear(xlink_omf *omf) {
 
 int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   omf->nrecs++;
-  omf->recs = realloc(omf->recs, omf->nrecs*sizeof(xlink_omf_record));
+  omf->recs = xlink_realloc(omf->recs, omf->nrecs*sizeof(xlink_omf_record));
   omf->recs[omf->nrecs - 1] = *rec;
   return omf->nrecs;
 }
 
 int xlink_omf_add_name(xlink_omf *omf, const char *label) {
   omf->nlabels++;
-  omf->labels = realloc(omf->labels, omf->nlabels*sizeof(xlink_omf_string));
+  omf->labels =
+   xlink_realloc(omf->labels, omf->nlabels*sizeof(xlink_omf_string));
   strcpy(omf->labels[omf->nlabels - 1], label);
   return omf->nlabels;
 }
@@ -178,7 +192,7 @@ const char *xlink_omf_get_name(xlink_omf *omf, int name_idx) {
 int xlink_omf_add_segment(xlink_omf *omf, xlink_omf_segment *segment) {
   omf->nsegments++;
   omf->segments =
-   realloc(omf->segments, omf->nsegments*sizeof(xlink_omf_segment));
+   xlink_realloc(omf->segments, omf->nsegments*sizeof(xlink_omf_segment));
   omf->segments[omf->nsegments - 1] = *segment;
   return omf->nsegments;
 }
@@ -193,7 +207,8 @@ const char *xlink_omf_get_segment_name(xlink_omf *omf, int segment_idx) {
 
 int xlink_omf_add_group(xlink_omf *omf, xlink_omf_group *group) {
   omf->ngroups++;
-  omf->groups = realloc(omf->groups, omf->ngroups*sizeof(xlink_omf_group));
+  omf->groups =
+   xlink_realloc(omf->groups, omf->ngroups*sizeof(xlink_omf_group));
   omf->groups[omf->ngroups - 1] = *group;
   return omf->ngroups;
 }
@@ -236,7 +251,7 @@ int xlink_file_init(xlink_file *file, const char *name) {
   file->name = name;
   fseek(fp, 0, SEEK_END);
   file->size = ftell(fp);
-  file->buf = malloc(file->size);
+  file->buf = xlink_malloc(file->size);
   if (file->buf == NULL) {
     fprintf(stderr, "Error, could not allocate %i bytes\n", file->size);
     return EXIT_FAILURE;
@@ -696,7 +711,7 @@ int main(int argc, char *argv[]) {
     xlink_file file;
     xlink_file_init(&file, argv[c]);
     nmodules++;
-    modules = realloc(modules, nmodules*sizeof(xlink_omf));
+    modules = xlink_realloc(modules, nmodules*sizeof(xlink_omf));
     xlink_omf_load(&modules[nmodules - 1], &file);
     xlink_file_clear(&file);
   }
