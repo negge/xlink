@@ -117,6 +117,17 @@ struct xlink_omf_group {
   int nsegments;
 };
 
+typedef struct xlink_omf_public xlink_omf_public;
+
+struct xlink_omf_public {
+  int group_idx;
+  int segment_idx;
+  int base_frame;
+  xlink_omf_string name;
+  int offset;
+  int type_idx;
+};
+
 typedef struct xlink_omf_extern xlink_omf_extern;
 
 struct xlink_omf_extern {
@@ -135,6 +146,8 @@ struct xlink_omf {
   int nsegments;
   xlink_omf_group *groups;
   int ngroups;
+  xlink_omf_public *publics;
+  int npublics;
   xlink_omf_extern *externs;
   int nexterns;
 };
@@ -170,6 +183,7 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->labels);
   free(omf->segments);
   free(omf->groups);
+  free(omf->publics);
   free(omf->externs);
   memset(omf, 0, sizeof(xlink_omf));
 }
@@ -225,6 +239,14 @@ const char *xlink_omf_get_group_name(xlink_omf *omf, int group_idx) {
     return xlink_omf_get_name(omf, omf->groups[group_idx - 1].name_idx);
   }
   return "?";
+}
+
+int xlink_omf_add_public(xlink_omf *omf, xlink_omf_public *public) {
+  omf->npublics++;
+  omf->publics =
+   xlink_realloc(omf->publics, omf->npublics*sizeof(xlink_omf_public));
+  omf->publics[omf->npublics - 1] = *public;
+  return omf->npublics;
 }
 
 int xlink_omf_add_extern(xlink_omf *omf, xlink_omf_extern *ext) {
@@ -504,6 +526,17 @@ void xlink_omf_dump_names(xlink_omf *omf) {
 void xlink_omf_dump_symbols(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
+  if (omf->npublics > 0) {
+    printf("Public names:\n");
+    for (i = 0; i < omf->npublics; i++) {
+      xlink_omf_public *pub;
+      pub = &omf->publics[i];
+      printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n", i,
+       pub->name, xlink_omf_get_segment_name(omf, pub->segment_idx),
+       xlink_omf_get_group_name(omf, pub->group_idx), pub->offset,
+       pub->type_idx);
+    }
+  }
   if (omf->nexterns > 0) {
     printf("External names:\n");
     for (i = 0; i < omf->nexterns; i++) {
@@ -515,31 +548,6 @@ void xlink_omf_dump_symbols(xlink_omf *omf) {
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
     xlink_omf_record_reset(rec);
     switch (rec->type) {
-      case OMF_PUBDEF :
-      case OMF_LPUBDEF : {
-        int group_idx;
-        int segment_idx;
-        int base_frame;
-        printf("Public names:\n");
-        group_idx = xlink_omf_record_read_index(rec);
-        segment_idx = xlink_omf_record_read_index(rec);
-        base_frame = 0;
-        if (group_idx == 0 && segment_idx == 0) {
-          base_frame = xlink_omf_record_read_word(rec);
-        }
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          const char *str;
-          int offset;
-          int type_idx;
-          str = xlink_omf_record_read_string(rec);
-          offset = xlink_omf_record_read_numeric(rec);
-          type_idx = xlink_omf_record_read_index(rec);
-          printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n",
-           j, str, xlink_omf_get_segment_name(omf, segment_idx),
-           xlink_omf_get_group_name(omf, group_idx), offset, type_idx);
-        }
-        break;
-      }
       case OMF_CEXTDEF : {
         printf("Communal names:\n");
         for (j = 0; xlink_omf_record_has_data(rec); j++) {
@@ -664,6 +672,23 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
           grp.segments[grp.nsegments++] = xlink_omf_record_read_index(&rec);
         }
         xlink_omf_add_group(omf, &grp);
+        break;
+      }
+      case OMF_PUBDEF :
+      case OMF_LPUBDEF : {
+        xlink_omf_public pub;
+        pub.group_idx = xlink_omf_record_read_index(&rec);
+        pub.segment_idx = xlink_omf_record_read_index(&rec);
+        pub.base_frame = 0;
+        if (pub.group_idx == 0 && pub.segment_idx == 0) {
+          pub.base_frame = xlink_omf_record_read_word(&rec);
+        }
+        while (xlink_omf_record_has_data(&rec)) {
+          strcpy(pub.name, xlink_omf_record_read_string(&rec));
+          pub.offset = xlink_omf_record_read_numeric(&rec);
+          pub.type_idx = xlink_omf_record_read_index(&rec);
+          xlink_omf_add_public(omf, &pub);
+        }
         break;
       }
       case OMF_EXTDEF :
