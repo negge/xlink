@@ -370,7 +370,7 @@ unsigned int xlink_omf_record_read_length(xlink_omf_record *rec) {
       return xlink_omf_record_read_dword(rec);
     }
     default : {
-      XLINK_ERROR(length > 0x80, ("Invalid length"));
+      XLINK_ERROR(length > 0x80, ("Invalid length %i", length));
       return length;
     }
   }
@@ -415,13 +415,14 @@ unsigned int xlink_omf_record_read_lidata_block(xlink_omf_record *rec) {
 static void xlink_parse_omf_record(xlink_omf_record *rec,
  xlink_parse_ctx *ctx) {
   unsigned char checksum;
-  XLINK_ERROR(ctx->size < 3, ("3 bytes needed for a record"));
+  XLINK_ERROR(ctx->size < 3,
+   ("Need 3 bytes for a record but only have %i", ctx->size));
   rec->buf = ctx->pos;
   rec->idx = 0;
   rec->type = xlink_omf_record_read_byte(rec);
   rec->size = xlink_omf_record_read_word(rec);
   XLINK_ERROR(ctx->size - 3 < rec->size,
-   ("Record extends past the end of file"));
+   ("Record extends %i bytes past the end of file", rec->size - ctx->size + 3));
   ctx->pos += 3 + rec->size;
   ctx->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
@@ -431,7 +432,7 @@ static void xlink_parse_omf_record(xlink_omf_record *rec,
       checksum += rec->buf[i];
     }
   }
-  XLINK_ERROR(checksum != 0, ("Invalid checksum."));
+  XLINK_ERROR(checksum != 0, ("Invalid checksum, expected 0 got %i", checksum));
 }
 
 static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
@@ -659,7 +660,7 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         }
         seg.length = xlink_omf_record_read_numeric(&rec);
         XLINK_ERROR(seg.attrib.big && seg.length != 0,
-         ("Invalid length field"));
+         ("Invalid length for 'big' segment, expected 0 got %i", seg.length));
         seg.name_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg.name_idx > omf->nnames,
          ("Segment name index %i not defined", seg.name_idx));
