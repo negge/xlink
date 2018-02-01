@@ -251,6 +251,20 @@ struct xlink_omf_extern {
   int type_idx;
 };
 
+typedef struct xlink_omf_reloc xlink_omf_reloc;
+
+struct xlink_omf_reloc {
+  int segment_idx;
+  unsigned int offset;
+  int mode;
+  xlink_omf_location location;
+  xlink_omf_frame frame;
+  xlink_omf_target target;
+  int frame_idx;
+  int target_idx;
+  unsigned int disp;
+};
+
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
@@ -267,6 +281,11 @@ struct xlink_omf {
   int npublics;
   xlink_omf_extern *externs;
   int nexterns;
+  xlink_omf_reloc *relocs;
+  int nrelocs;
+
+  int segment_idx;
+  int offset;
 };
 
 void xlink_log(const char *fmt, ...) {
@@ -317,6 +336,7 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->groups);
   free(omf->publics);
   free(omf->externs);
+  free(omf->relocs);
   memset(omf, 0, sizeof(xlink_omf));
 }
 
@@ -400,6 +420,125 @@ const char *xlink_omf_get_extern_name(xlink_omf *omf, int extern_idx) {
     return omf->externs[extern_idx - 1].name;
   }
   return "?";
+}
+
+int xlink_omf_add_reloc(xlink_omf *omf, xlink_omf_reloc *reloc) {
+  omf->nrelocs++;
+  omf->relocs =
+   xlink_realloc(omf->relocs, omf->nrelocs*sizeof(xlink_omf_reloc));
+  omf->relocs[omf->nrelocs - 1] = *reloc;
+  return omf->nrelocs;
+}
+
+xlink_omf_reloc *xlink_omf_get_reloc(xlink_omf *omf, int reloc_idx) {
+  XLINK_ERROR(reloc_idx < 1 || reloc_idx > omf->nrelocs,
+   ("Could not get reloc %i, nrelocs = %i", reloc_idx, omf->nrelocs));
+  return &omf->relocs[reloc_idx - 1];
+}
+
+const char *xlink_omf_get_reloc_frame(xlink_omf *omf, xlink_omf_frame frame,
+ int index) {
+  static char buf[256];
+  char str[256];
+  switch (frame) {
+    case OMF_FRAME_SEG : {
+      sprintf(str, "segment %s", xlink_omf_get_segment_name(omf, index));
+      break;
+    }
+    case OMF_FRAME_GRP : {
+      sprintf(str, "group %s", xlink_omf_get_group_name(omf, index));
+      break;
+    }
+    case OMF_FRAME_EXT : {
+      sprintf(str, "extern %s", xlink_omf_get_extern_name(omf, index));
+      break;
+    }
+    case OMF_FRAME_ABS : {
+      sprintf(str, "absolute %i", index);
+      break;
+    }
+    case OMF_FRAME_LOC : {
+      sprintf(str, "prevloc");
+      break;
+    }
+    case OMF_FRAME_TARG : {
+      sprintf(str, "target");
+      break;
+    }
+    default : {
+      sprintf(str, "index = %i", index);
+    }
+  }
+  sprintf(buf, "F%i %s", frame, str);
+  return buf;
+}
+
+const char *xlink_omf_get_reloc_target(xlink_omf *omf, xlink_omf_target target,
+ int index) {
+  static char buf[256];
+  char str[256];
+  switch (target) {
+    case OMF_TARGET_SEG :
+    case OMF_TARGET_SEG_DISP : {
+      sprintf(str, "segment %s", xlink_omf_get_segment_name(omf, index));
+      break;
+    }
+    case OMF_TARGET_GRP :
+    case OMF_TARGET_GRP_DISP : {
+      sprintf(str, "group %s", xlink_omf_get_group_name(omf, index));
+      break;
+    }
+    case OMF_TARGET_EXT :
+    case OMF_TARGET_EXT_DISP : {
+      sprintf(str, "extern %s", xlink_omf_get_extern_name(omf, index));
+      break;
+    }
+    case OMF_TARGET_ABS :
+    case OMF_TARGET_ABS_DISP : {
+      sprintf(str, "absolute %i", index);
+      break;
+    }
+  }
+  sprintf(buf, "T%i %s", target, str);
+  return buf;
+}
+
+const char *xlink_omf_get_reloc_addend(xlink_omf *omf,
+ xlink_omf_location location, const unsigned char *data) {
+  static char buf[256];
+  char str[256];
+  switch (location) {
+    case OMF_LOCATION_8BIT :
+    case OMF_LOCATION_8BIT_HIGH : {
+      sprintf(str, "0x%x", *(uint8_t *)data);
+      break;
+    }
+    case OMF_LOCATION_16BIT :
+    case OMF_LOCATION_SEGMENT :
+    case OMF_LOCATION_16BIT_LOADER : {
+      sprintf(str, "0x%x", *(uint16_t *)data);
+      break;
+    }
+    case OMF_LOCATION_FAR : {
+      sprintf(str, "0x%x:0x%x", *(uint16_t *)(data + 2), *(uint16_t *)data);
+      break;
+    }
+    case OMF_LOCATION_32BIT :
+    case OMF_LOCATION_32BIT_LOADER : {
+      sprintf(str, "0x%x", *(uint32_t *)data);
+      break;
+    }
+    case OMF_LOCATION_48BIT :
+    case OMF_LOCATION_48BIT_PHARLAP : {
+      sprintf(str, "0x%x:0x%x", *(uint16_t *)(data + 4), *(uint32_t *)data);
+      break;
+    }
+    default : {
+      XLINK_ERROR(1, ("Unsupported location %i", location));
+    }
+  }
+  sprintf(buf, "addend %s", str);
+  return buf;
 }
 
 void xlink_omf_segment_clear(xlink_omf_segment *segment) {
@@ -725,8 +864,6 @@ void xlink_omf_dump_segments(xlink_omf *omf) {
 void xlink_omf_dump_relocations(xlink_omf *omf) {
   int i, j;
   xlink_omf_record *rec;
-  int segment_idx;
-  int offset;
   for (i = 0; i < omf->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = &omf->segments[i];
@@ -738,9 +875,10 @@ void xlink_omf_dump_relocations(xlink_omf *omf) {
       }
     }
   }
-  segment_idx = 0;
   printf("LEDATA, LIDATA, COMDAT and FIXUPP records:\n");
   for (i = 0, rec = omf->recs; i < omf->nrecs; i++, rec++) {
+    int segment_idx;
+    int offset;
     xlink_omf_record_reset(rec);
     switch (rec->type) {
       case OMF_LEDATA : {
@@ -761,158 +899,19 @@ void xlink_omf_dump_relocations(xlink_omf *omf) {
       case OMF_COMDAT : {
         break;
       }
-      case OMF_FIXUPP : {
-        while (xlink_omf_record_has_data(rec)) {
-          unsigned char byte;
-          byte = xlink_omf_record_read_byte(rec);
-          if (byte & 0x80) {
-            xlink_omf_segment *seg;
-            xlink_omf_fixup_locat locat;
-            xlink_omf_fixup_fixdata fixdata;
-            int loc;
-            XLINK_ERROR(segment_idx == 0, ("Got FIXUP before LxDATA record"));
-            seg = xlink_omf_get_segment(omf, segment_idx);
-            locat.b0 = byte;
-            locat.b1 = xlink_omf_record_read_byte(rec);
-            XLINK_ERROR(locat.high != 1, ("Expecting FIXUP subrecord"));
-            loc = offset + locat.offset;
-            XLINK_ERROR(seg->length < loc + OMF_FIXUP_SIZE[locat.location],
-             ("FIXUP location %i past segment end %i", loc, seg->length));
-            for (j = 0; j < OMF_FIXUP_SIZE[locat.location]; j++) {
-              XLINK_ERROR(GETBIT(seg->mask, loc + j) == 0,
-               ("FIXUP modifies uninitialized data, location %i", loc + j));
-            }
-            fixdata.b = xlink_omf_record_read_byte(rec);
-            printf("  FIXUPP: %s %s, segment %s, offset 0x%x",
-             OMF_FIXUP_MODE[locat.mode], OMF_FIXUP_LOCATION[locat.location],
-             xlink_omf_get_segment_name(omf, segment_idx), locat.offset);
-            if (!fixdata.th_frame) {
-              int index;
-              index = 0;
-              if (fixdata.frame < OMF_FRAME_LOC) {
-                index = xlink_omf_record_read_index(rec);
-              }
-              printf(", F%i ", fixdata.frame);
-              switch (fixdata.frame) {
-                case OMF_FRAME_SEG : {
-                  printf("segment %s", xlink_omf_get_segment_name(omf, index));
-                  break;
-                }
-                case OMF_FRAME_GRP : {
-                  printf("group %s", xlink_omf_get_group_name(omf, index));
-                  break;
-                }
-                case OMF_FRAME_EXT : {
-                  printf("extern %s", xlink_omf_get_extern_name(omf, index));
-                  break;
-                }
-                case OMF_FRAME_ABS : {
-                  printf("absolute %i", index);
-                  break;
-                }
-                case OMF_FRAME_LOC : {
-                  printf("prevloc");
-                  break;
-                }
-                case OMF_FRAME_TARG : {
-                  printf("target");
-                  break;
-                }
-                default : {
-                  printf("index = %i", index);
-                }
-              }
-            }
-            else {
-              printf(", frame uses thread %i", fixdata.frame&0x3);
-            }
-            if (!fixdata.th_target) {
-              int index;
-              int method;
-              index = xlink_omf_record_read_index(rec);
-              method = (fixdata.no_disp << 2) + fixdata.target;
-              printf(", T%i ", method);
-              switch (method) {
-                case OMF_TARGET_SEG :
-                case OMF_TARGET_SEG_DISP : {
-                  printf("segment %s", xlink_omf_get_segment_name(omf, index));
-                  break;
-                }
-                case OMF_TARGET_GRP :
-                case OMF_TARGET_GRP_DISP : {
-                  printf("group %s", xlink_omf_get_group_name(omf, index));
-                  break;
-                }
-                case OMF_TARGET_EXT :
-                case OMF_TARGET_EXT_DISP : {
-                  printf("extern %s", xlink_omf_get_extern_name(omf, index));
-                  break;
-                }
-                case OMF_TARGET_ABS :
-                case OMF_TARGET_ABS_DISP : {
-                  printf("absolute %i", index);
-                  break;
-                }
-              }
-            }
-            else {
-              printf(", target uses thread %i", fixdata.target);
-            }
-            if (!fixdata.no_disp) {
-              printf(", disp %x", xlink_omf_record_read_numeric(rec));
-            }
-            switch (locat.location) {
-              case OMF_LOCATION_8BIT :
-              case OMF_LOCATION_8BIT_HIGH : {
-                printf(", addend 0x%x\n", *(uint8_t *)(seg->data + loc));
-                break;
-              }
-              case OMF_LOCATION_16BIT :
-              case OMF_LOCATION_SEGMENT :
-              case OMF_LOCATION_16BIT_LOADER : {
-                printf(", addend 0x%x\n", *(uint16_t *)(seg->data + loc));
-                break;
-              }
-              case OMF_LOCATION_FAR : {
-                printf(" addend 0x%x:0x%x\n",
-                 *(uint16_t *)(seg->data + loc + 2),
-                 *(uint16_t *)(seg->data + loc));
-                break;
-              }
-              case OMF_LOCATION_32BIT :
-              case OMF_LOCATION_32BIT_LOADER : {
-                printf(" addend 0x%x\n", *(uint32_t *)(seg->data + loc));
-                break;
-              }
-              case OMF_LOCATION_48BIT :
-              case OMF_LOCATION_48BIT_PHARLAP : {
-                printf(" addend 0x%x:0x%x\n",
-                 *(uint16_t *)(seg->data + loc + 4),
-                 *(uint32_t *)(seg->data + loc));
-                break;
-              }
-              default : {
-                XLINK_ERROR(1, ("Unsupported location %i", locat.location));
-              }
-            }
-          }
-          else {
-            xlink_omf_fixup_thread th;
-            int index;
-            th.b = byte;
-            XLINK_ERROR(th.high != 0, ("Expecting THREAD subrecord"));
-            index = 0;
-            if (th.method < OMF_FRAME_LOC) {
-              index = xlink_omf_record_read_index(rec);
-            }
-            printf("  FIXUPP: %s thread %i, method %c%i, index %i\n",
-             th.is_frame ? "frame" : "target", th.thread,
-             th.is_frame ? 'F' : 'T', th.method, index);
-          }
-        }
-        break;
-      }
     }
+  }
+  for (i = 0; i < omf->nrelocs; i++) {
+    xlink_omf_reloc *rel;
+    xlink_omf_segment *seg;
+    rel = &omf->relocs[i];
+    seg = xlink_omf_get_segment(omf, rel->segment_idx);
+    printf("  FIXUPP: %s %s, segment %s, offset 0x%x, %s, %s, %s\n",
+     OMF_FIXUP_MODE[rel->mode], OMF_FIXUP_LOCATION[rel->location],
+     xlink_omf_get_segment_name(omf, rel->segment_idx), rel->offset,
+     xlink_omf_get_reloc_frame(omf, rel->frame, rel->frame_idx),
+     xlink_omf_get_reloc_target(omf, rel->target, rel->target_idx),
+     xlink_omf_get_reloc_addend(omf, rel->location, seg->data + rel->offset));
   }
 }
 
@@ -922,6 +921,7 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   while (ctx.size > 0) {
     xlink_omf_record rec;
+    int i;
     xlink_parse_omf_record(&rec, &ctx);
     xlink_omf_add_record(omf, &rec);
     switch (rec.type) {
@@ -1011,24 +1011,81 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
         break;
       }
       case OMF_LEDATA : {
-        int segment_idx;
-        int offset;
         xlink_omf_segment *seg;
-        segment_idx = xlink_omf_record_read_index(&rec);
-        offset = xlink_omf_record_read_numeric(&rec);
-        seg = xlink_omf_get_segment(omf, segment_idx);
+        omf->segment_idx = xlink_omf_record_read_index(&rec);
+        omf->offset = xlink_omf_record_read_numeric(&rec);
+        seg = xlink_omf_get_segment(omf, omf->segment_idx);
         seg->info |= SEG_HAS_DATA;
-        for (; xlink_omf_record_has_data(&rec); offset++) {
-          XLINK_ERROR(offset >= seg->length,
+        for (i = omf->offset; xlink_omf_record_has_data(&rec); i++) {
+          XLINK_ERROR(i >= seg->length,
            ("LEDATA wrote past end of segment, offset = %i but length = %i",
-           offset, seg->length));
-          XLINK_ERROR(GETBIT(seg->mask, offset),
+           i, seg->length));
+          XLINK_ERROR(GETBIT(seg->mask, i),
            ("LEDATA overwrote existing data in segment %s, offset = %i",
-           xlink_omf_get_segment_name(omf, segment_idx), offset));
-          seg->data[offset] = xlink_omf_record_read_byte(&rec);
-          SETBIT(seg->mask, offset);
+           xlink_omf_get_segment_name(omf, omf->segment_idx), i));
+          seg->data[i] = xlink_omf_record_read_byte(&rec);
+          SETBIT(seg->mask, i);
         }
         break;
+      }
+      case OMF_FIXUPP : {
+        while (xlink_omf_record_has_data(&rec)) {
+          unsigned char byte;
+          byte = xlink_omf_record_read_byte(&rec);
+          if (byte & 0x80) {
+            xlink_omf_segment *seg;
+            xlink_omf_reloc rel;
+            xlink_omf_fixup_locat locat;
+            xlink_omf_fixup_fixdata fixdata;
+            XLINK_ERROR(!omf->segment_idx, ("Got FIXUP before LxDATA record"));
+            rel.segment_idx = omf->segment_idx;
+            seg = xlink_omf_get_segment(omf, rel.segment_idx);
+            locat.b0 = byte;
+            locat.b1 = xlink_omf_record_read_byte(&rec);
+            XLINK_ERROR(locat.high != 1, ("Expecting FIXUP subrecord"));
+            rel.offset = locat.offset + omf->offset;
+            rel.mode = locat.mode;
+            rel.location = locat.location;
+            XLINK_ERROR(seg->length < rel.offset + OMF_FIXUP_SIZE[rel.location],
+             ("FIXUP offset %i past segment end %i", rel.offset, seg->length));
+            for (i = 0; i < OMF_FIXUP_SIZE[rel.location]; i++) {
+              XLINK_ERROR(GETBIT(seg->mask, rel.offset + i) == 0,
+               ("FIXUP modifies uninitialized data, location %i",
+               rel.offset + i));
+            }
+            fixdata.b = xlink_omf_record_read_byte(&rec);
+            if (!fixdata.th_frame) {
+              rel.frame = fixdata.frame;
+              rel.frame_idx = 0;
+              if (fixdata.frame < OMF_FRAME_LOC) {
+                rel.frame_idx = xlink_omf_record_read_index(&rec);
+              }
+            }
+            else {
+              // TODO: Get frame info from thread in xlink_omf struct
+            }
+            if (!fixdata.th_target) {
+              rel.target = (fixdata.no_disp << 2) + fixdata.target;
+              rel.target_idx = xlink_omf_record_read_index(&rec);
+            }
+            else {
+              // TODO: Get target info from thread in xlink_omf struct
+            }
+            if (!fixdata.no_disp) {
+              rel.disp = xlink_omf_record_read_numeric(&rec);
+            }
+            xlink_omf_add_reloc(omf, &rel);
+          }
+          else {
+            xlink_omf_fixup_thread th;
+            int index;
+            XLINK_ERROR(th.high != 0, ("Expecting THREAD subrecord"));
+            index = 0;
+            if (th.method < OMF_FRAME_LOC) {
+              index = xlink_omf_record_read_index(&rec);
+            }
+          }
+        }
       }
     }
   }
