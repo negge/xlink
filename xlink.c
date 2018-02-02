@@ -979,6 +979,8 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
           index = xlink_omf_record_read_byte(&rec);
           XLINK_ERROR(index != 0xFF, ("Invalid segment index %i", index));
           grp.segments[grp.nsegments++] = xlink_omf_record_read_index(&rec);
+          XLINK_ERROR(grp.segments[grp.nsegments - 1] > omf->nsegments,
+           ("Segment index %i not defined", grp.segments[grp.nsegments - 1]));
         }
         xlink_omf_add_group(omf, &grp);
         break;
@@ -1013,6 +1015,8 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
       case OMF_LEDATA : {
         xlink_omf_segment *seg;
         omf->segment_idx = xlink_omf_record_read_index(&rec);
+        XLINK_ERROR(omf->segment_idx < 1 || omf->segment_idx > omf->nsegments,
+         ("Segment index %i not defined", omf->segment_idx));
         omf->offset = xlink_omf_record_read_numeric(&rec);
         seg = xlink_omf_get_segment(omf, omf->segment_idx);
         seg->info |= SEG_HAS_DATA;
@@ -1059,6 +1063,23 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
               rel.frame_idx = 0;
               if (fixdata.frame < OMF_FRAME_LOC) {
                 rel.frame_idx = xlink_omf_record_read_index(&rec);
+                switch (rel.frame) {
+                  case OMF_FRAME_SEG : {
+                    XLINK_ERROR(rel.frame_idx > omf->nsegments,
+                     ("Segment index %i not defined", rel.frame_idx));
+                    break;
+                  }
+                  case OMF_FRAME_GRP : {
+                    XLINK_ERROR(rel.frame_idx > omf->ngroups,
+                     ("Group index %i not defined", rel.frame_idx));
+                    break;
+                  }
+                  case OMF_FRAME_EXT : {
+                    XLINK_ERROR(rel.frame_idx > omf->nexterns,
+                     ("Extern index %i not defined", rel.frame_idx));
+                    break;
+                  }
+                }
               }
             }
             else {
@@ -1067,6 +1088,26 @@ void xlink_omf_load(xlink_omf *omf, xlink_file *file) {
             if (!fixdata.th_target) {
               rel.target = (fixdata.no_disp << 2) + fixdata.target;
               rel.target_idx = xlink_omf_record_read_index(&rec);
+              switch (rel.target) {
+                case OMF_TARGET_SEG :
+                case OMF_TARGET_SEG_DISP : {
+                  XLINK_ERROR(rel.target_idx > omf->nsegments,
+                   ("Segment index %i not defined", rel.target_idx));
+                  break;
+                }
+                case OMF_TARGET_GRP :
+                case OMF_TARGET_GRP_DISP : {
+                  XLINK_ERROR(rel.target_idx > omf->ngroups,
+                   ("Group index %i not defined", rel.target_idx));
+                  break;
+                }
+                case OMF_TARGET_EXT :
+                case OMF_TARGET_EXT_DISP : {
+                  XLINK_ERROR(rel.target_idx > omf->nexterns,
+                   ("Extern index %i not defined", rel.target_idx));
+                  break;
+                }
+              }
             }
             else {
               // TODO: Get target info from thread in xlink_omf struct
