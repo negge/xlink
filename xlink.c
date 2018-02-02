@@ -268,7 +268,6 @@ struct xlink_omf_reloc {
 typedef struct xlink_omf xlink_omf;
 
 struct xlink_omf {
-  xlink_omf_string name;
   xlink_omf_record *records;
   int nrecords;
 
@@ -279,6 +278,8 @@ struct xlink_omf {
 typedef struct xlink_binary xlink_binary;
 
 struct xlink_binary {
+  xlink_omf_name *modules;
+  int nmodules;
   xlink_omf_name *names;
   int nnames;
   xlink_omf_segment *segments;
@@ -358,6 +359,27 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
    xlink_realloc(omf->records, omf->nrecords*sizeof(xlink_omf_record));
   omf->records[omf->nrecords - 1] = *rec;
   return omf->nrecords;
+}
+
+int xlink_binary_add_module(xlink_binary *bin, xlink_omf_name *module) {
+  bin->nmodules++;
+  bin->modules =
+   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_name));
+  bin->modules[bin->nmodules - 1] = *module;
+  return bin->nmodules;
+}
+
+xlink_omf_name *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
+  XLINK_ERROR(module_idx < 1 || module_idx > bin->nmodules,
+   ("Could not get module %i, nmodules = %i", module_idx, bin->nmodules));
+  return &bin->modules[module_idx - 1];
+}
+
+const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
+  static char name[256];
+  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->name,
+   module_idx);
+  return name;
 }
 
 int xlink_binary_add_name(xlink_binary *bin, xlink_omf_name *name) {
@@ -772,7 +794,7 @@ void xlink_omf_dump_records(xlink_omf *omf) {
 void xlink_omf_dump_names(xlink_omf *omf, xlink_binary *bin) {
   int i, j;
   xlink_omf_record *rec;
-  printf("Module: %s\n", omf->name);
+  printf("Module: %s\n", xlink_binary_get_module_name(bin, bin->nmodules));
   if (bin->nnames > 0) {
     printf("Local names:\n");
     for (i = 0; i < bin->nnames; i++) {
@@ -944,7 +966,9 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
     switch (rec.type) {
       case OMF_THEADR :
       case OMF_LHEADR : {
-        strcpy(omf.name, xlink_omf_record_read_string(&rec));
+        xlink_omf_name module;
+        strcpy(module.name, xlink_omf_record_read_string(&rec));
+        xlink_binary_add_module(bin, &module);
         break;
       }
       case OMF_LNAMES :
