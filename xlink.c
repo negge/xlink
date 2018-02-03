@@ -431,12 +431,19 @@ int xlink_binary_add_group(xlink_binary *bin, xlink_omf_group *group) {
   return bin->ngroups;
 }
 
+xlink_omf_group *xlink_binary_get_group(xlink_binary *bin, int group_idx) {
+  XLINK_ERROR(group_idx < 1 || group_idx > bin->ngroups,
+   ("Could not get group %i, ngroup = %i", group_idx, bin->ngroups));
+  return &bin->groups[group_idx - 1];
+}
+
 const char *xlink_binary_get_group_name(xlink_binary *bin, int group_idx) {
-  if (group_idx == 0) return "none";
-  if (group_idx <= bin->ngroups) {
-    return xlink_binary_get_name(bin, bin->groups[group_idx - 1].name_idx);
-  }
-  return "?";
+  xlink_omf_group *grp;
+  static char name[256];
+  grp = xlink_binary_get_group(bin, group_idx);
+  sprintf(name, "%s:%i", xlink_binary_get_name(bin, grp->name_idx),
+   group_idx);
+  return name;
 }
 
 int xlink_binary_add_public(xlink_binary *bin, xlink_omf_public *public) {
