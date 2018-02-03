@@ -242,6 +242,8 @@ struct xlink_omf_public {
   xlink_omf_string name;
   int offset;
   int type_idx;
+
+  int module_idx;
 };
 
 typedef struct xlink_omf_extern xlink_omf_extern;
@@ -249,6 +251,8 @@ typedef struct xlink_omf_extern xlink_omf_extern;
 struct xlink_omf_extern {
   xlink_omf_string name;
   int type_idx;
+
+  int module_idx;
 };
 
 typedef struct xlink_omf_reloc xlink_omf_reloc;
@@ -1035,6 +1039,10 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
         if (pub.group_idx == 0 && pub.segment_idx == 0) {
           pub.base_frame = xlink_omf_record_read_word(&rec);
         }
+        pub.module_idx = 0;
+        if (rec.type == OMF_LPUBDEF) {
+          pub.module_idx = bin->nmodules;
+        }
         while (xlink_omf_record_has_data(&rec)) {
           strcpy(pub.name, xlink_omf_record_read_string(&rec));
           pub.offset = xlink_omf_record_read_numeric(&rec);
@@ -1045,8 +1053,12 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
       }
       case OMF_EXTDEF :
       case OMF_LEXTDEF : {
+        xlink_omf_extern ext;
+        ext.module_idx = 0;
+        if (rec.type == OMF_LEXTDEF) {
+          ext.module_idx = bin->nmodules;
+        }
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_extern ext;
           strcpy(ext.name, xlink_omf_record_read_string(&rec));
           ext.type_idx = xlink_omf_record_read_index(&rec);
           xlink_binary_add_extern(bin, &ext);
