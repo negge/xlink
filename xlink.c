@@ -455,12 +455,17 @@ int xlink_binary_add_extern(xlink_binary *bin, xlink_omf_extern *ext) {
   return bin->nexterns;
 }
 
+xlink_omf_extern *xlink_binary_get_extern(xlink_binary *bin, int extern_idx) {
+  XLINK_ERROR(extern_idx < 1 || extern_idx > bin->nexterns,
+   ("Could not get extern %i, nexterns = %i", extern_idx, bin->nexterns));
+  return &bin->externs[extern_idx - 1];
+}
+
 const char *xlink_binary_get_extern_name(xlink_binary *bin, int extern_idx) {
-  if (extern_idx == 0) return "none";
-  if (extern_idx <= bin->nexterns) {
-    return bin->externs[extern_idx - 1].name;
-  }
-  return "?";
+  static char name[256];
+  sprintf(name, "%s:%i", xlink_binary_get_extern(bin, extern_idx)->name,
+   extern_idx);
+  return name;
 }
 
 int xlink_binary_add_reloc(xlink_binary *bin, xlink_omf_reloc *reloc) {
