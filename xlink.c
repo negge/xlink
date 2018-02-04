@@ -279,10 +279,28 @@ struct xlink_omf {
   int offset;
 };
 
+typedef struct xlink_omf_module xlink_omf_module;
+
+struct xlink_omf_module {
+  char name[256];
+  int name_base;
+  int nnames;
+  int seg_base;
+  int nsegments;
+  int grp_base;
+  int ngroups;
+  int pub_base;
+  int npublics;
+  int ext_base;
+  int nexterns;
+  int rel_base;
+  int nrelocs;
+};
+
 typedef struct xlink_binary xlink_binary;
 
 struct xlink_binary {
-  xlink_omf_name *modules;
+  xlink_omf_module *modules;
   int nmodules;
   xlink_omf_name *names;
   int nnames;
@@ -297,6 +315,8 @@ struct xlink_binary {
   xlink_omf_reloc *relocs;
   int nrelocs;
 };
+
+xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx);
 
 void xlink_log(const char *fmt, ...) {
   va_list ap;
@@ -365,15 +385,31 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   return omf->nrecords;
 }
 
-int xlink_binary_add_module(xlink_binary *bin, xlink_omf_name *module) {
+int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
+  if (bin->nmodules > 0) {
+    xlink_omf_module *mod;
+    mod = xlink_binary_get_module(bin, bin->nmodules);
+    mod->nnames = bin->nnames - mod->name_base;
+    mod->nsegments = bin->nsegments - mod->seg_base;
+    mod->ngroups = bin->ngroups - mod->grp_base;
+    mod->npublics = bin->npublics - mod->pub_base;
+    mod->nexterns = bin->nexterns - mod->ext_base;
+    mod->nrelocs = bin->nrelocs - mod->rel_base;
+  }
+  module->name_base = bin->nnames;
+  module->seg_base = bin->nsegments;
+  module->grp_base = bin->ngroups;
+  module->pub_base = bin->npublics;
+  module->ext_base = bin->nexterns;
+  module->rel_base = bin->nrelocs;
   bin->nmodules++;
   bin->modules =
-   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_name));
+   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module));
   bin->modules[bin->nmodules - 1] = *module;
   return bin->nmodules;
 }
 
-xlink_omf_name *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
+xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
   XLINK_ERROR(module_idx < 1 || module_idx > bin->nmodules,
    ("Could not get module %i, nmodules = %i", module_idx, bin->nmodules));
   return &bin->modules[module_idx - 1];
@@ -982,7 +1018,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
     switch (rec.type) {
       case OMF_THEADR :
       case OMF_LHEADR : {
-        xlink_omf_name module;
+        xlink_omf_module module;
         strcpy(module.name, xlink_omf_record_read_string(&rec));
         xlink_binary_add_module(bin, &module);
         break;
