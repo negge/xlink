@@ -274,9 +274,6 @@ typedef struct xlink_omf xlink_omf;
 struct xlink_omf {
   xlink_omf_record *records;
   int nrecords;
-
-  int segment_idx;
-  int offset;
 };
 
 typedef struct xlink_omf_module xlink_omf_module;
@@ -1008,8 +1005,11 @@ void xlink_omf_dump_relocations(xlink_omf *omf, xlink_binary *bin) {
 void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_parse_ctx ctx;
   xlink_omf omf;
+  int segment_idx;
+  int offset;
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
+  segment_idx = 0;
   while (ctx.size > 0) {
     xlink_omf_record rec;
     int i;
@@ -1115,19 +1115,19 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
       }
       case OMF_LEDATA : {
         xlink_omf_segment *seg;
-        omf.segment_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(omf.segment_idx < 1 || omf.segment_idx > bin->nsegments,
-         ("Segment index %i not defined", omf.segment_idx));
-        omf.offset = xlink_omf_record_read_numeric(&rec);
-        seg = xlink_binary_get_segment(bin, omf.segment_idx);
+        segment_idx = xlink_omf_record_read_index(&rec);
+        XLINK_ERROR(segment_idx < 1 || segment_idx > bin->nsegments,
+         ("Segment index %i not defined", segment_idx));
+        offset = xlink_omf_record_read_numeric(&rec);
+        seg = xlink_binary_get_segment(bin, segment_idx);
         seg->info |= SEG_HAS_DATA;
-        for (i = omf.offset; xlink_omf_record_has_data(&rec); i++) {
+        for (i = offset; xlink_omf_record_has_data(&rec); i++) {
           XLINK_ERROR(i >= seg->length,
            ("LEDATA wrote past end of segment, offset = %i but length = %i",
            i, seg->length));
           XLINK_ERROR(GETBIT(seg->mask, i),
            ("LEDATA overwrote existing data in segment %s, offset = %i",
-           xlink_binary_get_segment_name(bin, omf.segment_idx), i));
+           xlink_binary_get_segment_name(bin, segment_idx), i));
           seg->data[i] = xlink_omf_record_read_byte(&rec);
           SETBIT(seg->mask, i);
         }
@@ -1142,13 +1142,13 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
             xlink_omf_reloc rel;
             xlink_omf_fixup_locat locat;
             xlink_omf_fixup_fixdata fixdata;
-            XLINK_ERROR(!omf.segment_idx, ("Got FIXUP before LxDATA record"));
-            rel.segment_idx = omf.segment_idx;
+            XLINK_ERROR(segment_idx == 0, ("Got FIXUP before LxDATA record"));
+            rel.segment_idx = segment_idx;
             seg = xlink_binary_get_segment(bin, rel.segment_idx);
             locat.b0 = byte;
             locat.b1 = xlink_omf_record_read_byte(&rec);
             XLINK_ERROR(locat.high != 1, ("Expecting FIXUP subrecord"));
-            rel.offset = locat.offset + omf.offset;
+            rel.offset = locat.offset + offset;
             rel.mode = locat.mode;
             rel.location = locat.location;
             XLINK_ERROR(seg->length < rel.offset + OMF_FIXUP_SIZE[rel.location],
