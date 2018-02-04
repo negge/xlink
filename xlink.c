@@ -853,8 +853,8 @@ void xlink_omf_dump_symbols(xlink_omf *omf, xlink_binary *bin) {
       pub = &bin->publics[i];
       printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n", i,
        pub->name, xlink_binary_get_segment_name(bin, pub->segment_idx),
-       xlink_binary_get_group_name(bin, pub->group_idx), pub->offset,
-       pub->type_idx);
+       pub->group_idx ? xlink_binary_get_group_name(bin, pub->group_idx) : ":0",
+       pub->offset, pub->type_idx);
     }
   }
   if (bin->nexterns > 0) {
