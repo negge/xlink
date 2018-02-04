@@ -1041,7 +1041,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
         pub.group_idx = xlink_omf_record_read_index(&rec);
         pub.segment_idx = xlink_omf_record_read_index(&rec);
         pub.base_frame = 0;
-        if (pub.group_idx == 0 && pub.segment_idx == 0) {
+        if (pub.segment_idx == 0) {
           pub.base_frame = xlink_omf_record_read_word(&rec);
         }
         pub.module_idx = 0;
