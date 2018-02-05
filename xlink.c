@@ -841,8 +841,7 @@ void xlink_omf_dump_records(xlink_omf *omf) {
 }
 
 void xlink_omf_dump_names(xlink_omf *omf, xlink_binary *bin) {
-  int i, j;
-  xlink_omf_record *rec;
+  int i;
   printf("Module: %s\n", xlink_binary_get_module_name(bin, bin->nmodules));
   if (bin->nnames > 0) {
     printf("Local names:\n");
@@ -850,42 +849,10 @@ void xlink_omf_dump_names(xlink_omf *omf, xlink_binary *bin) {
       printf("%2i : '%s'\n", i, xlink_binary_get_name(bin, i + 1));
     }
   }
-  for (i = 0, rec = omf->records; i < omf->nrecords; i++, rec++) {
-    xlink_omf_record_reset(rec);
-    switch (rec->type) {
-      case OMF_COMDEF : {
-        printf("Communal names:\n");
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          const char *str;
-          int type_idx;
-          int data_type;
-          int data_num;
-          int data_len;
-          str = xlink_omf_record_read_string(rec);
-          type_idx = xlink_omf_record_read_index(rec);
-          data_type = xlink_omf_record_read_byte(rec);
-          switch (data_type) {
-            case OMF_DATA_TYPE_FAR : {
-              data_num = xlink_omf_record_read_length(rec);
-              data_len = xlink_omf_record_read_length(rec);
-              printf(" FAR: %i*%i bytes", data_num, data_len);
-              break;
-            }
-            case OMF_DATA_TYPE_NEAR : {
-              data_len = xlink_omf_record_read_length(rec);
-              printf(" NEAR: %i bytes", data_len);
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 void xlink_omf_dump_symbols(xlink_omf *omf, xlink_binary *bin) {
-  int i, j;
-  xlink_omf_record *rec;
+  int i;
   if (bin->npublics > 0) {
     printf("Public names:\n");
     for (i = 0; i < bin->npublics; i++) {
@@ -903,23 +870,6 @@ void xlink_omf_dump_symbols(xlink_omf *omf, xlink_binary *bin) {
       xlink_omf_extern *ext;
       ext = &bin->externs[i];
       printf("%2i : '%s', type %i\n", i, ext->name, ext->type_idx);
-    }
-  }
-  for (i = 0, rec = omf->records; i < omf->nrecords; i++, rec++) {
-    xlink_omf_record_reset(rec);
-    switch (rec->type) {
-      case OMF_CEXTDEF : {
-        printf("Communal names:\n");
-        for (j = 0; xlink_omf_record_has_data(rec); j++) {
-          int name_idx;
-          int type_idx;
-          name_idx = xlink_omf_record_read_index(rec);
-          type_idx = xlink_omf_record_read_index(rec);
-          printf("  %2i : %s, Type %i", j, xlink_binary_get_name(bin, name_idx),
-           type_idx);
-        }
-        break;
-      }
     }
   }
 }
@@ -981,9 +931,6 @@ void xlink_omf_dump_relocations(xlink_omf *omf, xlink_binary *bin) {
         printf("  LIDATA: segment %s, offset 0x%X, size ",
          xlink_binary_get_segment_name(bin, segment_idx), offset);
         printf(" = %i\n", xlink_omf_record_read_lidata_block(rec));
-        break;
-      }
-      case OMF_COMDAT : {
         break;
       }
     }
