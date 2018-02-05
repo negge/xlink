@@ -840,7 +840,7 @@ void xlink_omf_dump_records(xlink_omf *omf) {
   }
 }
 
-void xlink_omf_dump_names(xlink_omf *omf, xlink_binary *bin) {
+void xlink_binary_dump_names(xlink_binary *bin) {
   int i;
   printf("Module: %s\n", xlink_binary_get_module_name(bin, bin->nmodules));
   if (bin->nnames > 0) {
@@ -851,7 +851,7 @@ void xlink_omf_dump_names(xlink_omf *omf, xlink_binary *bin) {
   }
 }
 
-void xlink_omf_dump_symbols(xlink_omf *omf, xlink_binary *bin) {
+void xlink_binary_dump_symbols(xlink_binary *bin) {
   int i;
   if (bin->npublics > 0) {
     printf("Public names:\n");
@@ -874,7 +874,7 @@ void xlink_omf_dump_symbols(xlink_omf *omf, xlink_binary *bin) {
   }
 }
 
-void xlink_omf_dump_segments(xlink_omf *omf, xlink_binary *bin) {
+void xlink_binary_dump_segments(xlink_binary *bin) {
   int i, j;
   printf("Segment records:\n");
   for (i = 0; i < bin->nsegments; i++) {
@@ -1179,9 +1179,9 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
     }
   }
   xlink_omf_dump_records(&omf);
-  xlink_omf_dump_names(&omf, bin);
-  xlink_omf_dump_symbols(&omf, bin);
-  xlink_omf_dump_segments(&omf, bin);
+  xlink_binary_dump_names(bin);
+  xlink_binary_dump_symbols(bin);
+  xlink_binary_dump_segments(bin);
   xlink_omf_dump_relocations(&omf, bin);
   xlink_omf_clear(&omf);
 }
