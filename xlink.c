@@ -570,6 +570,12 @@ const char *xlink_binary_get_extern_name(xlink_binary *bin, int extern_idx) {
   return name;
 }
 
+xlink_omf_reloc *xlink_binary_get_reloc(xlink_binary *bin, int reloc_idx) {
+  XLINK_ERROR(reloc_idx < 1 || reloc_idx > bin->nrelocs,
+   ("Could not get reloc %i, nrelocs = %i", reloc_idx, bin->relocs));
+  return &bin->relocs[reloc_idx - 1];
+}
+
 int xlink_binary_add_reloc(xlink_binary *bin, xlink_omf_reloc *reloc) {
   bin->nrelocs++;
   bin->relocs =
@@ -651,8 +657,8 @@ const char *xlink_binary_get_reloc_target(xlink_binary *bin,
   return buf;
 }
 
-const char *xlink_binary_get_reloc_addend(xlink_binary *bin,
- xlink_omf_location location, const unsigned char *data) {
+const char *xlink_binary_get_reloc_addend(xlink_omf_location location,
+ const unsigned char *data) {
   static char buf[256];
   char str[256];
   switch (location) {
@@ -947,30 +953,30 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   }
 }
 
-void xlink_binary_dump_relocations(xlink_binary *bin) {
+void xlink_module_dump_relocations(xlink_omf_module *mod) {
   int i, j;
-  for (i = 0; i < bin->nsegments; i++) {
+  for (i = mod->seg_base; i < mod->seg_base + mod->nsegments; i++) {
     xlink_omf_segment *seg;
-    seg = &bin->segments[i];
+    seg = xlink_binary_get_segment(mod->binary, i + 1);
     if (seg->info & SEG_HAS_DATA) {
       for (j = 0; j < seg->length; j++) {
         XLINK_ERROR(GETBIT(seg->mask, j) == 0,
          ("Missing data for segment %s, offset = %i",
-         xlink_binary_get_segment_name(bin, i + 1), j));
+         xlink_binary_get_segment_name(mod->binary, i + 1), j));
       }
     }
   }
-  for (i = 0; i < bin->nrelocs; i++) {
+  for (i = mod->rel_base; i < mod->rel_base + mod->nrelocs; i++) {
     xlink_omf_reloc *rel;
     xlink_omf_segment *seg;
-    rel = &bin->relocs[i];
-    seg = xlink_binary_get_segment(bin, rel->segment_idx);
+    rel = xlink_binary_get_reloc(mod->binary, i + 1);;
+    seg = xlink_binary_get_segment(mod->binary, rel->segment_idx);
     printf("  FIXUPP: %s %s, segment %s, offset 0x%x, %s, %s, %s\n",
      OMF_FIXUP_MODE[rel->mode], OMF_FIXUP_LOCATION[rel->location],
-     xlink_binary_get_segment_name(bin, rel->segment_idx), rel->offset,
-     xlink_binary_get_reloc_frame(bin, rel->frame, rel->frame_idx),
-     xlink_binary_get_reloc_target(bin, rel->target, rel->target_idx),
-     xlink_binary_get_reloc_addend(bin, rel->location, seg->data + rel->offset));
+     xlink_binary_get_segment_name(mod->binary, rel->segment_idx), rel->offset,
+     xlink_binary_get_reloc_frame(mod->binary, rel->frame, rel->frame_idx),
+     xlink_binary_get_reloc_target(mod->binary, rel->target, rel->target_idx),
+     xlink_binary_get_reloc_addend(rel->location, seg->data + rel->offset));
   }
 }
 
@@ -1220,7 +1226,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_module_dump_symbols(mod);
   xlink_module_dump_segments(mod);
   xlink_omf_dump_lxdata(&omf, bin);
-  xlink_binary_dump_relocations(bin);
+  xlink_module_dump_relocations(mod);
   xlink_omf_clear(&omf);
 }
 
