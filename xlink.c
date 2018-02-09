@@ -852,13 +852,13 @@ void xlink_omf_dump_records(xlink_omf *omf) {
   }
 }
 
-void xlink_binary_dump_names(xlink_binary *bin) {
+void xlink_module_dump_names(xlink_omf_module *mod) {
   int i;
-  printf("Module: %s\n", xlink_binary_get_module_name(bin, bin->nmodules));
-  if (bin->nnames > 0) {
+  printf("Module: %s\n", xlink_binary_get_module_name(mod->binary, mod->index));
+  if (mod->nnames > 0) {
     printf("Local names:\n");
-    for (i = 0; i < bin->nnames; i++) {
-      printf("%2i : '%s'\n", i, xlink_binary_get_name(bin, i + 1));
+    for (i = mod->name_base; i < mod->name_base + mod->nnames; i++) {
+      printf("%2i : '%s'\n", i, xlink_binary_get_name(mod->binary, i + 1));
     }
   }
 }
@@ -1203,7 +1203,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   XLINK_ERROR(mod == NULL, ("Failed to load module"));
   xlink_module_finalize(mod, bin);
   xlink_omf_dump_records(&omf);
-  xlink_binary_dump_names(bin);
+  xlink_module_dump_names(mod);
   xlink_binary_dump_symbols(bin);
   xlink_binary_dump_segments(bin);
   xlink_omf_dump_relocations(&omf, bin);
