@@ -894,25 +894,26 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
   }
 }
 
-void xlink_binary_dump_segments(xlink_binary *bin) {
+void xlink_module_dump_segments(xlink_omf_module *mod) {
   int i, j;
   printf("Segment records:\n");
-  for (i = 0; i < bin->nsegments; i++) {
+  for (i = mod->seg_base; i < mod->seg_base + mod->nsegments; i++) {
     xlink_omf_segment *seg;
-    seg = &bin->segments[i];
+    seg = xlink_binary_get_segment(mod->binary, i + 1);
     printf("%2i : %s segment %s %s %s '%s' %08x bytes%s\n", i,
-     xlink_binary_get_name(bin, seg->name_idx),
+     xlink_binary_get_name(mod->binary, seg->name_idx),
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine],
-     xlink_binary_get_name(bin, seg->class_idx), seg->length,
+     xlink_binary_get_name(mod->binary, seg->class_idx), seg->length,
      seg->attrib.big ? ", big" : "");
   }
-  for (i = 0; i < bin->ngroups; i++) {
+  for (i = mod->grp_base; i < mod->grp_base + mod->ngroups; i++) {
     xlink_omf_group *grp;
-    grp = &bin->groups[i];
-    printf("Group: %s\n", xlink_binary_get_name(bin, grp->name_idx));
+    grp = xlink_binary_get_group(mod->binary, i + 1);
+    printf("Group: %s\n", xlink_binary_get_name(mod->binary, grp->name_idx));
     for (j = 0; j < grp->nsegments; j++) {
-      printf("%2i : %s\n", j, xlink_binary_get_name(bin, grp->segments[j]));
+      printf("%2i : %s\n", j,
+       xlink_binary_get_name(mod->binary, grp->segments[j]));
     }
   }
 }
@@ -1213,7 +1214,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_omf_dump_records(&omf);
   xlink_module_dump_names(mod);
   xlink_module_dump_symbols(mod);
-  xlink_binary_dump_segments(bin);
+  xlink_module_dump_segments(mod);
   xlink_omf_dump_relocations(&omf, bin);
   xlink_omf_clear(&omf);
 }
