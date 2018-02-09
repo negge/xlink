@@ -535,6 +535,12 @@ const char *xlink_binary_get_group_name(xlink_binary *bin, int group_idx) {
   return name;
 }
 
+xlink_omf_public *xlink_binary_get_public(xlink_binary *bin, int public_idx) {
+  XLINK_ERROR(public_idx < 1 || public_idx > bin->npublics,
+   ("Could not get public %i, npublics = %i\n", public_idx, bin->npublics));
+  return &bin->publics[public_idx - 1];
+}
+
 int xlink_binary_add_public(xlink_binary *bin, xlink_omf_public *public) {
   bin->npublics++;
   bin->publics =
@@ -863,24 +869,26 @@ void xlink_module_dump_names(xlink_omf_module *mod) {
   }
 }
 
-void xlink_binary_dump_symbols(xlink_binary *bin) {
+void xlink_module_dump_symbols(xlink_omf_module *mod) {
   int i;
-  if (bin->npublics > 0) {
+  if (mod->npublics > 0) {
     printf("Public names:\n");
-    for (i = 0; i < bin->npublics; i++) {
+    for (i = mod->pub_base; i < mod->pub_base + mod->npublics; i++) {
       xlink_omf_public *pub;
-      pub = &bin->publics[i];
+      int group_idx;
+      pub = xlink_binary_get_public(mod->binary, i + 1);
+      group_idx = pub->group_idx;
       printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n", i,
-       pub->name, xlink_binary_get_segment_name(bin, pub->segment_idx),
-       pub->group_idx ? xlink_binary_get_group_name(bin, pub->group_idx) : ":0",
+       pub->name, xlink_binary_get_segment_name(mod->binary, pub->segment_idx),
+       group_idx ? xlink_binary_get_group_name(mod->binary, group_idx) : ":0",
        pub->offset, pub->type_idx);
     }
   }
-  if (bin->nexterns > 0) {
+  if (mod->nexterns > 0) {
     printf("External names:\n");
-    for (i = 0; i < bin->nexterns; i++) {
+    for (i = mod->ext_base; i < mod->ext_base + mod->nexterns; i++) {
       xlink_omf_extern *ext;
-      ext = &bin->externs[i];
+      ext = xlink_binary_get_extern(mod->binary, i + 1);
       printf("%2i : '%s', type %i\n", i, ext->name, ext->type_idx);
     }
   }
@@ -1204,7 +1212,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_module_finalize(mod, bin);
   xlink_omf_dump_records(&omf);
   xlink_module_dump_names(mod);
-  xlink_binary_dump_symbols(bin);
+  xlink_module_dump_symbols(mod);
   xlink_binary_dump_segments(bin);
   xlink_omf_dump_relocations(&omf, bin);
   xlink_omf_clear(&omf);
