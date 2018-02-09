@@ -320,6 +320,8 @@ struct xlink_omf {
   int nrecords;
 };
 
+typedef struct xlink_binary xlink_binary;
+
 typedef struct xlink_omf_module xlink_omf_module;
 
 struct xlink_omf_module {
@@ -336,6 +338,9 @@ struct xlink_omf_module {
   int nexterns;
   int rel_base;
   int nrelocs;
+
+  xlink_binary *binary;
+  int index;
 };
 
 typedef struct xlink_binary xlink_binary;
@@ -446,6 +451,8 @@ int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
   module->pub_base = bin->npublics;
   module->ext_base = bin->nexterns;
   module->rel_base = bin->nrelocs;
+  module->binary = bin;
+  module->index = bin->nmodules + 1;
   bin->nmodules++;
   bin->modules =
    xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module));
