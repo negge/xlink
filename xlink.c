@@ -858,6 +858,35 @@ void xlink_omf_dump_records(xlink_omf *omf) {
   }
 }
 
+void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_binary *bin) {
+  int i;
+  xlink_omf_record *rec;
+  printf("LEDATA, LIDATA, COMDAT and FIXUPP records:\n");
+  for (i = 0, rec = omf->records; i < omf->nrecords; i++, rec++) {
+    int segment_idx;
+    int offset;
+    xlink_omf_record_reset(rec);
+    switch (rec->type) {
+      case OMF_LEDATA : {
+        segment_idx = xlink_omf_record_read_index(rec);
+        offset = xlink_omf_record_read_numeric(rec);
+        printf("  LEDATA: segment %s, offset 0x%X, size %i\n",
+         xlink_binary_get_segment_name(bin, segment_idx), offset,
+         rec->size - 4);
+        break;
+      }
+      case OMF_LIDATA : {
+        segment_idx = xlink_omf_record_read_index(rec);
+        offset = xlink_omf_record_read_numeric(rec);
+        printf("  LIDATA: segment %s, offset 0x%X, size ",
+         xlink_binary_get_segment_name(bin, segment_idx), offset);
+        printf(" = %i\n", xlink_omf_record_read_lidata_block(rec));
+        break;
+      }
+    }
+  }
+}
+
 void xlink_module_dump_names(xlink_omf_module *mod) {
   int i;
   printf("Module: %s\n", xlink_binary_get_module_name(mod->binary, mod->index));
@@ -918,9 +947,8 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   }
 }
 
-void xlink_omf_dump_relocations(xlink_omf *omf, xlink_binary *bin) {
+void xlink_binary_dump_relocations(xlink_binary *bin) {
   int i, j;
-  xlink_omf_record *rec;
   for (i = 0; i < bin->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = &bin->segments[i];
@@ -929,30 +957,6 @@ void xlink_omf_dump_relocations(xlink_omf *omf, xlink_binary *bin) {
         XLINK_ERROR(GETBIT(seg->mask, j) == 0,
          ("Missing data for segment %s, offset = %i",
          xlink_binary_get_segment_name(bin, i + 1), j));
-      }
-    }
-  }
-  printf("LEDATA, LIDATA, COMDAT and FIXUPP records:\n");
-  for (i = 0, rec = omf->records; i < omf->nrecords; i++, rec++) {
-    int segment_idx;
-    int offset;
-    xlink_omf_record_reset(rec);
-    switch (rec->type) {
-      case OMF_LEDATA : {
-        segment_idx = xlink_omf_record_read_index(rec);
-        offset = xlink_omf_record_read_numeric(rec);
-        printf("  LEDATA: segment %s, offset 0x%X, size %i\n",
-         xlink_binary_get_segment_name(bin, segment_idx), offset,
-         rec->size - 4);
-        break;
-      }
-      case OMF_LIDATA : {
-        segment_idx = xlink_omf_record_read_index(rec);
-        offset = xlink_omf_record_read_numeric(rec);
-        printf("  LIDATA: segment %s, offset 0x%X, size ",
-         xlink_binary_get_segment_name(bin, segment_idx), offset);
-        printf(" = %i\n", xlink_omf_record_read_lidata_block(rec));
-        break;
       }
     }
   }
@@ -1215,7 +1219,8 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_module_dump_names(mod);
   xlink_module_dump_symbols(mod);
   xlink_module_dump_segments(mod);
-  xlink_omf_dump_relocations(&omf, bin);
+  xlink_omf_dump_lxdata(&omf, bin);
+  xlink_binary_dump_relocations(bin);
   xlink_omf_clear(&omf);
 }
 
