@@ -159,6 +159,50 @@ static const int OMF_FIXUP_SIZE[] = {
   1, 2, 2, 4, 1, 2, 6, 0, 0, 4, 0, 6, 0, 4
 };
 
+static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
+  switch (type & ~1) {
+    case OMF_THEADR : return "THEADR";
+    case OMF_LHEADR : return "LHEADR";
+    case OMF_EXTDEF : return "EXTDEF";
+    case OMF_PUBDEF : return "PUBDEF";
+    case OMF_FIXUPP : return "FIXUPP";
+    case OMF_GRPDEF : return "GRPDEF";
+    case OMF_LNAMES : return "LNAMES";
+    case OMF_SEGDEF : return "SEGDEF";
+    case OMF_LEDATA : return "LEDATA";
+    case OMF_LIDATA : return "LIDATA";
+    case OMF_COMDEF : return "COMDEF";
+    case OMF_LEXTDEF : return "LEXTDEF";
+    case OMF_LPUBDEF : return "LPUBDEF";
+    case OMF_CEXTDEF : return "CEXTDEF";
+    case OMF_COMDAT : return "COMDAT";
+    case OMF_LLNAMES : return "LLNAMES";
+    default : return "??????";
+  }
+}
+
+static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
+  switch (type & ~1) {
+    case OMF_THEADR : return "Translator Header";
+    case OMF_LHEADR : return "Library Module Header";
+    case OMF_EXTDEF : return "External Names Definition";
+    case OMF_PUBDEF : return "Public Names Definition";
+    case OMF_FIXUPP : return "Fixup";
+    case OMF_GRPDEF : return "Group Definition";
+    case OMF_LNAMES : return "List of Names";
+    case OMF_SEGDEF : return "Segment Definition";
+    case OMF_LEDATA : return "Logical Enumerated Data";
+    case OMF_LIDATA : return "Logical Iterated Data";
+    case OMF_COMDEF : return "Communal Names Definition";
+    case OMF_LEXTDEF : return "Local External Names Definition";
+    case OMF_LPUBDEF : return "Local Public Names";
+    case OMF_CEXTDEF : return "COMDAT External Names Definition";
+    case OMF_COMDAT : return "Initialized Communal Data";
+    case OMF_LLNAMES : return "Local Logical Names Definition";
+    default : return "Unknown or Unsupported";
+  }
+}
+
 typedef struct xlink_file xlink_file;
 
 struct xlink_file {
@@ -375,6 +419,9 @@ void xlink_binary_clear(xlink_binary *bin) {
 }
 
 int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
+  XLINK_ERROR(
+   omf->nrecords == 0 && rec->type != OMF_THEADR && rec->type != OMF_LHEADR,
+   ("%s not the first record in module", xlink_omf_record_get_name(rec->type)));
   omf->nrecords++;
   omf->records =
    xlink_realloc(omf->records, omf->nrecords*sizeof(xlink_omf_record));
@@ -783,50 +830,6 @@ static void xlink_parse_omf_record(xlink_omf_record *rec,
     }
   }
   XLINK_ERROR(checksum != 0, ("Invalid checksum, expected 0 got %i", checksum));
-}
-
-static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
-  switch (type & ~1) {
-    case OMF_THEADR : return "THEADR";
-    case OMF_LHEADR : return "LHEADR";
-    case OMF_EXTDEF : return "EXTDEF";
-    case OMF_PUBDEF : return "PUBDEF";
-    case OMF_FIXUPP : return "FIXUPP";
-    case OMF_GRPDEF : return "GRPDEF";
-    case OMF_LNAMES : return "LNAMES";
-    case OMF_SEGDEF : return "SEGDEF";
-    case OMF_LEDATA : return "LEDATA";
-    case OMF_LIDATA : return "LIDATA";
-    case OMF_COMDEF : return "COMDEF";
-    case OMF_LEXTDEF : return "LEXTDEF";
-    case OMF_LPUBDEF : return "LPUBDEF";
-    case OMF_CEXTDEF : return "CEXTDEF";
-    case OMF_COMDAT : return "COMDAT";
-    case OMF_LLNAMES : return "LLNAMES";
-    default : return "??????";
-  }
-}
-
-static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
-  switch (type & ~1) {
-    case OMF_THEADR : return "Translator Header";
-    case OMF_LHEADR : return "Library Module Header";
-    case OMF_EXTDEF : return "External Names Definition";
-    case OMF_PUBDEF : return "Public Names Definition";
-    case OMF_FIXUPP : return "Fixup";
-    case OMF_GRPDEF : return "Group Definition";
-    case OMF_LNAMES : return "List of Names";
-    case OMF_SEGDEF : return "Segment Definition";
-    case OMF_LEDATA : return "Logical Enumerated Data";
-    case OMF_LIDATA : return "Logical Iterated Data";
-    case OMF_COMDEF : return "Communal Names Definition";
-    case OMF_LEXTDEF : return "Local External Names Definition";
-    case OMF_LPUBDEF : return "Local Public Names";
-    case OMF_CEXTDEF : return "COMDAT External Names Definition";
-    case OMF_COMDAT : return "Initialized Communal Data";
-    case OMF_LLNAMES : return "Local Logical Names Definition";
-    default : return "Unknown or Unsupported";
-  }
 }
 
 void xlink_omf_dump_records(xlink_omf *omf) {
