@@ -962,10 +962,12 @@ void xlink_omf_dump_relocations(xlink_omf *omf, xlink_binary *bin) {
 void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
   xlink_parse_ctx ctx;
   xlink_omf omf;
+  xlink_omf_module *mod;
   int segment_idx;
   int offset;
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
+  mod = NULL;
   segment_idx = 0;
   while (ctx.size > 0) {
     xlink_omf_record rec;
@@ -978,6 +980,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
         xlink_omf_module module;
         strcpy(module.name, xlink_omf_record_read_string(&rec));
         xlink_binary_add_module(bin, &module);
+        mod = xlink_binary_get_module(bin, bin->nmodules);
         break;
       }
       case OMF_LNAMES :
@@ -1046,7 +1049,10 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
         }
         pub.module_idx = 0;
         if (rec.type == OMF_LPUBDEF) {
-          pub.module_idx = bin->nmodules;
+          XLINK_ERROR(mod == NULL,
+           ("Got %s before module header record",
+           xlink_omf_record_get_name(rec.type)));
+          pub.module_idx = mod->index;
         }
         while (xlink_omf_record_has_data(&rec)) {
           strcpy(pub.name, xlink_omf_record_read_string(&rec));
@@ -1061,7 +1067,10 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
         xlink_omf_extern ext;
         ext.module_idx = 0;
         if (rec.type == OMF_LEXTDEF) {
-          ext.module_idx = bin->nmodules;
+          XLINK_ERROR(mod == NULL,
+           ("Got %s before module header record",
+           xlink_omf_record_get_name(rec.type)));
+          ext.module_idx = mod->index;
         }
         while (xlink_omf_record_has_data(&rec)) {
           strcpy(ext.name, xlink_omf_record_read_string(&rec));
@@ -1188,6 +1197,7 @@ void xlink_omf_load(xlink_binary *bin, xlink_file *file) {
       }
     }
   }
+  XLINK_ERROR(mod == NULL, ("Failed to load module"));
   xlink_omf_dump_records(&omf);
   xlink_binary_dump_names(bin);
   xlink_binary_dump_symbols(bin);
