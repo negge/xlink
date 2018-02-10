@@ -1059,7 +1059,7 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
         xlink_omf_group *grp;
         grp = xlink_malloc(sizeof(xlink_omf_group));
         grp->name_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(grp->name_idx > mod->nnames,
+        XLINK_ERROR(grp->name_idx < 1 || grp->name_idx > mod->nnames,
          ("Group name index %i not defined", grp->name_idx));
         grp->nsegments = 0;
         while (xlink_omf_record_has_data(&rec)) {
