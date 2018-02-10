@@ -381,6 +381,7 @@ void *xlink_malloc(size_t size) {
   void *ptr;
   ptr = malloc(size);
   XLINK_ERROR(ptr == NULL, ("Insufficient memory for malloc"));
+  memset(ptr, 0, size);
   return ptr;
 }
 
