@@ -255,7 +255,7 @@ struct xlink_omf_segment {
   int name_idx;
   int class_idx;
   int overlay_idx;
-
+  int module_idx;
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
@@ -275,6 +275,7 @@ struct xlink_omf_group {
   int name_idx;
   int segments[256];
   int nsegments;
+  int module_idx;
 };
 
 typedef struct xlink_omf_public xlink_omf_public;
@@ -311,6 +312,7 @@ struct xlink_omf_reloc {
   int frame_idx;
   int target_idx;
   unsigned int disp;
+  int module_idx;
 };
 
 typedef struct xlink_omf xlink_omf;
@@ -1013,6 +1015,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
         seg.data = xlink_malloc(seg.length);
         seg.mask = xlink_malloc(CEIL2(seg.length, 3));
         memset(seg.mask, 0, CEIL2(seg.length, 3));
+        seg.module_idx = mod->index;
         xlink_module_add_segment(mod, &seg);
         break;
       }
@@ -1030,6 +1033,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
           XLINK_ERROR(grp.segments[grp.nsegments - 1] > mod->nsegments,
            ("Segment index %i not defined", grp.segments[grp.nsegments - 1]));
         }
+        grp.module_idx = mod->index;
         xlink_module_add_group(mod, &grp);
         break;
       }
@@ -1167,6 +1171,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
             if (!fixdata.no_disp) {
               rel.disp = xlink_omf_record_read_numeric(&rec);
             }
+            rel.module_idx = mod->index;
             xlink_module_add_reloc(mod, &rel);
           }
           else {
