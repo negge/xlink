@@ -1206,7 +1206,7 @@ const struct option OPTIONS[] = {
 };
 
 static void usage(const char *argv0) {
-  fprintf(stderr, "Usage: %s [options]\n\n"
+  fprintf(stderr, "Usage: %s [options] <modules> -o <program>\n\n"
    "Options: \n\n"
    "  -o --output <program>           Output file name for linked program.\n"
    "  -e --entry <function>           Entry point for binary (default: main).\n"
@@ -1235,6 +1235,16 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
     }
+  }
+  if (optind == argc) {
+    printf("No <modules> specified!\n\n");
+    usage(argv[0]);
+    return EXIT_FAILURE;
+  }
+  if (bin.output == NULL) {
+    printf("Output -o <program> is required!\n\n");
+    usage(argv[0]);
+    return EXIT_FAILURE;
   }
   for (c = optind; c < argc; c++) {
     xlink_file file;
