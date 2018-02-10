@@ -342,6 +342,7 @@ struct xlink_omf_module {
 typedef struct xlink_binary xlink_binary;
 
 struct xlink_binary {
+  char *output;
   xlink_omf_module *modules;
   int nmodules;
 };
@@ -1190,26 +1191,33 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
   xlink_omf_clear(&omf);
 }
 
-const char *OPTSTRING = "h";
+const char *OPTSTRING = "o:h";
 
 const struct option OPTIONS[] = {
-  { "help", no_argument,       NULL, 'h' },
-  { NULL,   0,                 NULL,  0  }
+  { "output", required_argument, NULL, 'o' },
+  { "help", no_argument,         NULL, 'h' },
+  { NULL,   0,                   NULL,  0  }
 };
 
 static void usage(const char *argv0) {
   fprintf(stderr, "Usage: %s [options]\n\n"
    "Options: \n\n"
+   "  -o --output <program>           Output file name for linked program.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
 
 int main(int argc, char *argv[]) {
+  xlink_binary bin;
   int c;
   int opt_index;
-  xlink_binary bin;
+  xlink_binary_init(&bin);
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &opt_index)) != EOF) {
     switch (c) {
+      case 'o' : {
+        bin.output = optarg;
+        break;
+      }
       case 'h' :
       default : {
         usage(argv[0]);
@@ -1217,7 +1225,6 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  xlink_binary_init(&bin);
   for (c = optind; c < argc; c++) {
     xlink_file file;
     xlink_omf_module mod;
