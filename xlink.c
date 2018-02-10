@@ -977,9 +977,6 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_name name;
           strcpy(name.name, xlink_omf_record_read_string(&rec));
-          XLINK_ERROR(mod == NULL,
-           ("Got %s before module header record",
-           xlink_omf_record_get_name(rec.type)));
           xlink_module_add_name(mod, &name);
         }
         break;
@@ -1041,9 +1038,6 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
         }
         pub.module_idx = 0;
         if (rec.type == OMF_LPUBDEF) {
-          XLINK_ERROR(mod == NULL,
-           ("Got %s before module header record",
-           xlink_omf_record_get_name(rec.type)));
           pub.module_idx = mod->index;
         }
         while (xlink_omf_record_has_data(&rec)) {
@@ -1059,9 +1053,6 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
         xlink_omf_extern ext;
         ext.module_idx = 0;
         if (rec.type == OMF_LEXTDEF) {
-          XLINK_ERROR(mod == NULL,
-           ("Got %s before module header record",
-           xlink_omf_record_get_name(rec.type)));
           ext.module_idx = mod->index;
         }
         while (xlink_omf_record_has_data(&rec)) {
@@ -1189,7 +1180,6 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
       }
     }
   }
-  XLINK_ERROR(mod == NULL, ("Failed to load module"));
   xlink_omf_dump_records(&omf);
   printf("Module: %s\n", mod->name);
   xlink_module_dump_names(mod);
