@@ -323,8 +323,9 @@ struct xlink_omf {
 typedef struct xlink_omf_module xlink_omf_module;
 
 struct xlink_omf_module {
+  const char *filename;
   int index;
-  char name[256];
+  char source[256];
   xlink_omf_name *names;
   int nnames;
   xlink_omf_segment *segments;
@@ -391,8 +392,10 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->records);
 }
 
-void xlink_module_init(xlink_omf_module *mod, int index) {
+void xlink_module_init(xlink_omf_module *mod, const char *filename,
+ int index) {
   memset(mod, 0, sizeof(xlink_omf_module));
+  mod->filename = filename;
   mod->index = index;
 }
 
@@ -451,7 +454,7 @@ xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
 
 const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
   static char name[256];
-  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->name,
+  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->filename,
    module_idx);
   return name;
 }
@@ -972,7 +975,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
     switch (rec.type) {
       case OMF_THEADR :
       case OMF_LHEADR : {
-        strcpy(mod->name, xlink_omf_record_read_string(&rec));
+        strcpy(mod->source, xlink_omf_record_read_string(&rec));
         break;
       }
       case OMF_LNAMES :
@@ -1184,7 +1187,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
     }
   }
   xlink_omf_dump_records(&omf);
-  printf("Module: %s\n", mod->name);
+  printf("Module: %s\n", mod->filename);
   xlink_module_dump_names(mod);
   xlink_module_dump_symbols(mod);
   xlink_module_dump_segments(mod);
@@ -1237,7 +1240,7 @@ int main(int argc, char *argv[]) {
     xlink_file file;
     xlink_omf_module mod;
     xlink_file_init(&file, argv[c]);
-    xlink_module_init(&mod, bin.nmodules + 1);
+    xlink_module_init(&mod, file.name, bin.nmodules + 1);
     xlink_omf_load(&mod, &file);
     xlink_binary_add_module(&bin, &mod);
     xlink_file_clear(&file);
