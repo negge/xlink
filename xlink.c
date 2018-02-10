@@ -489,10 +489,10 @@ int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
   return mod->nnames;
 }
 
-const char *xlink_module_get_name(xlink_omf_module *mod, int name_idx) {
+xlink_omf_name *xlink_module_get_name(xlink_omf_module *mod, int name_idx) {
   XLINK_ERROR(name_idx < 1 || name_idx > mod->nnames,
    ("Could not get name %i, nnames = %i", name_idx, mod->nnames));
-  return mod->names[name_idx - 1]->name;
+  return mod->names[name_idx - 1];
 }
 
 int xlink_module_add_segment(xlink_omf_module *mod,
@@ -517,7 +517,7 @@ const char *xlink_module_get_segment_name(xlink_omf_module *mod, int segment_idx
   xlink_omf_segment *seg;
   static char name[256];
   seg = xlink_module_get_segment(mod, segment_idx);
-  sprintf(name, "%s:%i", xlink_module_get_name(mod, seg->name_idx),
+  sprintf(name, "%s:%i", xlink_module_get_name(mod, seg->name_idx)->name,
    segment_idx);
   return name;
 }
@@ -542,7 +542,7 @@ const char *xlink_module_get_group_name(xlink_omf_module *mod, int group_idx) {
   xlink_omf_group *grp;
   static char name[256];
   grp = xlink_module_get_group(mod, group_idx);
-  sprintf(name, "%s:%i", xlink_module_get_name(mod, grp->name_idx),
+  sprintf(name, "%s:%i", xlink_module_get_name(mod, grp->name_idx)->name,
    group_idx);
   return name;
 }
@@ -913,7 +913,7 @@ void xlink_module_dump_names(xlink_omf_module *mod) {
   if (mod->nnames > 0) {
     printf("Local names:\n");
     for (i = 0; i < mod->nnames; i++) {
-      printf("%2i : '%s'\n", i, xlink_module_get_name(mod, i + 1));
+      printf("%2i : '%s'\n", i, xlink_module_get_name(mod, i + 1)->name);
     }
   }
 }
@@ -949,19 +949,19 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
     xlink_omf_segment *seg;
     seg = xlink_module_get_segment(mod, i + 1);
     printf("%2i : %s segment %s %s %s '%s' %08x bytes%s\n", i,
-     xlink_module_get_name(mod, seg->name_idx),
+     xlink_module_get_name(mod, seg->name_idx)->name,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine],
-     xlink_module_get_name(mod, seg->class_idx), seg->length,
+     xlink_module_get_name(mod, seg->class_idx)->name, seg->length,
      seg->attrib.big ? ", big" : "");
   }
   for (i = 0; i < mod->ngroups; i++) {
     xlink_omf_group *grp;
     grp = xlink_module_get_group(mod, i + 1);
-    printf("Group: %s\n", xlink_module_get_name(mod, grp->name_idx));
+    printf("Group: %s\n", xlink_module_get_name(mod, grp->name_idx)->name);
     for (j = 0; j < grp->nsegments; j++) {
       printf("%2i : %s\n", j,
-       xlink_module_get_name(mod, grp->segments[j]));
+       xlink_module_get_name(mod, grp->segments[j])->name);
     }
   }
 }
