@@ -286,7 +286,7 @@ struct xlink_omf_public {
   xlink_omf_string name;
   int offset;
   int type_idx;
-
+  int is_local;
   int module_idx;
 };
 
@@ -295,7 +295,7 @@ typedef struct xlink_omf_extern xlink_omf_extern;
 struct xlink_omf_extern {
   xlink_omf_string name;
   int type_idx;
-
+  int is_local;
   int module_idx;
 };
 
@@ -1042,10 +1042,8 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
         if (pub.segment_idx == 0) {
           pub.base_frame = xlink_omf_record_read_word(&rec);
         }
-        pub.module_idx = 0;
-        if (rec.type == OMF_LPUBDEF) {
-          pub.module_idx = mod->index;
-        }
+        pub.is_local = (rec.type == OMF_LPUBDEF);
+        pub.module_idx = mod->index;
         while (xlink_omf_record_has_data(&rec)) {
           strcpy(pub.name, xlink_omf_record_read_string(&rec));
           pub.offset = xlink_omf_record_read_numeric(&rec);
@@ -1057,10 +1055,8 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
       case OMF_EXTDEF :
       case OMF_LEXTDEF : {
         xlink_omf_extern ext;
-        ext.module_idx = 0;
-        if (rec.type == OMF_LEXTDEF) {
-          ext.module_idx = mod->index;
-        }
+        ext.is_local = (rec.type == OMF_LEXTDEF);
+        ext.module_idx = mod->index;
         while (xlink_omf_record_has_data(&rec)) {
           strcpy(ext.name, xlink_omf_record_read_string(&rec));
           ext.type_idx = xlink_omf_record_read_index(&rec);
