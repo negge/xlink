@@ -394,11 +394,9 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->records);
 }
 
-void xlink_module_init(xlink_omf_module *mod, const char *filename,
- int index) {
+void xlink_module_init(xlink_omf_module *mod, const char *filename) {
   memset(mod, 0, sizeof(xlink_omf_module));
   mod->filename = filename;
-  mod->index = index;
 }
 
 void xlink_module_clear(xlink_omf_module *mod) {
@@ -458,6 +456,7 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
 }
 
 int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
+  module->index = bin->nmodules;
   bin->nmodules++;
   bin->modules =
    xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module *));
@@ -979,11 +978,14 @@ void xlink_module_dump_relocations(xlink_omf_module *mod) {
   }
 }
 
-void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
+xlink_omf_module *xlink_file_load_module(xlink_file *file) {
+  xlink_omf_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
   int segment_idx;
   int offset;
+  mod = xlink_malloc(sizeof(xlink_omf_module));
+  xlink_module_init(mod, file->name);
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
   segment_idx = 0;
@@ -1224,6 +1226,7 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
   xlink_omf_dump_lxdata(&omf, mod);
   xlink_module_dump_relocations(mod);
   xlink_omf_clear(&omf);
+  return mod;
 }
 
 const char *OPTSTRING = "o:e:h";
@@ -1278,12 +1281,8 @@ int main(int argc, char *argv[]) {
   }
   for (c = optind; c < argc; c++) {
     xlink_file file;
-    xlink_omf_module *mod;
-    mod = xlink_malloc(sizeof(xlink_omf_module));
     xlink_file_init(&file, argv[c]);
-    xlink_module_init(mod, file.name, bin.nmodules + 1);
-    xlink_omf_load(mod, &file);
-    xlink_binary_add_module(&bin, mod);
+    xlink_binary_add_module(&bin, xlink_file_load_module(&file));
     xlink_file_clear(&file);
     /* TODO: Add support for loading multiple OMF files at once. */
     break;
