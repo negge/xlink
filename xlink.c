@@ -331,7 +331,7 @@ struct xlink_omf {
 struct xlink_omf_module {
   const char *filename;
   int index;
-  char source[256];
+  xlink_omf_string source;
   xlink_omf_name **names;
   int nnames;
   xlink_omf_segment **segments;
