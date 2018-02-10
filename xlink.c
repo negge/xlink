@@ -277,7 +277,7 @@ typedef struct xlink_omf_group xlink_omf_group;
 struct xlink_omf_group {
   int index;
   xlink_omf_module *module;
-  int name_idx;
+  xlink_omf_name *name;
   int segments[256];
   int nsegments;
 };
@@ -542,8 +542,7 @@ const char *xlink_module_get_group_name(xlink_omf_module *mod, int group_idx) {
   xlink_omf_group *grp;
   static char name[256];
   grp = xlink_module_get_group(mod, group_idx);
-  sprintf(name, "%s:%i", xlink_module_get_name(mod, grp->name_idx)->name,
-   group_idx);
+  sprintf(name, "%s:%i", grp->name->name, group_idx);
   return name;
 }
 
@@ -958,7 +957,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   for (i = 0; i < mod->ngroups; i++) {
     xlink_omf_group *grp;
     grp = xlink_module_get_group(mod, i + 1);
-    printf("Group: %s\n", xlink_module_get_name(mod, grp->name_idx)->name);
+    printf("Group: %s\n", grp->name->name);
     for (j = 0; j < grp->nsegments; j++) {
       printf("%2i : %s\n", j,
        xlink_module_get_name(mod, grp->segments[j])->name);
@@ -1058,9 +1057,8 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
       case OMF_GRPDEF : {
         xlink_omf_group *grp;
         grp = xlink_malloc(sizeof(xlink_omf_group));
-        grp->name_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(grp->name_idx < 1 || grp->name_idx > mod->nnames,
-         ("Group name index %i not defined", grp->name_idx));
+        grp->name =
+         xlink_module_get_name(mod, xlink_omf_record_read_index(&rec));
         grp->nsegments = 0;
         while (xlink_omf_record_has_data(&rec)) {
           unsigned char index;
