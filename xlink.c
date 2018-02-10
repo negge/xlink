@@ -490,9 +490,9 @@ int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
 }
 
 const char *xlink_module_get_name(xlink_omf_module *mod, int name_idx) {
-  if (name_idx == 0) return "none";
-  if (name_idx <= mod->nnames) return mod->names[name_idx - 1]->name;
-  return "?";
+  XLINK_ERROR(name_idx < 1 || name_idx > mod->nnames,
+   ("Could not get name %i, nnames = %i", name_idx, mod->nnames));
+  return mod->names[name_idx - 1]->name;
 }
 
 int xlink_module_add_segment(xlink_omf_module *mod,
