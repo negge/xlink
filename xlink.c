@@ -343,6 +343,7 @@ typedef struct xlink_binary xlink_binary;
 
 struct xlink_binary {
   char *output;
+  char *entry;
   xlink_omf_module *modules;
   int nmodules;
 };
@@ -411,6 +412,7 @@ void xlink_module_clear(xlink_omf_module *mod) {
 
 void xlink_binary_init(xlink_binary *bin) {
   memset(bin, 0, sizeof(xlink_binary));
+  bin->entry = "main_";
 }
 
 void xlink_binary_clear(xlink_binary *bin) {
@@ -1191,10 +1193,11 @@ void xlink_omf_load(xlink_omf_module *mod, xlink_file *file) {
   xlink_omf_clear(&omf);
 }
 
-const char *OPTSTRING = "o:h";
+const char *OPTSTRING = "o:e:h";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
+  { "entry", required_argument,  NULL, 'e' },
   { "help", no_argument,         NULL, 'h' },
   { NULL,   0,                   NULL,  0  }
 };
@@ -1203,6 +1206,7 @@ static void usage(const char *argv0) {
   fprintf(stderr, "Usage: %s [options]\n\n"
    "Options: \n\n"
    "  -o --output <program>           Output file name for linked program.\n"
+   "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
@@ -1216,6 +1220,10 @@ int main(int argc, char *argv[]) {
     switch (c) {
       case 'o' : {
         bin.output = optarg;
+        break;
+      }
+      case 'e' : {
+        bin.entry = optarg;
         break;
       }
       case 'h' :
