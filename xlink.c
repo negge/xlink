@@ -286,8 +286,8 @@ typedef struct xlink_omf_public xlink_omf_public;
 struct xlink_omf_public {
   int index;
   xlink_omf_module *module;
-  int group_idx;
-  int segment_idx;
+  xlink_omf_group *group;
+  xlink_omf_segment *segment;
   int base_frame;
   xlink_omf_string name;
   int offset;
@@ -948,10 +948,10 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
     printf("Public names:\n");
     for (i = 0; i < mod->npublics; i++) {
       xlink_omf_public *pub;
-      pub = xlink_module_get_public(mod, i + 1);
+      pub = mod->publics[i];
       printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i%s\n", i,
-       pub->name, xlink_module_get_segment_name(mod, pub->segment_idx),
-       pub->group_idx ? xlink_module_get_group_name(mod, pub->group_idx) : ":0",
+       pub->name, pub->segment ? xlink_segment_get_name(pub->segment) : ":0",
+       pub->group ? xlink_group_get_name(pub->group) : ":0",
        pub->offset, pub->type_idx, pub->is_local ? " LOCAL" : "");
     }
   }
@@ -1091,13 +1091,16 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
       }
       case OMF_PUBDEF :
       case OMF_LPUBDEF : {
+        int group_idx;
+        int segment_idx;
         xlink_omf_public base;
-        base.group_idx = xlink_omf_record_read_index(&rec);
-        base.segment_idx = xlink_omf_record_read_index(&rec);
-        base.base_frame = 0;
-        if (base.segment_idx == 0) {
-          base.base_frame = xlink_omf_record_read_word(&rec);
-        }
+        group_idx = xlink_omf_record_read_index(&rec);
+        segment_idx = xlink_omf_record_read_index(&rec);
+        base.group = group_idx ? xlink_module_get_group(mod, group_idx) : NULL;
+        base.segment =
+         segment_idx ? xlink_module_get_segment(mod, segment_idx) : NULL;
+        base.base_frame =
+         base.segment == NULL ? xlink_omf_record_read_word(&rec) : 0;
         base.is_local = (rec.type == OMF_LPUBDEF);
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_public *pub;
