@@ -277,7 +277,7 @@ struct xlink_omf_group {
   int index;
   xlink_omf_module *module;
   xlink_omf_name *name;
-  int segments[256];
+  xlink_omf_segment **segments;
   int nsegments;
 };
 
@@ -399,6 +399,25 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->records);
 }
 
+const char *xlink_segment_get_name(xlink_omf_segment *seg) {
+  static char name[256];
+  sprintf(name, "%s:%i", seg->name->name, seg->index);
+  return name;
+}
+
+void xlink_group_clear(xlink_omf_group *grp) {
+  free(grp->segments);
+  memset(grp, 0, sizeof(xlink_omf_group));
+}
+
+int xlink_group_add_segment(xlink_omf_group *grp, xlink_omf_segment *segment) {
+  grp->nsegments++;
+  grp->segments =
+   xlink_realloc(grp->segments, grp->nsegments*sizeof(xlink_omf_segment *));
+  grp->segments[grp->nsegments - 1] = segment;
+  return grp->nsegments;
+}
+
 void xlink_module_init(xlink_omf_module *mod, const char *filename) {
   memset(mod, 0, sizeof(xlink_omf_module));
   mod->filename = filename;
@@ -416,6 +435,7 @@ void xlink_module_clear(xlink_omf_module *mod) {
   }
   free(mod->segments);
   for (i = 0; i < mod->ngroups; i++) {
+    xlink_group_clear(mod->groups[i]);
     free(mod->groups[i]);
   }
   free(mod->groups);
@@ -945,7 +965,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   printf("Segment records:\n");
   for (i = 0; i < mod->nsegments; i++) {
     xlink_omf_segment *seg;
-    seg = xlink_module_get_segment(mod, i + 1);
+    seg = mod->segments[i];
     printf("%2i : %s segment %s %s %s '%s' %08x bytes%s\n", i, seg->name->name,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
@@ -953,11 +973,10 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   }
   for (i = 0; i < mod->ngroups; i++) {
     xlink_omf_group *grp;
-    grp = xlink_module_get_group(mod, i + 1);
+    grp = mod->groups[i];
     printf("Group: %s\n", grp->name->name);
     for (j = 0; j < grp->nsegments; j++) {
-      printf("%2i : %s\n", j,
-       xlink_module_get_segment_name(mod, grp->segments[j]));
+      printf("%2i : %s\n", j, xlink_segment_get_name(grp->segments[j]));
     }
   }
 }
@@ -1058,9 +1077,8 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
           unsigned char index;
           index = xlink_omf_record_read_byte(&rec);
           XLINK_ERROR(index != 0xFF, ("Invalid segment index %i", index));
-          grp->segments[grp->nsegments++] = xlink_omf_record_read_index(&rec);
-          XLINK_ERROR(grp->segments[grp->nsegments - 1] > mod->nsegments,
-           ("Segment index %i not defined", grp->segments[grp->nsegments - 1]));
+          xlink_group_add_segment(grp,
+           xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec)));
         }
         xlink_module_add_group(mod, grp);
         break;
