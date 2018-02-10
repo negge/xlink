@@ -894,10 +894,10 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
     for (i = 0; i < mod->npublics; i++) {
       xlink_omf_public *pub;
       pub = xlink_module_get_public(mod, i + 1);
-      printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i\n", i,
+      printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i%s\n", i,
        pub->name, xlink_module_get_segment_name(mod, pub->segment_idx),
        pub->group_idx ? xlink_module_get_group_name(mod, pub->group_idx) : ":0",
-       pub->offset, pub->type_idx);
+       pub->offset, pub->type_idx, pub->is_local ? " LOCAL" : "");
     }
   }
   if (mod->nexterns > 0) {
@@ -905,7 +905,8 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
     for (i = 0; i < mod->nexterns; i++) {
       xlink_omf_extern *ext;
       ext = xlink_module_get_extern(mod, i + 1);
-      printf("%2i : '%s', type %i\n", i, ext->name, ext->type_idx);
+      printf("%2i : '%s', type %i%s\n", i, ext->name, ext->type_idx,
+       ext->is_local ? " LOCAL" : "");
     }
   }
 }
