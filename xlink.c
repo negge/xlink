@@ -256,8 +256,8 @@ struct xlink_omf_segment {
   unsigned int frame;
   unsigned int offset;
   int length;
-  int name_idx;
-  int class_idx;
+  xlink_omf_name *name;
+  xlink_omf_name *class;
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
@@ -516,8 +516,7 @@ const char *xlink_module_get_segment_name(xlink_omf_module *mod, int segment_idx
   xlink_omf_segment *seg;
   static char name[256];
   seg = xlink_module_get_segment(mod, segment_idx);
-  sprintf(name, "%s:%i", xlink_module_get_name(mod, seg->name_idx)->name,
-   segment_idx);
+  sprintf(name, "%s:%i", seg->name->name, segment_idx);
   return name;
 }
 
@@ -946,11 +945,9 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   for (i = 0; i < mod->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = xlink_module_get_segment(mod, i + 1);
-    printf("%2i : %s segment %s %s %s '%s' %08x bytes%s\n", i,
-     xlink_module_get_name(mod, seg->name_idx)->name,
+    printf("%2i : %s segment %s %s %s '%s' %08x bytes%s\n", i, seg->name->name,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
-     OMF_SEGDEF_COMBINE[seg->attrib.combine],
-     xlink_module_get_name(mod, seg->class_idx)->name, seg->length,
+     OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
      seg->attrib.big ? ", big" : "");
   }
   for (i = 0; i < mod->ngroups; i++) {
@@ -1037,12 +1034,10 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
         seg->length = xlink_omf_record_read_numeric(&rec);
         XLINK_ERROR(seg->attrib.big && seg->length != 0,
          ("Invalid length for 'big' segment, expected 0 got %i", seg->length));
-        seg->name_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg->name_idx > mod->nnames,
-         ("Segment name index %i not defined", seg->name_idx));
-        seg->class_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg->class_idx > mod->nnames,
-         ("Segment class index %i not defined", seg->class_idx));
+        seg->name =
+         xlink_module_get_name(mod, xlink_omf_record_read_index(&rec));
+        seg->class =
+         xlink_module_get_name(mod, xlink_omf_record_read_index(&rec));
         /* Read and ignore Overlay Name Index */
         xlink_omf_record_read_index(&rec);
         seg->info = 0;
