@@ -957,7 +957,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
     printf("Group: %s\n", grp->name->name);
     for (j = 0; j < grp->nsegments; j++) {
       printf("%2i : %s\n", j,
-       xlink_module_get_name(mod, grp->segments[j])->name);
+       xlink_module_get_segment_name(mod, grp->segments[j]));
     }
   }
 }
