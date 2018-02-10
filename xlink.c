@@ -258,7 +258,6 @@ struct xlink_omf_segment {
   int length;
   int name_idx;
   int class_idx;
-  int overlay_idx;
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
@@ -1044,9 +1043,8 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
         seg->class_idx = xlink_omf_record_read_index(&rec);
         XLINK_ERROR(seg->class_idx > mod->nnames,
          ("Segment class index %i not defined", seg->class_idx));
-        seg->overlay_idx = xlink_omf_record_read_index(&rec);
-        XLINK_ERROR(seg->overlay_idx > mod->nnames,
-         ("Segment overlay index %i not defined", seg->overlay_idx));
+        /* Read and ignore Overlay Name Index */
+        xlink_omf_record_read_index(&rec);
         seg->info = 0;
         seg->data = xlink_malloc(seg->length);
         seg->mask = xlink_malloc(CEIL2(seg->length, 3));
