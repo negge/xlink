@@ -418,6 +418,12 @@ int xlink_group_add_segment(xlink_omf_group *grp, xlink_omf_segment *segment) {
   return grp->nsegments;
 }
 
+const char *xlink_group_get_name(xlink_omf_group *grp) {
+  static char name[256];
+  sprintf(name, "%s:%i", grp->name->name, grp->index);
+  return name;
+}
+
 void xlink_module_init(xlink_omf_module *mod, const char *filename) {
   memset(mod, 0, sizeof(xlink_omf_module));
   mod->filename = filename;
@@ -974,7 +980,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   for (i = 0; i < mod->ngroups; i++) {
     xlink_omf_group *grp;
     grp = mod->groups[i];
-    printf("Group: %s\n", grp->name->name);
+    printf("Group: %s\n", xlink_group_get_name(grp));
     for (j = 0; j < grp->nsegments; j++) {
       printf("%2i : %s\n", j, xlink_segment_get_name(grp->segments[j]));
     }
