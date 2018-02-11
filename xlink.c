@@ -69,6 +69,15 @@ typedef enum {
   OMF_SEGMENT_BSS
 } xlink_segment_class;
 
+typedef enum {
+  OMF_SEGMENT_ABS,
+  OMF_SEGMENT_BYTE,
+  OMF_SEGMENT_WORD,
+  OMF_SEGMENT_PARA,
+  OMF_SEGMENT_PAGE,
+  OMF_SEGMENT_DWORD
+} xlink_segment_align;
+
 typedef union xlink_omf_attribute xlink_omf_attribute;
 
 union xlink_omf_attribute {
@@ -273,6 +282,7 @@ struct xlink_omf_segment {
   int npublics;
   xlink_omf_reloc **relocs;
   int nrelocs;
+  int start;
 };
 
 void xlink_omf_segment_clear(xlink_omf_segment *segment);
@@ -282,6 +292,8 @@ void xlink_omf_segment_clear(xlink_omf_segment *segment);
 #define CLEARBIT(mask, idx)  (mask)[(idx)/8] &= ~(1 << ((idx)%8))
 #define SETBIT(mask, idx)    (mask)[(idx)/8] |=  (1 << ((idx)%8))
 #define GETBIT(mask, idx)   ((mask)[(idx)/8] &   (1 << ((idx)%8)))
+
+#define ALIGN2(len, bits) (((len) + ((1 << (bits)) - 1)) & ~((1 << (bits)) - 1))
 
 typedef struct xlink_omf_group xlink_omf_group;
 
@@ -425,6 +437,32 @@ const char *xlink_segment_get_name(xlink_omf_segment *seg) {
   static char name[256];
   sprintf(name, "%s:%i", seg->name->name, seg->index);
   return name;
+}
+
+int xlink_segment_get_alignment(xlink_omf_segment *seg) {
+  switch (seg->attrib.align) {
+    case OMF_SEGMENT_BYTE : {
+      return 0;
+    }
+    case OMF_SEGMENT_WORD : {
+      return 1;
+    }
+    case OMF_SEGMENT_DWORD : {
+      return 2;
+    }
+    case OMF_SEGMENT_PARA : {
+      return 4;
+    }
+    case OMF_SEGMENT_PAGE : {
+      return 12;
+    }
+    default : {
+      XLINK_ERROR(1,
+       ("Unsupported alignment %s:%i for segment %s",
+       OMF_SEGDEF_ALIGN[seg->attrib.align], seg->attrib.align,
+       xlink_segment_get_name(seg)));
+    }
+  }
 }
 
 int xlink_segment_add_public(xlink_omf_segment *seg, xlink_omf_public *public) {
@@ -1447,6 +1485,7 @@ int seg_comp(const void *a, const void *b) {
 
 void xlink_binary_link(xlink_binary *bin) {
   int i;
+  int offset;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
   bin->main = xlink_binary_find_public(bin, bin->entry);
   xlink_binary_add_segment(bin, bin->main->segment);
@@ -1471,6 +1510,27 @@ void xlink_binary_link(xlink_binary *bin) {
         break;
       }
     }
+  }
+  /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
+  offset = 0x100;
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = bin->segments[i];
+    offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
+    seg->start = offset;
+    offset += seg->length;
+  }
+  XLINK_ERROR(offset > 65536,
+   ("Address space exceeds 65536 bytes, %i", offset));
+  printf("Segment layout:\n");
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = bin->segments[i];
+    printf("%2i : %4x %s segment %s %s %s '%s' %08x bytes%s\n", i, seg->start,
+     xlink_segment_get_name(seg),
+     OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
+     OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
+     seg->attrib.big ? ", big" : "");
   }
 }
 
