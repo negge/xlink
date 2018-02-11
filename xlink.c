@@ -307,6 +307,7 @@ struct xlink_omf_extern {
   xlink_omf_string name;
   int type_idx;
   int is_local;
+  xlink_omf_public *public;
 };
 
 typedef struct xlink_omf_addend xlink_omf_addend;
@@ -363,6 +364,11 @@ struct xlink_binary {
   char *entry;
   xlink_omf_module **modules;
   int nmodules;
+  xlink_omf_public *main;
+  xlink_omf_segment **segments;
+  int nsegments;
+  xlink_omf_extern **externs;
+  int nexterns;
 };
 
 xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx);
@@ -498,6 +504,8 @@ void xlink_binary_clear(xlink_binary *bin) {
     free(bin->modules[i]);
   }
   free(bin->modules);
+  free(bin->segments);
+  free(bin->externs);
   memset(bin, 0, sizeof(xlink_binary));
 }
 
@@ -555,6 +563,52 @@ xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
   }
   XLINK_ERROR(ret == NULL, ("Could not find public definition %s", symb));
   return ret;
+}
+
+int xlink_binary_has_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+  int i;
+  for (i = 0; i < bin->nsegments; i++) {
+    if (bin->segments[i] == segment) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int xlink_binary_has_extern(xlink_binary *bin, xlink_omf_extern *ext) {
+  int i;
+  for (i = 0; i < bin->nexterns; i++) {
+    if (bin->externs[i] == ext) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+  int i;
+  if (xlink_binary_has_segment(bin, segment)) {
+    return;
+  }
+  bin->nsegments++;
+  bin->segments =
+   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_omf_segment *));
+  bin->segments[bin->nsegments - 1] = segment;
+  for (i = 0; i < segment->nrelocs; i++) {
+    xlink_omf_reloc *rel;
+    xlink_omf_extern *ext;
+    rel = segment->relocs[i];
+    XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
+     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
+    ext = segment->module->externs[rel->target_idx - 1];
+    if (xlink_binary_has_extern(bin, ext)) {
+      continue;
+    }
+    bin->nexterns++;
+    bin->externs =
+     xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_omf_extern *));
+    bin->externs[bin->nexterns - 1] = ext;
+  }
 }
 
 int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
@@ -1361,6 +1415,24 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
   return mod;
 }
 
+void xlink_binary_link(xlink_binary *bin) {
+  int i;
+  /* Stage 1: Resolve all symbol references, starting from bin->entry */
+  bin->main = xlink_binary_find_public(bin, bin->entry);
+  xlink_binary_add_segment(bin, bin->main->segment);
+  for (i = 0; i < bin->nexterns; i++) {
+    xlink_omf_extern *ext;
+    ext = bin->externs[i];
+    if (ext->is_local) {
+      ext->public = xlink_module_find_public(ext->module, ext->name);
+    }
+    else {
+      ext->public = xlink_binary_find_public(bin, ext->name);
+    }
+    xlink_binary_add_segment(bin, ext->public->segment);
+  }
+}
+
 const char *OPTSTRING = "o:e:h";
 
 const struct option OPTIONS[] = {
@@ -1419,5 +1491,6 @@ int main(int argc, char *argv[]) {
     /* TODO: Add support for loading multiple OMF files at once. */
     break;
   }
+  xlink_binary_link(&bin);
   xlink_binary_clear(&bin);
 }
