@@ -264,7 +264,7 @@ struct xlink_name {
 };
 
 typedef struct xlink_module xlink_module;
-typedef struct xlink_omf_public xlink_omf_public;
+typedef struct xlink_public xlink_public;
 typedef struct xlink_omf_reloc xlink_omf_reloc;
 
 #define SEG_HAS_DATA 0x1
@@ -283,7 +283,7 @@ struct xlink_segment {
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
-  xlink_omf_public **publics;
+  xlink_public **publics;
   int npublics;
   xlink_omf_reloc **relocs;
   int nrelocs;
@@ -310,7 +310,7 @@ struct xlink_group {
   int nsegments;
 };
 
-struct xlink_omf_public {
+struct xlink_public {
   int index;
   xlink_module *module;
   xlink_group *group;
@@ -330,7 +330,7 @@ struct xlink_omf_extern {
   xlink_string name;
   int type_idx;
   int is_local;
-  xlink_omf_public *public;
+  xlink_public *public;
 };
 
 typedef struct xlink_omf_addend xlink_omf_addend;
@@ -372,7 +372,7 @@ struct xlink_module {
   int nsegments;
   xlink_group **groups;
   int ngroups;
-  xlink_omf_public **publics;
+  xlink_public **publics;
   int npublics;
   xlink_omf_extern **externs;
   int nexterns;
@@ -388,7 +388,7 @@ struct xlink_binary {
   char *map;
   xlink_module **modules;
   int nmodules;
-  xlink_omf_public *main;
+  xlink_public *main;
   xlink_segment **segments;
   int nsegments;
   xlink_omf_extern **externs;
@@ -477,10 +477,10 @@ int xlink_segment_get_alignment(xlink_segment *seg) {
   }
 }
 
-int xlink_segment_add_public(xlink_segment *seg, xlink_omf_public *public) {
+int xlink_segment_add_public(xlink_segment *seg, xlink_public *public) {
   seg->npublics++;
   seg->publics =
-   xlink_realloc(seg->publics, seg->npublics*sizeof(xlink_omf_public *));
+   xlink_realloc(seg->publics, seg->npublics*sizeof(xlink_public *));
   seg->publics[seg->npublics - 1] = public;
   return seg->npublics;
 }
@@ -676,29 +676,28 @@ const char *xlink_module_get_group_name(xlink_module *mod, int group_idx) {
   return name;
 }
 
-xlink_omf_public *xlink_module_get_public(xlink_module *mod, int public_idx) {
+xlink_public *xlink_module_get_public(xlink_module *mod, int public_idx) {
   XLINK_ERROR(public_idx < 1 || public_idx > mod->npublics,
    ("Could not get public %i, npublics = %i\n", public_idx, mod->npublics));
   return mod->publics[public_idx - 1];
 }
 
-int xlink_module_add_public(xlink_module *mod, xlink_omf_public *public) {
+int xlink_module_add_public(xlink_module *mod, xlink_public *public) {
   public->index = mod->npublics;
   public->module = mod;
   mod->npublics++;
   mod->publics =
-   xlink_realloc(mod->publics, mod->npublics*sizeof(xlink_omf_public *));
+   xlink_realloc(mod->publics, mod->npublics*sizeof(xlink_public *));
   mod->publics[mod->npublics - 1] = public;
   return mod->npublics;
 }
 
-xlink_omf_public *xlink_module_find_public(xlink_module *mod,
- const char *symb) {
-  xlink_omf_public *ret;
+xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
+  xlink_public *ret;
   int i;
   ret = NULL;
   for (i = 0; i < mod->npublics; i++) {
-    xlink_omf_public *pub;
+    xlink_public *pub;
     pub = mod->publics[i];
     if (pub->is_local && strcmp(symb, pub->name) == 0) {
       XLINK_ERROR(ret != NULL,
@@ -775,16 +774,15 @@ const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
   return name;
 }
 
-xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
- const char *symb) {
-  xlink_omf_public *ret;
+xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
+  xlink_public *ret;
   int i, j;
   ret = NULL;
   for (i = 0; i < bin->nmodules; i++) {
     xlink_module *mod;
     mod = bin->modules[i];
     for (j = 0; j < mod->npublics; j++) {
-      xlink_omf_public *pub;
+      xlink_public *pub;
       pub = mod->publics[j];
       if (!pub->is_local && strcmp(symb, pub->name) == 0) {
         XLINK_ERROR(ret != NULL,
@@ -878,7 +876,7 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
     data = segment->data + rel->offset;
     offset = segment->start + rel->offset;
     if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_omf_public *pub;
+      xlink_public *pub;
       pub = xlink_module_get_extern(segment->module, rel->target_idx)->public;
       target = pub->segment->start + pub->offset;
     }
@@ -1125,7 +1123,7 @@ void xlink_module_dump_symbols(xlink_module *mod) {
   if (mod->npublics > 0) {
     printf("Public names:\n");
     for (i = 0; i < mod->npublics; i++) {
-      xlink_omf_public *pub;
+      xlink_public *pub;
       char buf[256];
       pub = mod->publics[i];
       sprintf(buf, "'%s'", pub->name);
@@ -1291,7 +1289,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
       case OMF_LPUBDEF : {
         int group_idx;
         int segment_idx;
-        xlink_omf_public base;
+        xlink_public base;
         group_idx = xlink_omf_record_read_index(&rec);
         segment_idx = xlink_omf_record_read_index(&rec);
         base.group = group_idx ? xlink_module_get_group(mod, group_idx) : NULL;
@@ -1301,8 +1299,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
          base.segment == NULL ? xlink_omf_record_read_word(&rec) : 0;
         base.is_local = (rec.type == OMF_LPUBDEF);
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_public *pub;
-          pub = xlink_malloc(sizeof(xlink_omf_public));
+          xlink_public *pub;
+          pub = xlink_malloc(sizeof(xlink_public));
           *pub = base;
           strcpy(pub->name, xlink_omf_record_read_string(&rec));
           pub->offset = xlink_omf_record_read_numeric(&rec);
