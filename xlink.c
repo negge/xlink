@@ -1523,6 +1523,7 @@ int seg_comp(const void *a, const void *b) {
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
+  FILE *out;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
   bin->main = xlink_binary_find_public(bin, bin->entry);
   xlink_binary_add_segment(bin, bin->main->segment);
@@ -1573,6 +1574,24 @@ void xlink_binary_link(xlink_binary *bin) {
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment_apply_relocations(bin->segments[i]);
   }
+  /* Stage 5: Write the COM file to disk a segment at a time */
+  out = fopen(bin->output, "wb");
+  XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
+  for (offset = 0x100, i = 0; i < bin->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = bin->segments[i];
+    if (seg->info & SEG_HAS_DATA) {
+      if (offset != seg->start) {
+        unsigned char buf[4096];
+        memset(buf, 0, 4096);
+        fwrite(buf, 1, seg->start - offset, out);
+        offset = seg->start;
+      }
+      fwrite(seg->data, 1, seg->length, out);
+      offset += seg->length;
+    }
+  }
+  fclose(out);
 }
 
 const char *OPTSTRING = "o:e:h";
