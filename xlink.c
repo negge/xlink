@@ -1116,7 +1116,9 @@ void xlink_module_dump_names(xlink_omf_module *mod) {
   if (mod->nnames > 0) {
     printf("Local names:\n");
     for (i = 0; i < mod->nnames; i++) {
-      printf("%2i : '%s'\n", i, xlink_module_get_name(mod, i + 1)->str);
+      char buf[256];
+      sprintf(buf, "'%s'", mod->names[i]->str);
+      printf("%2i : %8s\n", i, buf);
     }
   }
 }
