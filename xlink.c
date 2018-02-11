@@ -511,6 +511,45 @@ const char *xlink_group_get_name(xlink_omf_group *grp) {
   return name;
 }
 
+const char *xlink_extern_get_name(xlink_omf_extern *ext) {
+  static char name[256];
+  sprintf(name, "%s:%i", ext->name, ext->index);
+  return name;
+}
+
+const char *xlink_reloc_get_addend(xlink_omf_reloc *rel) {
+  static char str[256];
+  switch (rel->location) {
+    case OMF_LOCATION_8BIT :
+    case OMF_LOCATION_8BIT_HIGH : {
+      sprintf(str, "0x%02x", (uint8_t)rel->addend.offset);
+      break;
+    }
+    case OMF_LOCATION_16BIT :
+    case OMF_LOCATION_SEGMENT :
+    case OMF_LOCATION_16BIT_LOADER : {
+      sprintf(str, "0x%04x", (uint16_t)rel->addend.offset);
+      break;
+    }
+    case OMF_LOCATION_32BIT :
+    case OMF_LOCATION_32BIT_LOADER : {
+      sprintf(str, "0x%08x", (uint32_t)rel->addend.offset);
+      break;
+    }
+    case OMF_LOCATION_FAR :
+    case OMF_LOCATION_48BIT :
+    case OMF_LOCATION_48BIT_PHARLAP : {
+      sprintf(str, "0x%04x:0x%08x", (uint16_t)rel->addend.segment,
+       (uint32_t)rel->addend.offset);
+      break;
+    }
+    default : {
+      XLINK_ERROR(1, ("Unsupported location %i", rel->location));
+    }
+  }
+  return str;
+}
+
 void xlink_module_init(xlink_omf_module *mod, const char *filename) {
   memset(mod, 0, sizeof(xlink_omf_module));
   mod->filename = filename;
@@ -821,111 +860,6 @@ int xlink_module_add_reloc(xlink_omf_module *mod, xlink_omf_reloc *reloc) {
   return mod->nrelocs;
 }
 
-const char *xlink_module_get_reloc_frame(xlink_omf_module *mod,
- xlink_omf_frame frame, int index) {
-  static char buf[256];
-  char str[256];
-  switch (frame) {
-    case OMF_FRAME_SEG : {
-      sprintf(str, "segment %s", xlink_module_get_segment_name(mod, index));
-      break;
-    }
-    case OMF_FRAME_GRP : {
-      sprintf(str, "group %s", xlink_module_get_group_name(mod, index));
-      break;
-    }
-    case OMF_FRAME_EXT : {
-      sprintf(str, "extern %s", xlink_module_get_extern_name(mod, index));
-      break;
-    }
-    case OMF_FRAME_ABS : {
-      sprintf(str, "absolute %i", index);
-      break;
-    }
-    case OMF_FRAME_LOC : {
-      sprintf(str, "prevloc");
-      break;
-    }
-    case OMF_FRAME_TARG : {
-      sprintf(str, "target");
-      break;
-    }
-    default : {
-      sprintf(str, "index = %i", index);
-    }
-  }
-  sprintf(buf, "F%i %s", frame, str);
-  return buf;
-}
-
-const char *xlink_module_get_reloc_target(xlink_omf_module *mod,
- xlink_omf_target target, int index) {
-  static char buf[256];
-  char str[256];
-  switch (target) {
-    case OMF_TARGET_SEG :
-    case OMF_TARGET_SEG_DISP : {
-      sprintf(str, "segment %s", xlink_module_get_segment_name(mod, index));
-      break;
-    }
-    case OMF_TARGET_GRP :
-    case OMF_TARGET_GRP_DISP : {
-      sprintf(str, "group %s", xlink_module_get_group_name(mod, index));
-      break;
-    }
-    case OMF_TARGET_EXT :
-    case OMF_TARGET_EXT_DISP : {
-      sprintf(str, "extern %s", xlink_module_get_extern_name(mod, index));
-      break;
-    }
-    case OMF_TARGET_ABS :
-    case OMF_TARGET_ABS_DISP : {
-      sprintf(str, "absolute %i", index);
-      break;
-    }
-  }
-  sprintf(buf, "T%i %s", target, str);
-  return buf;
-}
-
-const char *xlink_module_get_reloc_addend(xlink_omf_location location,
- const unsigned char *data) {
-  static char buf[256];
-  char str[256];
-  switch (location) {
-    case OMF_LOCATION_8BIT :
-    case OMF_LOCATION_8BIT_HIGH : {
-      sprintf(str, "0x%x", *(uint8_t *)data);
-      break;
-    }
-    case OMF_LOCATION_16BIT :
-    case OMF_LOCATION_SEGMENT :
-    case OMF_LOCATION_16BIT_LOADER : {
-      sprintf(str, "0x%x", *(uint16_t *)data);
-      break;
-    }
-    case OMF_LOCATION_FAR : {
-      sprintf(str, "0x%x:0x%x", *(uint16_t *)(data + 2), *(uint16_t *)data);
-      break;
-    }
-    case OMF_LOCATION_32BIT :
-    case OMF_LOCATION_32BIT_LOADER : {
-      sprintf(str, "0x%x", *(uint32_t *)data);
-      break;
-    }
-    case OMF_LOCATION_48BIT :
-    case OMF_LOCATION_48BIT_PHARLAP : {
-      sprintf(str, "0x%x:0x%x", *(uint16_t *)(data + 4), *(uint32_t *)data);
-      break;
-    }
-    default : {
-      XLINK_ERROR(1, ("Unsupported location %i", location));
-    }
-  }
-  sprintf(buf, "addend %s", str);
-  return buf;
-}
-
 void xlink_segment_apply_relocations(xlink_omf_segment *seg) {
   int i;
   for (i = 0; i < seg->nrelocs; i++) {
@@ -1229,14 +1163,16 @@ void xlink_module_dump_relocations(xlink_omf_module *mod) {
   for (i = 0; i < mod->nrelocs; i++) {
     xlink_omf_reloc *rel;
     xlink_omf_segment *seg;
+    xlink_omf_extern *ext;
     rel = mod->relocs[i];
+    XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
+     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
     seg = rel->segment;
-    printf("  FIXUPP: %s %s, segment %s, offset 0x%x, %s, %s, %s\n",
-     OMF_FIXUP_MODE[rel->mode], OMF_FIXUP_LOCATION[rel->location],
-     xlink_segment_get_name(seg), rel->offset,
-     xlink_module_get_reloc_frame(mod, rel->frame, rel->frame_idx),
-     xlink_module_get_reloc_target(mod, rel->target, rel->target_idx),
-     xlink_module_get_reloc_addend(rel->location, seg->data + rel->offset));
+    ext = seg->module->externs[rel->target_idx - 1];
+    printf("  FIXUPP: %6s %c segment %s offset 0x%03x extern %12s addend %s\n",
+     OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
+     xlink_segment_get_name(seg), rel->offset, xlink_extern_get_name(ext),
+     xlink_reloc_get_addend(rel));
   }
 }
 
