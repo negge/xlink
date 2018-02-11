@@ -300,9 +300,9 @@ void xlink_segment_clear(xlink_segment *segment);
 
 #define ALIGN2(len, bits) (((len) + ((1 << (bits)) - 1)) & ~((1 << (bits)) - 1))
 
-typedef struct xlink_omf_group xlink_omf_group;
+typedef struct xlink_group xlink_group;
 
-struct xlink_omf_group {
+struct xlink_group {
   int index;
   xlink_module *module;
   xlink_name *name;
@@ -313,7 +313,7 @@ struct xlink_omf_group {
 struct xlink_omf_public {
   int index;
   xlink_module *module;
-  xlink_omf_group *group;
+  xlink_group *group;
   xlink_segment *segment;
   int base_frame;
   xlink_string name;
@@ -370,7 +370,7 @@ struct xlink_module {
   int nnames;
   xlink_segment **segments;
   int nsegments;
-  xlink_omf_group **groups;
+  xlink_group **groups;
   int ngroups;
   xlink_omf_public **publics;
   int npublics;
@@ -493,12 +493,12 @@ int xlink_segment_add_reloc(xlink_segment *seg, xlink_omf_reloc *reloc) {
   return seg->nrelocs;
 }
 
-void xlink_group_clear(xlink_omf_group *grp) {
+void xlink_group_clear(xlink_group *grp) {
   free(grp->segments);
-  memset(grp, 0, sizeof(xlink_omf_group));
+  memset(grp, 0, sizeof(xlink_group));
 }
 
-int xlink_group_add_segment(xlink_omf_group *grp, xlink_segment *segment) {
+int xlink_group_add_segment(xlink_group *grp, xlink_segment *segment) {
   grp->nsegments++;
   grp->segments =
    xlink_realloc(grp->segments, grp->nsegments*sizeof(xlink_segment *));
@@ -506,7 +506,7 @@ int xlink_group_add_segment(xlink_omf_group *grp, xlink_segment *segment) {
   return grp->nsegments;
 }
 
-const char *xlink_group_get_name(xlink_omf_group *grp) {
+const char *xlink_group_get_name(xlink_group *grp) {
   static char name[256];
   sprintf(name, "%s:%i", grp->name->str, grp->index);
   return name;
@@ -652,24 +652,24 @@ const char *xlink_module_get_segment_name(xlink_module *mod, int segment_idx) {
   return name;
 }
 
-int xlink_module_add_group(xlink_module *mod, xlink_omf_group *group) {
+int xlink_module_add_group(xlink_module *mod, xlink_group *group) {
   group->index = mod->ngroups;
   group->module = mod;
   mod->ngroups++;
   mod->groups =
-   xlink_realloc(mod->groups, mod->ngroups*sizeof(xlink_omf_group *));
+   xlink_realloc(mod->groups, mod->ngroups*sizeof(xlink_group *));
   mod->groups[mod->ngroups - 1] = group;
   return mod->ngroups;
 }
 
-xlink_omf_group *xlink_module_get_group(xlink_module *mod, int group_idx) {
+xlink_group *xlink_module_get_group(xlink_module *mod, int group_idx) {
   XLINK_ERROR(group_idx < 1 || group_idx > mod->ngroups,
    ("Could not get group %i, ngroup = %i", group_idx, mod->ngroups));
   return mod->groups[group_idx - 1];
 }
 
 const char *xlink_module_get_group_name(xlink_module *mod, int group_idx) {
-  xlink_omf_group *grp;
+  xlink_group *grp;
   static char name[256];
   grp = xlink_module_get_group(mod, group_idx);
   sprintf(name, "%s:%i", grp->name->str, group_idx);
@@ -1161,7 +1161,7 @@ void xlink_module_dump_segments(xlink_module *mod) {
      seg->length, seg->attrib.big ? ", big" : "");
   }
   for (i = 0; i < mod->ngroups; i++) {
-    xlink_omf_group *grp;
+    xlink_group *grp;
     grp = mod->groups[i];
     printf("Group: %s\n", xlink_group_get_name(grp));
     for (j = 0; j < grp->nsegments; j++) {
@@ -1272,8 +1272,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
         break;
       }
       case OMF_GRPDEF : {
-        xlink_omf_group *grp;
-        grp = xlink_malloc(sizeof(xlink_omf_group));
+        xlink_group *grp;
+        grp = xlink_malloc(sizeof(xlink_group));
         grp->name =
          xlink_module_get_name(mod, xlink_omf_record_read_index(&rec));
         grp->nsegments = 0;
