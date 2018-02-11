@@ -1665,8 +1665,6 @@ int main(int argc, char *argv[]) {
     xlink_file_init(&file, argv[c]);
     xlink_binary_add_module(&bin, xlink_file_load_module(&file, dump));
     xlink_file_clear(&file);
-    /* TODO: Add support for loading multiple OMF files at once. */
-    break;
   }
   if (!dump) {
     xlink_binary_link(&bin);
