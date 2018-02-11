@@ -257,9 +257,9 @@ struct xlink_omf_record {
 
 typedef char xlink_string[256];
 
-typedef struct xlink_omf_name xlink_omf_name;
+typedef struct xlink_name xlink_name;
 
-struct xlink_omf_name {
+struct xlink_name {
   xlink_string str;
 };
 
@@ -278,8 +278,8 @@ struct xlink_omf_segment {
   unsigned int frame;
   unsigned int offset;
   int length;
-  xlink_omf_name *name;
-  xlink_omf_name *class;
+  xlink_name *name;
+  xlink_name *class;
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
@@ -305,7 +305,7 @@ typedef struct xlink_omf_group xlink_omf_group;
 struct xlink_omf_group {
   int index;
   xlink_module *module;
-  xlink_omf_name *name;
+  xlink_name *name;
   xlink_omf_segment **segments;
   int nsegments;
 };
@@ -366,7 +366,7 @@ struct xlink_module {
   const char *filename;
   int index;
   xlink_string source;
-  xlink_omf_name **names;
+  xlink_name **names;
   int nnames;
   xlink_omf_segment **segments;
   int nsegments;
@@ -615,14 +615,14 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   return omf->nrecords;
 }
 
-int xlink_module_add_name(xlink_module *mod, xlink_omf_name *name) {
+int xlink_module_add_name(xlink_module *mod, xlink_name *name) {
   mod->nnames++;
-  mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_omf_name *));
+  mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_name *));
   mod->names[mod->nnames - 1] = name;
   return mod->nnames;
 }
 
-xlink_omf_name *xlink_module_get_name(xlink_module *mod, int name_idx) {
+xlink_name *xlink_module_get_name(xlink_module *mod, int name_idx) {
   XLINK_ERROR(name_idx < 1 || name_idx > mod->nnames,
    ("Could not get name %i, nnames = %i", name_idx, mod->nnames));
   return mod->names[name_idx - 1];
@@ -1238,8 +1238,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
       case OMF_LNAMES :
       case OMF_LLNAMES : {
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_name *name;
-          name = xlink_malloc(sizeof(xlink_omf_name));
+          xlink_name *name;
+          name = xlink_malloc(sizeof(xlink_name));
           strcpy(name->str, xlink_omf_record_read_string(&rec));
           xlink_module_add_name(mod, name);
         }
