@@ -1176,7 +1176,7 @@ void xlink_module_dump_relocations(xlink_omf_module *mod) {
   }
 }
 
-xlink_omf_module *xlink_file_load_module(xlink_file *file) {
+xlink_omf_module *xlink_file_load_module(xlink_file *file, int dump) {
   xlink_omf_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
@@ -1435,13 +1435,15 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
       }
     }
   }
-  xlink_omf_dump_records(&omf);
-  printf("Module: %s\n", mod->filename);
-  xlink_module_dump_names(mod);
-  xlink_module_dump_symbols(mod);
-  xlink_module_dump_segments(mod);
-  xlink_omf_dump_lxdata(&omf, mod);
-  xlink_module_dump_relocations(mod);
+  if (dump) {
+    printf("Module: %s\n", mod->filename);
+    xlink_omf_dump_records(&omf);
+    xlink_module_dump_names(mod);
+    xlink_module_dump_symbols(mod);
+    xlink_module_dump_segments(mod);
+    xlink_omf_dump_lxdata(&omf, mod);
+    xlink_module_dump_relocations(mod);
+  }
   xlink_omf_clear(&omf);
   return mod;
 }
@@ -1535,20 +1537,22 @@ void xlink_binary_link(xlink_binary *bin) {
   fclose(out);
 }
 
-const char *OPTSTRING = "o:e:h";
+const char *OPTSTRING = "o:e:dh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
+  { "dump", no_argument,         NULL, 'd' },
   { "help", no_argument,         NULL, 'h' },
   { NULL,   0,                   NULL,  0  }
 };
 
 static void usage(const char *argv0) {
-  fprintf(stderr, "Usage: %s [options] <modules> -o <program>\n\n"
+  fprintf(stderr, "Usage: %s [options] <modules>\n\n"
    "Options: \n\n"
    "  -o --output <program>           Output file name for linked program.\n"
    "  -e --entry <function>           Entry point for binary (default: main).\n"
+   "  -d --dump                       Dump module contents only.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
@@ -1557,7 +1561,9 @@ int main(int argc, char *argv[]) {
   xlink_binary bin;
   int c;
   int opt_index;
+  int dump;
   xlink_binary_init(&bin);
+  dump = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &opt_index)) != EOF) {
     switch (c) {
       case 'o' : {
@@ -1566,6 +1572,10 @@ int main(int argc, char *argv[]) {
       }
       case 'e' : {
         bin.entry = optarg;
+        break;
+      }
+      case 'd' : {
+        dump = 1;
         break;
       }
       case 'h' :
@@ -1580,7 +1590,7 @@ int main(int argc, char *argv[]) {
     usage(argv[0]);
     return EXIT_FAILURE;
   }
-  if (bin.output == NULL) {
+  if (!dump && bin.output == NULL) {
     printf("Output -o <program> is required!\n\n");
     usage(argv[0]);
     return EXIT_FAILURE;
@@ -1588,11 +1598,13 @@ int main(int argc, char *argv[]) {
   for (c = optind; c < argc; c++) {
     xlink_file file;
     xlink_file_init(&file, argv[c]);
-    xlink_binary_add_module(&bin, xlink_file_load_module(&file));
+    xlink_binary_add_module(&bin, xlink_file_load_module(&file, dump));
     xlink_file_clear(&file);
     /* TODO: Add support for loading multiple OMF files at once. */
     break;
   }
-  xlink_binary_link(&bin);
+  if (!dump) {
+    xlink_binary_link(&bin);
+  }
   xlink_binary_clear(&bin);
 }
