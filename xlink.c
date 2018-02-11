@@ -63,6 +63,12 @@ typedef enum {
   OMF_LOCATION_32BIT_LOADER  = 13,  // 32-bit, loader resolved
 } xlink_omf_location;
 
+typedef enum {
+  OMF_SEGMENT_CODE,
+  OMF_SEGMENT_DATA,
+  OMF_SEGMENT_BSS
+} xlink_segment_class;
+
 typedef union xlink_omf_attribute xlink_omf_attribute;
 
 union xlink_omf_attribute {
@@ -1415,6 +1421,30 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
   return mod;
 }
 
+xlink_segment_class xlink_segment_get_class(const xlink_omf_segment *seg) {
+  if (strcmp(seg->class->name, "CODE") == 0) {
+    return OMF_SEGMENT_CODE;
+  }
+  if (seg->info & SEG_HAS_DATA) {
+    return OMF_SEGMENT_DATA;
+  }
+  return OMF_SEGMENT_BSS;
+}
+
+int seg_comp(const void *a, const void *b) {
+  const xlink_omf_segment *seg_a;
+  const xlink_omf_segment *seg_b;
+  seg_a = *(xlink_omf_segment **)a;
+  seg_b = *(xlink_omf_segment **)b;
+  if (xlink_segment_get_class(seg_a) == xlink_segment_get_class(seg_b)) {
+    if (seg_a->module == seg_b->module) {
+      return seg_a->index - seg_b->index;
+    }
+    return seg_a->module->index - seg_b->module->index;
+  }
+  return xlink_segment_get_class(seg_a) - xlink_segment_get_class(seg_b);
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
@@ -1430,6 +1460,17 @@ void xlink_binary_link(xlink_binary *bin) {
       ext->public = xlink_binary_find_public(bin, ext->name);
     }
     xlink_binary_add_segment(bin, ext->public->segment);
+  }
+  /* Stage 2: Sort segments by class (CODE, DATA, BSS) with bin->entry first */
+  qsort(bin->segments, bin->nsegments, sizeof(xlink_omf_segment *), seg_comp);
+  if (bin->segments[0] != bin->main->segment) {
+    for (i = 1; i < bin->nsegments; i++) {
+      if (bin->segments[i] == bin->main->segment) {
+        bin->segments[i] = bin->segments[0];
+        bin->segments[0] = bin->main->segment;
+        break;
+      }
+    }
   }
 }
 
