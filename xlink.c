@@ -526,6 +526,29 @@ const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
   return name;
 }
 
+xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
+ const char *symb) {
+  xlink_omf_public *ret;
+  int i, j;
+  ret = NULL;
+  for (i = 0; i < bin->nmodules; i++) {
+    xlink_omf_module *mod;
+    mod = bin->modules[i];
+    for (j = 0; j < mod->npublics; j++) {
+      xlink_omf_public *pub;
+      pub = mod->publics[j];
+      if (!pub->is_local && strcmp(symb, pub->name) == 0) {
+        XLINK_ERROR(ret != NULL,
+         ("Duplicate public definition found for symbol %s in %s and %s",
+         symb, ret->module->filename, mod->filename));
+        ret = pub;
+      }
+    }
+  }
+  XLINK_ERROR(ret == NULL, ("Could not find public definition %s", symb));
+  return ret;
+}
+
 int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
   mod->nnames++;
   mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_omf_name *));
@@ -604,6 +627,26 @@ int xlink_module_add_public(xlink_omf_module *mod, xlink_omf_public *public) {
    xlink_realloc(mod->publics, mod->npublics*sizeof(xlink_omf_public *));
   mod->publics[mod->npublics - 1] = public;
   return mod->npublics;
+}
+
+xlink_omf_public *xlink_module_find_public(xlink_omf_module *mod,
+ const char *symb) {
+  xlink_omf_public *ret;
+  int i;
+  ret = NULL;
+  for (i = 0; i < mod->npublics; i++) {
+    xlink_omf_public *pub;
+    pub = mod->publics[i];
+    if (pub->is_local && strcmp(symb, pub->name) == 0) {
+      XLINK_ERROR(ret != NULL,
+       ("Duplicate local public definition found for symbol %s in %s", symb,
+       mod->filename));
+      ret = pub;
+    }
+  }
+  XLINK_ERROR(ret == NULL,
+   ("Could not find local public definition %s in %s", symb, mod->filename));
+  return ret;
 }
 
 int xlink_module_add_extern(xlink_omf_module *mod, xlink_omf_extern *ext) {
