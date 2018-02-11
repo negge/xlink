@@ -322,9 +322,9 @@ struct xlink_public {
   int is_local;
 };
 
-typedef struct xlink_omf_extern xlink_omf_extern;
+typedef struct xlink_extern xlink_extern;
 
-struct xlink_omf_extern {
+struct xlink_extern {
   int index;
   xlink_module *module;
   xlink_string name;
@@ -374,7 +374,7 @@ struct xlink_module {
   int ngroups;
   xlink_public **publics;
   int npublics;
-  xlink_omf_extern **externs;
+  xlink_extern **externs;
   int nexterns;
   xlink_omf_reloc **relocs;
   int nrelocs;
@@ -391,7 +391,7 @@ struct xlink_binary {
   xlink_public *main;
   xlink_segment **segments;
   int nsegments;
-  xlink_omf_extern **externs;
+  xlink_extern **externs;
   int nexterns;
 };
 
@@ -512,7 +512,7 @@ const char *xlink_group_get_name(xlink_group *grp) {
   return name;
 }
 
-const char *xlink_extern_get_name(xlink_omf_extern *ext) {
+const char *xlink_extern_get_name(xlink_extern *ext) {
   static char name[256];
   sprintf(name, "%s:%i", ext->name, ext->index);
   return name;
@@ -711,17 +711,17 @@ xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
   return ret;
 }
 
-int xlink_module_add_extern(xlink_module *mod, xlink_omf_extern *ext) {
+int xlink_module_add_extern(xlink_module *mod, xlink_extern *ext) {
   ext->index = mod->nexterns;
   ext->module = mod;
   mod->nexterns++;
   mod->externs =
-   xlink_realloc(mod->externs, mod->nexterns*sizeof(xlink_omf_extern *));
+   xlink_realloc(mod->externs, mod->nexterns*sizeof(xlink_extern *));
   mod->externs[mod->nexterns - 1] = ext;
   return mod->nexterns;
 }
 
-xlink_omf_extern *xlink_module_get_extern(xlink_module *mod,
+xlink_extern *xlink_module_get_extern(xlink_module *mod,
  int extern_idx) {
   XLINK_ERROR(extern_idx < 1 || extern_idx > mod->nexterns,
    ("Could not get extern %i, nexterns = %i", extern_idx, mod->nexterns));
@@ -806,7 +806,7 @@ int xlink_binary_has_segment(xlink_binary *bin, xlink_segment *segment) {
   return 0;
 }
 
-int xlink_binary_has_extern(xlink_binary *bin, xlink_omf_extern *ext) {
+int xlink_binary_has_extern(xlink_binary *bin, xlink_extern *ext) {
   int i;
   for (i = 0; i < bin->nexterns; i++) {
     if (bin->externs[i] == ext) {
@@ -829,14 +829,14 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
     xlink_omf_reloc *rel;
     rel = segment->relocs[i];
     if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_omf_extern *ext;
+      xlink_extern *ext;
       ext = xlink_module_get_extern(segment->module, rel->target_idx);
       if (xlink_binary_has_extern(bin, ext)) {
         continue;
       }
       bin->nexterns++;
       bin->externs =
-       xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_omf_extern *));
+       xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_extern *));
       bin->externs[bin->nexterns - 1] = ext;
     }
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
@@ -1137,7 +1137,7 @@ void xlink_module_dump_symbols(xlink_module *mod) {
   if (mod->nexterns > 0) {
     printf("External names:\n");
     for (i = 0; i < mod->nexterns; i++) {
-      xlink_omf_extern *ext;
+      xlink_extern *ext;
       char buf[256];
       ext = mod->externs[i];
       sprintf(buf, "'%s'", ext->name);
@@ -1188,7 +1188,7 @@ void xlink_module_dump_relocations(xlink_module *mod) {
     rel = mod->relocs[i];
     seg = rel->segment;
     if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_omf_extern *ext;
+      xlink_extern *ext;
       ext = xlink_module_get_extern(seg->module, rel->target_idx);
       printf("  FIXUPP: %6s %c seg %s off 0x%03x -> ext %15s addend %s\n",
        OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
@@ -1314,11 +1314,11 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
       }
       case OMF_EXTDEF :
       case OMF_LEXTDEF : {
-        xlink_omf_extern base;
+        xlink_extern base;
         base.is_local = (rec.type == OMF_LEXTDEF);
         while (xlink_omf_record_has_data(&rec)) {
-          xlink_omf_extern *ext;
-          ext = xlink_malloc(sizeof(xlink_omf_extern));
+          xlink_extern *ext;
+          ext = xlink_malloc(sizeof(xlink_extern));
           *ext = base;
           strcpy(ext->name, xlink_omf_record_read_string(&rec));
           ext->type_idx = xlink_omf_record_read_index(&rec);
@@ -1514,7 +1514,7 @@ void xlink_binary_link(xlink_binary *bin) {
   bin->main = xlink_binary_find_public(bin, bin->entry);
   xlink_binary_add_segment(bin, bin->main->segment);
   for (i = 0; i < bin->nexterns; i++) {
-    xlink_omf_extern *ext;
+    xlink_extern *ext;
     ext = bin->externs[i];
     if (ext->is_local) {
       ext->public = xlink_module_find_public(ext->module, ext->name);
