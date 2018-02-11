@@ -244,6 +244,8 @@ struct xlink_omf_name {
 };
 
 typedef struct xlink_omf_module xlink_omf_module;
+typedef struct xlink_omf_public xlink_omf_public;
+typedef struct xlink_omf_reloc xlink_omf_reloc;
 
 #define SEG_HAS_DATA 0x1
 
@@ -261,6 +263,10 @@ struct xlink_omf_segment {
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
+  xlink_omf_public **publics;
+  int npublics;
+  xlink_omf_reloc **relocs;
+  int nrelocs;
 };
 
 void xlink_omf_segment_clear(xlink_omf_segment *segment);
@@ -280,8 +286,6 @@ struct xlink_omf_group {
   xlink_omf_segment **segments;
   int nsegments;
 };
-
-typedef struct xlink_omf_public xlink_omf_public;
 
 struct xlink_omf_public {
   int index;
@@ -304,8 +308,6 @@ struct xlink_omf_extern {
   int type_idx;
   int is_local;
 };
-
-typedef struct xlink_omf_reloc xlink_omf_reloc;
 
 struct xlink_omf_reloc {
   int index;
@@ -403,6 +405,22 @@ const char *xlink_segment_get_name(xlink_omf_segment *seg) {
   static char name[256];
   sprintf(name, "%s:%i", seg->name->name, seg->index);
   return name;
+}
+
+int xlink_segment_add_public(xlink_omf_segment *seg, xlink_omf_public *public) {
+  seg->npublics++;
+  seg->publics =
+   xlink_realloc(seg->publics, seg->npublics*sizeof(xlink_omf_public *));
+  seg->publics[seg->npublics - 1] = public;
+  return seg->npublics;
+}
+
+int xlink_segment_add_reloc(xlink_omf_segment *seg, xlink_omf_reloc *reloc) {
+  seg->nrelocs++;
+  seg->relocs =
+   xlink_realloc(seg->relocs, seg->nrelocs*sizeof(xlink_omf_reloc *));
+  seg->relocs[seg->nrelocs - 1] = reloc;
+  return seg->nrelocs;
 }
 
 void xlink_group_clear(xlink_omf_group *grp) {
@@ -737,6 +755,8 @@ const char *xlink_module_get_reloc_addend(xlink_omf_location location,
 void xlink_omf_segment_clear(xlink_omf_segment *segment) {
   free(segment->data);
   free(segment->mask);
+  free(segment->publics);
+  free(segment->relocs);
   memset(segment, 0, sizeof(xlink_omf_segment));
 }
 
@@ -1110,6 +1130,9 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
           pub->offset = xlink_omf_record_read_numeric(&rec);
           pub->type_idx = xlink_omf_record_read_index(&rec);
           xlink_module_add_public(mod, pub);
+          if (pub->segment) {
+            xlink_segment_add_public(pub->segment, pub);
+          }
         }
         break;
       }
@@ -1227,6 +1250,7 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
               rel->disp = xlink_omf_record_read_numeric(&rec);
             }
             xlink_module_add_reloc(mod, rel);
+            xlink_segment_add_reloc(rel->segment, rel);
           }
           else {
             xlink_omf_fixup_thread th;
