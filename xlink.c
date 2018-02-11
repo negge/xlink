@@ -385,6 +385,7 @@ typedef struct xlink_binary xlink_binary;
 struct xlink_binary {
   char *output;
   char *entry;
+  char *map;
   xlink_omf_module **modules;
   int nmodules;
   xlink_omf_public *main;
@@ -1512,7 +1513,12 @@ void xlink_binary_link(xlink_binary *bin) {
   }
   XLINK_ERROR(offset > 65536,
    ("Address space exceeds 65536 bytes, %i", offset));
-  xlink_binary_print_map(bin, stdout);
+  /* Optionally write the map file. */
+  if (bin->map != NULL) {
+    out = fopen(bin->map, "w");
+    xlink_binary_print_map(bin, out);
+    fclose(out);
+  }
   /* Stage 4: Apply relocations to each segment based on memory location */
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment_apply_relocations(bin->segments[i]);
@@ -1537,11 +1543,12 @@ void xlink_binary_link(xlink_binary *bin) {
   fclose(out);
 }
 
-const char *OPTSTRING = "o:e:dh";
+const char *OPTSTRING = "o:e:mdh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
+  { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
   { "help", no_argument,         NULL, 'h' },
   { NULL,   0,                   NULL,  0  }
@@ -1552,6 +1559,7 @@ static void usage(const char *argv0) {
    "Options: \n\n"
    "  -o --output <program>           Output file name for linked program.\n"
    "  -e --entry <function>           Entry point for binary (default: main).\n"
+   "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
@@ -1562,8 +1570,11 @@ int main(int argc, char *argv[]) {
   int c;
   int opt_index;
   int dump;
+  int map;
+  char mapfile[256];
   xlink_binary_init(&bin);
   dump = 0;
+  map = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &opt_index)) != EOF) {
     switch (c) {
       case 'o' : {
@@ -1576,6 +1587,10 @@ int main(int argc, char *argv[]) {
       }
       case 'd' : {
         dump = 1;
+        break;
+      }
+      case 'm' : {
+        map = 1;
         break;
       }
       case 'h' :
@@ -1594,6 +1609,18 @@ int main(int argc, char *argv[]) {
     printf("Output -o <program> is required!\n\n");
     usage(argv[0]);
     return EXIT_FAILURE;
+  }
+  if (map && !dump) {
+    int len;
+    len = strlen(bin.output);
+    strcpy(mapfile, bin.output);
+    if (len > 4 && strncasecmp(mapfile + len - 4, ".com", 4) == 0) {
+      sprintf(mapfile + len - 4, "%s", ".map");
+    }
+    else {
+      sprintf(mapfile + len, "%s", ".map");
+    }
+    bin.map = mapfile;
   }
   for (c = optind; c < argc; c++) {
     xlink_file file;
