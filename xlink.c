@@ -263,7 +263,7 @@ struct xlink_omf_name {
   xlink_omf_string str;
 };
 
-typedef struct xlink_omf_module xlink_omf_module;
+typedef struct xlink_module xlink_module;
 typedef struct xlink_omf_public xlink_omf_public;
 typedef struct xlink_omf_reloc xlink_omf_reloc;
 
@@ -273,7 +273,7 @@ typedef struct xlink_omf_segment xlink_omf_segment;
 
 struct xlink_omf_segment {
   int index;
-  xlink_omf_module *module;
+  xlink_module *module;
   xlink_omf_attribute attrib;
   unsigned int frame;
   unsigned int offset;
@@ -304,7 +304,7 @@ typedef struct xlink_omf_group xlink_omf_group;
 
 struct xlink_omf_group {
   int index;
-  xlink_omf_module *module;
+  xlink_module *module;
   xlink_omf_name *name;
   xlink_omf_segment **segments;
   int nsegments;
@@ -312,7 +312,7 @@ struct xlink_omf_group {
 
 struct xlink_omf_public {
   int index;
-  xlink_omf_module *module;
+  xlink_module *module;
   xlink_omf_group *group;
   xlink_omf_segment *segment;
   int base_frame;
@@ -326,7 +326,7 @@ typedef struct xlink_omf_extern xlink_omf_extern;
 
 struct xlink_omf_extern {
   int index;
-  xlink_omf_module *module;
+  xlink_module *module;
   xlink_omf_string name;
   int type_idx;
   int is_local;
@@ -342,7 +342,7 @@ struct xlink_omf_addend {
 
 struct xlink_omf_reloc {
   int index;
-  xlink_omf_module *module;
+  xlink_module *module;
   xlink_omf_segment *segment;
   unsigned int offset;
   int mode;
@@ -362,7 +362,7 @@ struct xlink_omf {
   int nrecords;
 };
 
-struct xlink_omf_module {
+struct xlink_module {
   const char *filename;
   int index;
   xlink_omf_string source;
@@ -386,7 +386,7 @@ struct xlink_binary {
   char *output;
   char *entry;
   char *map;
-  xlink_omf_module **modules;
+  xlink_module **modules;
   int nmodules;
   xlink_omf_public *main;
   xlink_omf_segment **segments;
@@ -395,7 +395,7 @@ struct xlink_binary {
   int nexterns;
 };
 
-xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx);
+xlink_module *xlink_binary_get_module(xlink_binary *bin, int module_idx);
 
 void xlink_log(const char *fmt, ...) {
   va_list ap;
@@ -551,12 +551,12 @@ const char *xlink_reloc_get_addend(xlink_omf_reloc *rel) {
   return str;
 }
 
-void xlink_module_init(xlink_omf_module *mod, const char *filename) {
-  memset(mod, 0, sizeof(xlink_omf_module));
+void xlink_module_init(xlink_module *mod, const char *filename) {
+  memset(mod, 0, sizeof(xlink_module));
   mod->filename = filename;
 }
 
-void xlink_module_clear(xlink_omf_module *mod) {
+void xlink_module_clear(xlink_module *mod) {
   int i;
   for (i = 0; i < mod->nnames; i++) {
     free(mod->names[i]);
@@ -584,7 +584,7 @@ void xlink_module_clear(xlink_omf_module *mod) {
     free(mod->relocs[i]);
   }
   free(mod->relocs);
-  memset(mod, 0, sizeof(xlink_omf_module));
+  memset(mod, 0, sizeof(xlink_module));
 }
 
 void xlink_binary_init(xlink_binary *bin) {
@@ -615,21 +615,20 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   return omf->nrecords;
 }
 
-int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
+int xlink_module_add_name(xlink_module *mod, xlink_omf_name *name) {
   mod->nnames++;
   mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_omf_name *));
   mod->names[mod->nnames - 1] = name;
   return mod->nnames;
 }
 
-xlink_omf_name *xlink_module_get_name(xlink_omf_module *mod, int name_idx) {
+xlink_omf_name *xlink_module_get_name(xlink_module *mod, int name_idx) {
   XLINK_ERROR(name_idx < 1 || name_idx > mod->nnames,
    ("Could not get name %i, nnames = %i", name_idx, mod->nnames));
   return mod->names[name_idx - 1];
 }
 
-int xlink_module_add_segment(xlink_omf_module *mod,
- xlink_omf_segment *segment) {
+int xlink_module_add_segment(xlink_module *mod, xlink_omf_segment *segment) {
   segment->index = mod->nsegments;
   segment->module = mod;
   mod->nsegments++;
@@ -639,14 +638,14 @@ int xlink_module_add_segment(xlink_omf_module *mod,
   return mod->nsegments;
 }
 
-xlink_omf_segment *xlink_module_get_segment(xlink_omf_module *mod,
+xlink_omf_segment *xlink_module_get_segment(xlink_module *mod,
  int segment_idx) {
   XLINK_ERROR(segment_idx < 1 || segment_idx > mod->nsegments,
    ("Could not get segment %i, nsegments = %i", segment_idx, mod->nsegments));
   return mod->segments[segment_idx - 1];
 }
 
-const char *xlink_module_get_segment_name(xlink_omf_module *mod, int segment_idx) {
+const char *xlink_module_get_segment_name(xlink_module *mod, int segment_idx) {
   xlink_omf_segment *seg;
   static char name[256];
   seg = xlink_module_get_segment(mod, segment_idx);
@@ -654,7 +653,7 @@ const char *xlink_module_get_segment_name(xlink_omf_module *mod, int segment_idx
   return name;
 }
 
-int xlink_module_add_group(xlink_omf_module *mod, xlink_omf_group *group) {
+int xlink_module_add_group(xlink_module *mod, xlink_omf_group *group) {
   group->index = mod->ngroups;
   group->module = mod;
   mod->ngroups++;
@@ -664,13 +663,13 @@ int xlink_module_add_group(xlink_omf_module *mod, xlink_omf_group *group) {
   return mod->ngroups;
 }
 
-xlink_omf_group *xlink_module_get_group(xlink_omf_module *mod, int group_idx) {
+xlink_omf_group *xlink_module_get_group(xlink_module *mod, int group_idx) {
   XLINK_ERROR(group_idx < 1 || group_idx > mod->ngroups,
    ("Could not get group %i, ngroup = %i", group_idx, mod->ngroups));
   return mod->groups[group_idx - 1];
 }
 
-const char *xlink_module_get_group_name(xlink_omf_module *mod, int group_idx) {
+const char *xlink_module_get_group_name(xlink_module *mod, int group_idx) {
   xlink_omf_group *grp;
   static char name[256];
   grp = xlink_module_get_group(mod, group_idx);
@@ -678,14 +677,13 @@ const char *xlink_module_get_group_name(xlink_omf_module *mod, int group_idx) {
   return name;
 }
 
-xlink_omf_public *xlink_module_get_public(xlink_omf_module *mod,
- int public_idx) {
+xlink_omf_public *xlink_module_get_public(xlink_module *mod, int public_idx) {
   XLINK_ERROR(public_idx < 1 || public_idx > mod->npublics,
    ("Could not get public %i, npublics = %i\n", public_idx, mod->npublics));
   return mod->publics[public_idx - 1];
 }
 
-int xlink_module_add_public(xlink_omf_module *mod, xlink_omf_public *public) {
+int xlink_module_add_public(xlink_module *mod, xlink_omf_public *public) {
   public->index = mod->npublics;
   public->module = mod;
   mod->npublics++;
@@ -695,7 +693,7 @@ int xlink_module_add_public(xlink_omf_module *mod, xlink_omf_public *public) {
   return mod->npublics;
 }
 
-xlink_omf_public *xlink_module_find_public(xlink_omf_module *mod,
+xlink_omf_public *xlink_module_find_public(xlink_module *mod,
  const char *symb) {
   xlink_omf_public *ret;
   int i;
@@ -715,7 +713,7 @@ xlink_omf_public *xlink_module_find_public(xlink_omf_module *mod,
   return ret;
 }
 
-int xlink_module_add_extern(xlink_omf_module *mod, xlink_omf_extern *ext) {
+int xlink_module_add_extern(xlink_module *mod, xlink_omf_extern *ext) {
   ext->index = mod->nexterns;
   ext->module = mod;
   mod->nexterns++;
@@ -725,14 +723,14 @@ int xlink_module_add_extern(xlink_omf_module *mod, xlink_omf_extern *ext) {
   return mod->nexterns;
 }
 
-xlink_omf_extern *xlink_module_get_extern(xlink_omf_module *mod,
+xlink_omf_extern *xlink_module_get_extern(xlink_module *mod,
  int extern_idx) {
   XLINK_ERROR(extern_idx < 1 || extern_idx > mod->nexterns,
    ("Could not get extern %i, nexterns = %i", extern_idx, mod->nexterns));
   return mod->externs[extern_idx - 1];
 }
 
-const char *xlink_module_get_extern_name(xlink_omf_module *mod,
+const char *xlink_module_get_extern_name(xlink_module *mod,
  int extern_idx) {
   static char name[256];
   sprintf(name, "%s:%i", xlink_module_get_extern(mod, extern_idx)->name,
@@ -740,13 +738,13 @@ const char *xlink_module_get_extern_name(xlink_omf_module *mod,
   return name;
 }
 
-xlink_omf_reloc *xlink_module_get_reloc(xlink_omf_module *mod, int reloc_idx) {
+xlink_omf_reloc *xlink_module_get_reloc(xlink_module *mod, int reloc_idx) {
   XLINK_ERROR(reloc_idx < 1 || reloc_idx > mod->nrelocs,
    ("Could not get reloc %i, nrelocs = %i", reloc_idx, mod->relocs));
   return mod->relocs[reloc_idx - 1];
 }
 
-int xlink_module_add_reloc(xlink_omf_module *mod, xlink_omf_reloc *reloc) {
+int xlink_module_add_reloc(xlink_module *mod, xlink_omf_reloc *reloc) {
   reloc->index = mod->nrelocs;
   reloc->module = mod;
   mod->nrelocs++;
@@ -756,16 +754,16 @@ int xlink_module_add_reloc(xlink_omf_module *mod, xlink_omf_reloc *reloc) {
   return mod->nrelocs;
 }
 
-int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
+int xlink_binary_add_module(xlink_binary *bin, xlink_module *module) {
   module->index = bin->nmodules;
   bin->nmodules++;
   bin->modules =
-   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module *));
+   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_module *));
   bin->modules[bin->nmodules - 1] = module;
   return bin->nmodules;
 }
 
-xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
+xlink_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
   XLINK_ERROR(module_idx < 1 || module_idx > bin->nmodules,
    ("Could not get module %i, nmodules = %i", module_idx, bin->nmodules));
   return bin->modules[module_idx - 1];
@@ -784,7 +782,7 @@ xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
   int i, j;
   ret = NULL;
   for (i = 0; i < bin->nmodules; i++) {
-    xlink_omf_module *mod;
+    xlink_module *mod;
     mod = bin->modules[i];
     for (j = 0; j < mod->npublics; j++) {
       xlink_omf_public *pub;
@@ -1082,7 +1080,7 @@ void xlink_omf_dump_records(xlink_omf *omf) {
   }
 }
 
-void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_omf_module *mod) {
+void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_module *mod) {
   int i;
   xlink_omf_record *rec;
   printf("LEDATA, LIDATA, COMDAT and FIXUPP records:\n");
@@ -1111,7 +1109,7 @@ void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_omf_module *mod) {
   }
 }
 
-void xlink_module_dump_names(xlink_omf_module *mod) {
+void xlink_module_dump_names(xlink_module *mod) {
   int i;
   if (mod->nnames > 0) {
     printf("Local names:\n");
@@ -1123,7 +1121,7 @@ void xlink_module_dump_names(xlink_omf_module *mod) {
   }
 }
 
-void xlink_module_dump_symbols(xlink_omf_module *mod) {
+void xlink_module_dump_symbols(xlink_module *mod) {
   int i;
   if (mod->npublics > 0) {
     printf("Public names:\n");
@@ -1152,7 +1150,7 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
   }
 }
 
-void xlink_module_dump_segments(xlink_omf_module *mod) {
+void xlink_module_dump_segments(xlink_module *mod) {
   int i, j;
   printf("Segment records:\n");
   for (i = 0; i < mod->nsegments; i++) {
@@ -1174,7 +1172,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   }
 }
 
-void xlink_module_dump_relocations(xlink_omf_module *mod) {
+void xlink_module_dump_relocations(xlink_module *mod) {
   int i, j;
   for (i = 0; i < mod->nsegments; i++) {
     xlink_omf_segment *seg;
@@ -1215,13 +1213,13 @@ void xlink_module_dump_relocations(xlink_omf_module *mod) {
   }
 }
 
-xlink_omf_module *xlink_file_load_module(xlink_file *file, int dump) {
-  xlink_omf_module *mod;
+xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
+  xlink_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
   xlink_omf_segment *seg;
   int offset;
-  mod = xlink_malloc(sizeof(xlink_omf_module));
+  mod = xlink_malloc(sizeof(xlink_module));
   xlink_module_init(mod, file->name);
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
