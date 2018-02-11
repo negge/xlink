@@ -1161,7 +1161,8 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
     grp = mod->groups[i];
     printf("Group: %s\n", xlink_group_get_name(grp));
     for (j = 0; j < grp->nsegments; j++) {
-      printf("%2i : %s\n", j, xlink_segment_get_name(grp->segments[j]));
+      printf("%2i : segment %8s\n", j,
+       xlink_segment_get_name(grp->segments[j]));
     }
   }
 }
