@@ -1133,7 +1133,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   for (i = 0; i < mod->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = mod->segments[i];
-    printf("%2i : %6s segment %s %s %s %6s %08x bytes%s\n", i, seg->name->str,
+    printf("%2i : %6s segment %s %s %s %6s 0x%04x bytes%s\n", i, seg->name->str,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
      seg->length, seg->attrib.big ? ", big" : "");
