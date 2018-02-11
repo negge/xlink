@@ -64,6 +64,11 @@ typedef enum {
 } xlink_omf_location;
 
 typedef enum {
+  OMF_MODE_RELATIVE = 0,
+  OMF_MODE_EXPLICIT = 1
+} xlink_omf_relocation_mode;
+
+typedef enum {
   OMF_SEGMENT_CODE,
   OMF_SEGMENT_DATA,
   OMF_SEGMENT_BSS
@@ -901,6 +906,38 @@ const char *xlink_module_get_reloc_addend(xlink_omf_location location,
   return buf;
 }
 
+void xlink_segment_apply_relocations(xlink_omf_segment *seg) {
+  int i;
+  for (i = 0; i < seg->nrelocs; i++) {
+    xlink_omf_reloc *rel;
+    xlink_omf_public *pub;
+    int offset;
+    int target;
+    unsigned char *data;
+    rel = seg->relocs[i];
+    XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
+     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
+    pub = seg->module->externs[rel->target_idx - 1]->public;
+    offset = seg->start + rel->offset;
+    target = pub->segment->start + pub->offset;
+    data = seg->data + rel->offset;
+    switch (rel->location) {
+      case OMF_LOCATION_16BIT : {
+        if (rel->mode == OMF_MODE_EXPLICIT) {
+          *(uint16_t *)data = target + rel->addend.offset;
+        }
+        else {
+          *(uint16_t *)data = target + rel->addend.offset - offset - 2;
+        }
+        break;
+      }
+      default : {
+        XLINK_ERROR(1, ("Unsupported location %i", rel->location));
+      }
+    }
+  }
+}
+
 void xlink_omf_segment_clear(xlink_omf_segment *segment) {
   free(segment->data);
   free(segment->mask);
@@ -1531,6 +1568,10 @@ void xlink_binary_link(xlink_binary *bin) {
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
      seg->attrib.big ? ", big" : "");
+  }
+  /* Stage 4: Apply relocations to each segment based on memory location */
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_segment_apply_relocations(bin->segments[i]);
   }
 }
 
