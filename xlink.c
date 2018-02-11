@@ -444,6 +444,12 @@ const char *xlink_segment_get_name(xlink_omf_segment *seg) {
   return name;
 }
 
+const char *xlink_segment_get_class_name(xlink_omf_segment *seg) {
+  static char name[256];
+  sprintf(name, "'%s'", seg->class->name);
+  return name;
+}
+
 int xlink_segment_get_alignment(xlink_omf_segment *seg) {
   switch (seg->attrib.align) {
     case OMF_SEGMENT_BYTE : {
@@ -666,11 +672,11 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
   for (i = 0; i < bin->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = bin->segments[i];
-    fprintf(out, "%2i : %4x %s segment %s %s %s '%s' %08x bytes%s\n", i,
+    fprintf(out, " %4x %8s segment %s %s %s %6s %08x bytes%s\n",
      seg->start, xlink_segment_get_name(seg),
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
-     OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
-     seg->attrib.big ? ", big" : "");
+     OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
+     seg->length, seg->attrib.big ? ", big" : "");
   }
 }
 
