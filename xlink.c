@@ -615,111 +615,6 @@ int xlink_omf_add_record(xlink_omf *omf, xlink_omf_record *rec) {
   return omf->nrecords;
 }
 
-int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
-  module->index = bin->nmodules;
-  bin->nmodules++;
-  bin->modules =
-   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module *));
-  bin->modules[bin->nmodules - 1] = module;
-  return bin->nmodules;
-}
-
-xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
-  XLINK_ERROR(module_idx < 1 || module_idx > bin->nmodules,
-   ("Could not get module %i, nmodules = %i", module_idx, bin->nmodules));
-  return bin->modules[module_idx - 1];
-}
-
-const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
-  static char name[256];
-  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->filename,
-   module_idx);
-  return name;
-}
-
-xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
- const char *symb) {
-  xlink_omf_public *ret;
-  int i, j;
-  ret = NULL;
-  for (i = 0; i < bin->nmodules; i++) {
-    xlink_omf_module *mod;
-    mod = bin->modules[i];
-    for (j = 0; j < mod->npublics; j++) {
-      xlink_omf_public *pub;
-      pub = mod->publics[j];
-      if (!pub->is_local && strcmp(symb, pub->name) == 0) {
-        XLINK_ERROR(ret != NULL,
-         ("Duplicate public definition found for symbol %s in %s and %s",
-         symb, ret->module->filename, mod->filename));
-        ret = pub;
-      }
-    }
-  }
-  XLINK_ERROR(ret == NULL, ("Could not find public definition %s", symb));
-  return ret;
-}
-
-int xlink_binary_has_segment(xlink_binary *bin, xlink_omf_segment *segment) {
-  int i;
-  for (i = 0; i < bin->nsegments; i++) {
-    if (bin->segments[i] == segment) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-int xlink_binary_has_extern(xlink_binary *bin, xlink_omf_extern *ext) {
-  int i;
-  for (i = 0; i < bin->nexterns; i++) {
-    if (bin->externs[i] == ext) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
-  int i;
-  if (xlink_binary_has_segment(bin, segment)) {
-    return;
-  }
-  bin->nsegments++;
-  bin->segments =
-   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_omf_segment *));
-  bin->segments[bin->nsegments - 1] = segment;
-  for (i = 0; i < segment->nrelocs; i++) {
-    xlink_omf_reloc *rel;
-    xlink_omf_extern *ext;
-    rel = segment->relocs[i];
-    XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
-     ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
-    ext = segment->module->externs[rel->target_idx - 1];
-    if (xlink_binary_has_extern(bin, ext)) {
-      continue;
-    }
-    bin->nexterns++;
-    bin->externs =
-     xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_omf_extern *));
-    bin->externs[bin->nexterns - 1] = ext;
-  }
-}
-
-void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
-  int i;
-  fprintf(out, "Segment layout:\n");
-  for (i = 0; i < bin->nsegments; i++) {
-    xlink_omf_segment *seg;
-    seg = bin->segments[i];
-    fprintf(out, " %4x %8s segment %s %s %s %6s %08x bytes%s\n",
-     seg->start, xlink_segment_get_name(seg),
-     OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
-     OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
-     seg->length, seg->attrib.big ? ", big" : "");
-  }
-}
-
 int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
   mod->nnames++;
   mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_omf_name *));
@@ -859,6 +754,111 @@ int xlink_module_add_reloc(xlink_omf_module *mod, xlink_omf_reloc *reloc) {
    xlink_realloc(mod->relocs, mod->nrelocs*sizeof(xlink_omf_reloc *));
   mod->relocs[mod->nrelocs - 1] = reloc;
   return mod->nrelocs;
+}
+
+int xlink_binary_add_module(xlink_binary *bin, xlink_omf_module *module) {
+  module->index = bin->nmodules;
+  bin->nmodules++;
+  bin->modules =
+   xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_omf_module *));
+  bin->modules[bin->nmodules - 1] = module;
+  return bin->nmodules;
+}
+
+xlink_omf_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
+  XLINK_ERROR(module_idx < 1 || module_idx > bin->nmodules,
+   ("Could not get module %i, nmodules = %i", module_idx, bin->nmodules));
+  return bin->modules[module_idx - 1];
+}
+
+const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
+  static char name[256];
+  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->filename,
+   module_idx);
+  return name;
+}
+
+xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
+ const char *symb) {
+  xlink_omf_public *ret;
+  int i, j;
+  ret = NULL;
+  for (i = 0; i < bin->nmodules; i++) {
+    xlink_omf_module *mod;
+    mod = bin->modules[i];
+    for (j = 0; j < mod->npublics; j++) {
+      xlink_omf_public *pub;
+      pub = mod->publics[j];
+      if (!pub->is_local && strcmp(symb, pub->name) == 0) {
+        XLINK_ERROR(ret != NULL,
+         ("Duplicate public definition found for symbol %s in %s and %s",
+         symb, ret->module->filename, mod->filename));
+        ret = pub;
+      }
+    }
+  }
+  XLINK_ERROR(ret == NULL, ("Could not find public definition %s", symb));
+  return ret;
+}
+
+int xlink_binary_has_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+  int i;
+  for (i = 0; i < bin->nsegments; i++) {
+    if (bin->segments[i] == segment) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int xlink_binary_has_extern(xlink_binary *bin, xlink_omf_extern *ext) {
+  int i;
+  for (i = 0; i < bin->nexterns; i++) {
+    if (bin->externs[i] == ext) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+  int i;
+  if (xlink_binary_has_segment(bin, segment)) {
+    return;
+  }
+  bin->nsegments++;
+  bin->segments =
+   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_omf_segment *));
+  bin->segments[bin->nsegments - 1] = segment;
+  for (i = 0; i < segment->nrelocs; i++) {
+    xlink_omf_reloc *rel;
+    xlink_omf_extern *ext;
+    rel = segment->relocs[i];
+    XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
+     ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
+    ext = segment->module->externs[rel->target_idx - 1];
+    if (xlink_binary_has_extern(bin, ext)) {
+      continue;
+    }
+    bin->nexterns++;
+    bin->externs =
+     xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_omf_extern *));
+    bin->externs[bin->nexterns - 1] = ext;
+  }
+}
+
+void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
+  int i;
+  fprintf(out, "Segment layout:\n");
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = bin->segments[i];
+    fprintf(out, " %4x %8s segment %s %s %s %6s %08x bytes%s\n",
+     seg->start, xlink_segment_get_name(seg),
+     OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
+     OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
+     seg->length, seg->attrib.big ? ", big" : "");
+  }
 }
 
 void xlink_segment_apply_relocations(xlink_omf_segment *seg) {
