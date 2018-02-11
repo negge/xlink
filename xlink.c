@@ -255,12 +255,12 @@ struct xlink_omf_record {
   const char *error;
 };
 
-typedef char xlink_omf_string[256];
+typedef char xlink_string[256];
 
 typedef struct xlink_omf_name xlink_omf_name;
 
 struct xlink_omf_name {
-  xlink_omf_string str;
+  xlink_string str;
 };
 
 typedef struct xlink_module xlink_module;
@@ -316,7 +316,7 @@ struct xlink_omf_public {
   xlink_omf_group *group;
   xlink_omf_segment *segment;
   int base_frame;
-  xlink_omf_string name;
+  xlink_string name;
   int offset;
   int type_idx;
   int is_local;
@@ -327,7 +327,7 @@ typedef struct xlink_omf_extern xlink_omf_extern;
 struct xlink_omf_extern {
   int index;
   xlink_module *module;
-  xlink_omf_string name;
+  xlink_string name;
   int type_idx;
   int is_local;
   xlink_omf_public *public;
@@ -365,7 +365,7 @@ struct xlink_omf {
 struct xlink_module {
   const char *filename;
   int index;
-  xlink_omf_string source;
+  xlink_string source;
   xlink_omf_name **names;
   int nnames;
   xlink_omf_segment **segments;
