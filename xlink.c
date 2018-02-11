@@ -309,6 +309,13 @@ struct xlink_omf_extern {
   int is_local;
 };
 
+typedef struct xlink_omf_addend xlink_omf_addend;
+
+struct xlink_omf_addend {
+  unsigned short segment;
+  int offset;
+};
+
 struct xlink_omf_reloc {
   int index;
   xlink_omf_module *module;
@@ -321,6 +328,7 @@ struct xlink_omf_reloc {
   int frame_idx;
   int target_idx;
   unsigned int disp;
+  xlink_omf_addend addend;
 };
 
 typedef struct xlink_omf xlink_omf;
@@ -1217,6 +1225,7 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
             xlink_omf_reloc *rel;
             xlink_omf_fixup_locat locat;
             xlink_omf_fixup_fixdata fixdata;
+            const unsigned char *data;
             XLINK_ERROR(seg == NULL, ("Got FIXUP before LxDATA record"));
             rel = xlink_malloc(sizeof(xlink_omf_reloc));
             rel->segment = seg;
@@ -1291,6 +1300,39 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
             }
             if (!fixdata.no_disp) {
               rel->disp = xlink_omf_record_read_numeric(&rec);
+            }
+            data = seg->data + rel->offset;
+            switch (rel->location) {
+              case OMF_LOCATION_8BIT :
+              case OMF_LOCATION_8BIT_HIGH : {
+                rel->addend.offset = *(int8_t *)data;
+                break;
+              }
+              case OMF_LOCATION_16BIT :
+              case OMF_LOCATION_SEGMENT :
+              case OMF_LOCATION_16BIT_LOADER : {
+                rel->addend.offset = *(int16_t *)data;
+                break;
+              }
+              case OMF_LOCATION_FAR : {
+                rel->addend.segment = *(uint16_t *)(data + 2),
+                rel->addend.offset = *(int16_t *)data;
+                break;
+              }
+              case OMF_LOCATION_32BIT :
+              case OMF_LOCATION_32BIT_LOADER : {
+                rel->addend.offset = *(int32_t *)data;
+                break;
+              }
+              case OMF_LOCATION_48BIT :
+              case OMF_LOCATION_48BIT_PHARLAP : {
+                rel->addend.segment = *(uint16_t *)(data + 4),
+                rel->addend.offset = *(int32_t *)data;
+                break;
+              }
+              default : {
+                XLINK_ERROR(1, ("Unsupported location %i", rel->location));
+              }
             }
             xlink_module_add_reloc(mod, rel);
             xlink_segment_add_reloc(rel->segment, rel);
