@@ -1127,11 +1127,14 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
     printf("Public names:\n");
     for (i = 0; i < mod->npublics; i++) {
       xlink_omf_public *pub;
+      char buf[256];
       pub = mod->publics[i];
-      printf("%2i : '%s', segment %s, group %s, offset 0x%x, type %i%s\n", i,
-       pub->name, pub->segment ? xlink_segment_get_name(pub->segment) : ":0",
+      sprintf(buf, "'%s'", pub->name);
+      printf("%2i : %16s %c group %8s, segment %8s, offset 0x%04x, type %i\n",
+       i, buf, pub->is_local ? 'L' : ' ',
        pub->group ? xlink_group_get_name(pub->group) : ":0",
-       pub->offset, pub->type_idx, pub->is_local ? " LOCAL" : "");
+       pub->segment ? xlink_segment_get_name(pub->segment) : ":0",
+       pub->offset, pub->type_idx);
     }
   }
   if (mod->nexterns > 0) {
