@@ -1406,18 +1406,15 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
                 rel->frame_idx = xlink_omf_record_read_index(&rec);
                 switch (rel->frame) {
                   case OMF_FRAME_SEG : {
-                    XLINK_ERROR(rel->frame_idx > mod->nsegments,
-                     ("Segment index %i not defined", rel->frame_idx));
+                    xlink_module_get_segment(mod, rel->frame_idx);
                     break;
                   }
                   case OMF_FRAME_GRP : {
-                    XLINK_ERROR(rel->frame_idx > mod->ngroups,
-                     ("Group index %i not defined", rel->frame_idx));
+                    xlink_module_get_group(mod, rel->frame_idx);
                     break;
                   }
                   case OMF_FRAME_EXT : {
-                    XLINK_ERROR(rel->frame_idx > mod->nexterns,
-                     ("Extern index %i not defined", rel->frame_idx));
+                    xlink_module_get_extern(mod, rel->frame_idx);
                     break;
                   }
                 }
@@ -1432,20 +1429,17 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file) {
               switch (rel->target) {
                 case OMF_TARGET_SEG :
                 case OMF_TARGET_SEG_DISP : {
-                  XLINK_ERROR(rel->target_idx > mod->nsegments,
-                   ("Segment index %i not defined", rel->target_idx));
+                  xlink_module_get_segment(mod, rel->target_idx);
                   break;
                 }
                 case OMF_TARGET_GRP :
                 case OMF_TARGET_GRP_DISP : {
-                  XLINK_ERROR(rel->target_idx > mod->ngroups,
-                   ("Group index %i not defined", rel->target_idx));
+                  xlink_module_get_group(mod, rel->target_idx);
                   break;
                 }
                 case OMF_TARGET_EXT :
                 case OMF_TARGET_EXT_DISP : {
-                  XLINK_ERROR(rel->target_idx > mod->nexterns,
-                   ("Extern index %i not defined", rel->target_idx));
+                  xlink_module_get_extern(mod, rel->target_idx);
                   break;
                 }
               }
