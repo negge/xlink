@@ -1138,9 +1138,11 @@ void xlink_module_dump_symbols(xlink_omf_module *mod) {
     printf("External names:\n");
     for (i = 0; i < mod->nexterns; i++) {
       xlink_omf_extern *ext;
-      ext = xlink_module_get_extern(mod, i + 1);
-      printf("%2i : '%s', type %i%s\n", i, ext->name, ext->type_idx,
-       ext->is_local ? " LOCAL" : "");
+      char buf[256];
+      ext = mod->externs[i];
+      sprintf(buf, "'%s'", ext->name);
+      printf("%2i : %16s %c type %i\n", i, buf, ext->is_local ? 'L' : ' ',
+       ext->type_idx);
     }
   }
 }
