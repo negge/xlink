@@ -260,7 +260,7 @@ typedef char xlink_omf_string[256];
 typedef struct xlink_omf_name xlink_omf_name;
 
 struct xlink_omf_name {
-  xlink_omf_string name;
+  xlink_omf_string str;
 };
 
 typedef struct xlink_omf_module xlink_omf_module;
@@ -441,13 +441,13 @@ void xlink_omf_clear(xlink_omf *omf) {
 
 const char *xlink_segment_get_name(xlink_omf_segment *seg) {
   static char name[256];
-  sprintf(name, "%s:%i", seg->name->name, seg->index);
+  sprintf(name, "%s:%i", seg->name->str, seg->index);
   return name;
 }
 
 const char *xlink_segment_get_class_name(xlink_omf_segment *seg) {
   static char name[256];
-  sprintf(name, "'%s'", seg->class->name);
+  sprintf(name, "'%s'", seg->class->str);
   return name;
 }
 
@@ -508,7 +508,7 @@ int xlink_group_add_segment(xlink_omf_group *grp, xlink_omf_segment *segment) {
 
 const char *xlink_group_get_name(xlink_omf_group *grp) {
   static char name[256];
-  sprintf(name, "%s:%i", grp->name->name, grp->index);
+  sprintf(name, "%s:%i", grp->name->str, grp->index);
   return name;
 }
 
@@ -755,7 +755,7 @@ const char *xlink_module_get_segment_name(xlink_omf_module *mod, int segment_idx
   xlink_omf_segment *seg;
   static char name[256];
   seg = xlink_module_get_segment(mod, segment_idx);
-  sprintf(name, "%s:%i", seg->name->name, segment_idx);
+  sprintf(name, "%s:%i", seg->name->str, segment_idx);
   return name;
 }
 
@@ -779,7 +779,7 @@ const char *xlink_module_get_group_name(xlink_omf_module *mod, int group_idx) {
   xlink_omf_group *grp;
   static char name[256];
   grp = xlink_module_get_group(mod, group_idx);
-  sprintf(name, "%s:%i", grp->name->name, group_idx);
+  sprintf(name, "%s:%i", grp->name->str, group_idx);
   return name;
 }
 
@@ -1098,7 +1098,7 @@ void xlink_module_dump_names(xlink_omf_module *mod) {
   if (mod->nnames > 0) {
     printf("Local names:\n");
     for (i = 0; i < mod->nnames; i++) {
-      printf("%2i : '%s'\n", i, xlink_module_get_name(mod, i + 1)->name);
+      printf("%2i : '%s'\n", i, xlink_module_get_name(mod, i + 1)->str);
     }
   }
 }
@@ -1133,7 +1133,7 @@ void xlink_module_dump_segments(xlink_omf_module *mod) {
   for (i = 0; i < mod->nsegments; i++) {
     xlink_omf_segment *seg;
     seg = mod->segments[i];
-    printf("%2i : %6s segment %s %s %s %6s %08x bytes%s\n", i, seg->name->name,
+    printf("%2i : %6s segment %s %s %s %6s %08x bytes%s\n", i, seg->name->str,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
      seg->length, seg->attrib.big ? ", big" : "");
@@ -1204,7 +1204,7 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file, int dump) {
         while (xlink_omf_record_has_data(&rec)) {
           xlink_omf_name *name;
           name = xlink_malloc(sizeof(xlink_omf_name));
-          strcpy(name->name, xlink_omf_record_read_string(&rec));
+          strcpy(name->str, xlink_omf_record_read_string(&rec));
           xlink_module_add_name(mod, name);
         }
         break;
@@ -1450,7 +1450,7 @@ xlink_omf_module *xlink_file_load_module(xlink_file *file, int dump) {
 }
 
 xlink_segment_class xlink_segment_get_class(const xlink_omf_segment *seg) {
-  if (strcmp(seg->class->name, "CODE") == 0) {
+  if (strcmp(seg->class->str, "CODE") == 0) {
     return OMF_SEGMENT_CODE;
   }
   if (seg->info & SEG_HAS_DATA) {
