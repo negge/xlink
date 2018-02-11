@@ -694,7 +694,7 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
     xlink_omf_extern *ext;
     rel = segment->relocs[i];
     XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
-     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
+     ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
     ext = segment->module->externs[rel->target_idx - 1];
     if (xlink_binary_has_extern(bin, ext)) {
       continue;
@@ -871,7 +871,7 @@ void xlink_segment_apply_relocations(xlink_omf_segment *seg) {
     unsigned char *data;
     rel = seg->relocs[i];
     XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
-     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
+     ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
     pub = seg->module->externs[rel->target_idx - 1]->public;
     offset = seg->start + rel->offset;
     target = pub->segment->start + pub->offset;
@@ -1167,7 +1167,7 @@ void xlink_module_dump_relocations(xlink_omf_module *mod) {
     xlink_omf_extern *ext;
     rel = mod->relocs[i];
     XLINK_ERROR(rel->frame != OMF_FRAME_TARG || rel->target != OMF_TARGET_EXT,
-     ("Unsupported frame F%i and target F%i", rel->frame, rel->target));
+     ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
     seg = rel->segment;
     ext = seg->module->externs[rel->target_idx - 1];
     printf("  FIXUPP: %6s %c segment %s offset 0x%03x extern %12s addend %s\n",
