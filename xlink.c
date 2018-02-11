@@ -660,6 +660,20 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
   }
 }
 
+void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
+  int i;
+  fprintf(out, "Segment layout:\n");
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_omf_segment *seg;
+    seg = bin->segments[i];
+    fprintf(out, "%2i : %4x %s segment %s %s %s '%s' %08x bytes%s\n", i,
+     seg->start, xlink_segment_get_name(seg),
+     OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
+     OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
+     seg->attrib.big ? ", big" : "");
+  }
+}
+
 int xlink_module_add_name(xlink_omf_module *mod, xlink_omf_name *name) {
   mod->nnames++;
   mod->names = xlink_realloc(mod->names, mod->nnames*sizeof(xlink_omf_name *));
@@ -1560,16 +1574,7 @@ void xlink_binary_link(xlink_binary *bin) {
   }
   XLINK_ERROR(offset > 65536,
    ("Address space exceeds 65536 bytes, %i", offset));
-  printf("Segment layout:\n");
-  for (i = 0; i < bin->nsegments; i++) {
-    xlink_omf_segment *seg;
-    seg = bin->segments[i];
-    printf("%2i : %4x %s segment %s %s %s '%s' %08x bytes%s\n", i, seg->start,
-     xlink_segment_get_name(seg),
-     OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
-     OMF_SEGDEF_COMBINE[seg->attrib.combine], seg->class->name, seg->length,
-     seg->attrib.big ? ", big" : "");
-  }
+  xlink_binary_print_map(bin, stdout);
   /* Stage 4: Apply relocations to each segment based on memory location */
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment_apply_relocations(bin->segments[i]);
