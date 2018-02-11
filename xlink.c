@@ -269,9 +269,9 @@ typedef struct xlink_omf_reloc xlink_omf_reloc;
 
 #define SEG_HAS_DATA 0x1
 
-typedef struct xlink_omf_segment xlink_omf_segment;
+typedef struct xlink_segment xlink_segment;
 
-struct xlink_omf_segment {
+struct xlink_segment {
   int index;
   xlink_module *module;
   xlink_omf_attribute attrib;
@@ -290,7 +290,7 @@ struct xlink_omf_segment {
   int start;
 };
 
-void xlink_omf_segment_clear(xlink_omf_segment *segment);
+void xlink_segment_clear(xlink_segment *segment);
 
 #define CEIL2(len, bits) (((len) + ((1 << (bits)) - 1)) >> (bits))
 
@@ -306,7 +306,7 @@ struct xlink_omf_group {
   int index;
   xlink_module *module;
   xlink_name *name;
-  xlink_omf_segment **segments;
+  xlink_segment **segments;
   int nsegments;
 };
 
@@ -314,7 +314,7 @@ struct xlink_omf_public {
   int index;
   xlink_module *module;
   xlink_omf_group *group;
-  xlink_omf_segment *segment;
+  xlink_segment *segment;
   int base_frame;
   xlink_string name;
   int offset;
@@ -343,7 +343,7 @@ struct xlink_omf_addend {
 struct xlink_omf_reloc {
   int index;
   xlink_module *module;
-  xlink_omf_segment *segment;
+  xlink_segment *segment;
   unsigned int offset;
   int mode;
   xlink_omf_location location;
@@ -368,7 +368,7 @@ struct xlink_module {
   xlink_string source;
   xlink_name **names;
   int nnames;
-  xlink_omf_segment **segments;
+  xlink_segment **segments;
   int nsegments;
   xlink_omf_group **groups;
   int ngroups;
@@ -389,7 +389,7 @@ struct xlink_binary {
   xlink_module **modules;
   int nmodules;
   xlink_omf_public *main;
-  xlink_omf_segment **segments;
+  xlink_segment **segments;
   int nsegments;
   xlink_omf_extern **externs;
   int nexterns;
@@ -439,19 +439,19 @@ void xlink_omf_clear(xlink_omf *omf) {
   free(omf->records);
 }
 
-const char *xlink_segment_get_name(xlink_omf_segment *seg) {
+const char *xlink_segment_get_name(xlink_segment *seg) {
   static char name[256];
   sprintf(name, "%s:%i", seg->name->str, seg->index);
   return name;
 }
 
-const char *xlink_segment_get_class_name(xlink_omf_segment *seg) {
+const char *xlink_segment_get_class_name(xlink_segment *seg) {
   static char name[256];
   sprintf(name, "'%s'", seg->class->str);
   return name;
 }
 
-int xlink_segment_get_alignment(xlink_omf_segment *seg) {
+int xlink_segment_get_alignment(xlink_segment *seg) {
   switch (seg->attrib.align) {
     case OMF_SEGMENT_BYTE : {
       return 0;
@@ -477,7 +477,7 @@ int xlink_segment_get_alignment(xlink_omf_segment *seg) {
   }
 }
 
-int xlink_segment_add_public(xlink_omf_segment *seg, xlink_omf_public *public) {
+int xlink_segment_add_public(xlink_segment *seg, xlink_omf_public *public) {
   seg->npublics++;
   seg->publics =
    xlink_realloc(seg->publics, seg->npublics*sizeof(xlink_omf_public *));
@@ -485,7 +485,7 @@ int xlink_segment_add_public(xlink_omf_segment *seg, xlink_omf_public *public) {
   return seg->npublics;
 }
 
-int xlink_segment_add_reloc(xlink_omf_segment *seg, xlink_omf_reloc *reloc) {
+int xlink_segment_add_reloc(xlink_segment *seg, xlink_omf_reloc *reloc) {
   seg->nrelocs++;
   seg->relocs =
    xlink_realloc(seg->relocs, seg->nrelocs*sizeof(xlink_omf_reloc *));
@@ -498,10 +498,10 @@ void xlink_group_clear(xlink_omf_group *grp) {
   memset(grp, 0, sizeof(xlink_omf_group));
 }
 
-int xlink_group_add_segment(xlink_omf_group *grp, xlink_omf_segment *segment) {
+int xlink_group_add_segment(xlink_omf_group *grp, xlink_segment *segment) {
   grp->nsegments++;
   grp->segments =
-   xlink_realloc(grp->segments, grp->nsegments*sizeof(xlink_omf_segment *));
+   xlink_realloc(grp->segments, grp->nsegments*sizeof(xlink_segment *));
   grp->segments[grp->nsegments - 1] = segment;
   return grp->nsegments;
 }
@@ -563,7 +563,7 @@ void xlink_module_clear(xlink_module *mod) {
   }
   free(mod->names);
   for (i = 0; i < mod->nsegments; i++) {
-    xlink_omf_segment_clear(mod->segments[i]);
+    xlink_segment_clear(mod->segments[i]);
     free(mod->segments[i]);
   }
   free(mod->segments);
@@ -628,25 +628,24 @@ xlink_name *xlink_module_get_name(xlink_module *mod, int name_idx) {
   return mod->names[name_idx - 1];
 }
 
-int xlink_module_add_segment(xlink_module *mod, xlink_omf_segment *segment) {
+int xlink_module_add_segment(xlink_module *mod, xlink_segment *segment) {
   segment->index = mod->nsegments;
   segment->module = mod;
   mod->nsegments++;
   mod->segments =
-   xlink_realloc(mod->segments, mod->nsegments*sizeof(xlink_omf_segment *));
+   xlink_realloc(mod->segments, mod->nsegments*sizeof(xlink_segment *));
   mod->segments[mod->nsegments - 1] = segment;
   return mod->nsegments;
 }
 
-xlink_omf_segment *xlink_module_get_segment(xlink_module *mod,
- int segment_idx) {
+xlink_segment *xlink_module_get_segment(xlink_module *mod, int segment_idx) {
   XLINK_ERROR(segment_idx < 1 || segment_idx > mod->nsegments,
    ("Could not get segment %i, nsegments = %i", segment_idx, mod->nsegments));
   return mod->segments[segment_idx - 1];
 }
 
 const char *xlink_module_get_segment_name(xlink_module *mod, int segment_idx) {
-  xlink_omf_segment *seg;
+  xlink_segment *seg;
   static char name[256];
   seg = xlink_module_get_segment(mod, segment_idx);
   sprintf(name, "%s:%i", seg->name->str, segment_idx);
@@ -799,7 +798,7 @@ xlink_omf_public *xlink_binary_find_public(xlink_binary *bin,
   return ret;
 }
 
-int xlink_binary_has_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+int xlink_binary_has_segment(xlink_binary *bin, xlink_segment *segment) {
   int i;
   for (i = 0; i < bin->nsegments; i++) {
     if (bin->segments[i] == segment) {
@@ -819,14 +818,14 @@ int xlink_binary_has_extern(xlink_binary *bin, xlink_omf_extern *ext) {
   return 0;
 }
 
-void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
+void xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
   int i;
   if (xlink_binary_has_segment(bin, segment)) {
     return;
   }
   bin->nsegments++;
   bin->segments =
-   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_omf_segment *));
+   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_segment *));
   bin->segments[bin->nsegments - 1] = segment;
   for (i = 0; i < segment->nrelocs; i++) {
     xlink_omf_reloc *rel;
@@ -843,7 +842,7 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_omf_segment *segment) {
       bin->externs[bin->nexterns - 1] = ext;
     }
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_omf_segment *seg;
+      xlink_segment *seg;
       seg = xlink_module_get_segment(segment->module, rel->target_idx);
       xlink_binary_add_segment(bin, seg);
     }
@@ -858,7 +857,7 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
   int i;
   fprintf(out, "Segment layout:\n");
   for (i = 0; i < bin->nsegments; i++) {
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     seg = bin->segments[i];
     fprintf(out, " %4x %8s segment %s %s %s %6s %08x bytes%s\n",
      seg->start, xlink_segment_get_name(seg),
@@ -868,7 +867,7 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
   }
 }
 
-void xlink_segment_apply_relocations(xlink_omf_segment *segment) {
+void xlink_segment_apply_relocations(xlink_segment *segment) {
   int i;
   for (i = 0; i < segment->nrelocs; i++) {
     xlink_omf_reloc *rel;
@@ -884,7 +883,7 @@ void xlink_segment_apply_relocations(xlink_omf_segment *segment) {
       target = pub->segment->start + pub->offset;
     }
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_omf_segment *seg;
+      xlink_segment *seg;
       seg = xlink_module_get_segment(segment->module, rel->target_idx);
       target = seg->start;
     }
@@ -909,12 +908,12 @@ void xlink_segment_apply_relocations(xlink_omf_segment *segment) {
   }
 }
 
-void xlink_omf_segment_clear(xlink_omf_segment *segment) {
+void xlink_segment_clear(xlink_segment *segment) {
   free(segment->data);
   free(segment->mask);
   free(segment->publics);
   free(segment->relocs);
-  memset(segment, 0, sizeof(xlink_omf_segment));
+  memset(segment, 0, sizeof(xlink_segment));
 }
 
 void xlink_file_clear(xlink_file *file) {
@@ -1154,7 +1153,7 @@ void xlink_module_dump_segments(xlink_module *mod) {
   int i, j;
   printf("Segment records:\n");
   for (i = 0; i < mod->nsegments; i++) {
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     seg = mod->segments[i];
     printf("%2i : %6s segment %s %s %s %6s 0x%04x bytes%s\n", i, seg->name->str,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
@@ -1175,7 +1174,7 @@ void xlink_module_dump_segments(xlink_module *mod) {
 void xlink_module_dump_relocations(xlink_module *mod) {
   int i, j;
   for (i = 0; i < mod->nsegments; i++) {
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     seg = mod->segments[i];
     if (seg->info & SEG_HAS_DATA) {
       for (j = 0; j < seg->length; j++) {
@@ -1187,7 +1186,7 @@ void xlink_module_dump_relocations(xlink_module *mod) {
   }
   for (i = 0; i < mod->nrelocs; i++) {
     xlink_omf_reloc *rel;
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     rel = mod->relocs[i];
     seg = rel->segment;
     if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
@@ -1199,7 +1198,7 @@ void xlink_module_dump_relocations(xlink_module *mod) {
        xlink_reloc_get_addend(rel));
     }
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_omf_segment *target;
+      xlink_segment *target;
       target = xlink_module_get_segment(seg->module, rel->target_idx);
       printf("  FIXUPP: %6s %c seg %s off 0x%03x -> seg %s off 0x0 addend %s\n",
        OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
@@ -1217,7 +1216,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
   xlink_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
-  xlink_omf_segment *seg;
+  xlink_segment *seg;
   int offset;
   mod = xlink_malloc(sizeof(xlink_module));
   xlink_module_init(mod, file->name);
@@ -1246,8 +1245,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
         break;
       }
       case OMF_SEGDEF : {
-        xlink_omf_segment *seg;
-        seg = xlink_malloc(sizeof(xlink_omf_segment));
+        xlink_segment *seg;
+        seg = xlink_malloc(sizeof(xlink_segment));
         seg->attrib.b = xlink_omf_record_read_byte(&rec);
         if (seg->attrib.align == 0) {
           seg->frame = xlink_omf_record_read_word(&rec);
@@ -1485,7 +1484,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
   return mod;
 }
 
-xlink_segment_class xlink_segment_get_class(const xlink_omf_segment *seg) {
+xlink_segment_class xlink_segment_get_class(const xlink_segment *seg) {
   if (strcmp(seg->class->str, "CODE") == 0) {
     return OMF_SEGMENT_CODE;
   }
@@ -1496,10 +1495,10 @@ xlink_segment_class xlink_segment_get_class(const xlink_omf_segment *seg) {
 }
 
 int seg_comp(const void *a, const void *b) {
-  const xlink_omf_segment *seg_a;
-  const xlink_omf_segment *seg_b;
-  seg_a = *(xlink_omf_segment **)a;
-  seg_b = *(xlink_omf_segment **)b;
+  const xlink_segment *seg_a;
+  const xlink_segment *seg_b;
+  seg_a = *(xlink_segment **)a;
+  seg_b = *(xlink_segment **)b;
   if (xlink_segment_get_class(seg_a) == xlink_segment_get_class(seg_b)) {
     if (seg_a->module == seg_b->module) {
       return seg_a->index - seg_b->index;
@@ -1528,7 +1527,7 @@ void xlink_binary_link(xlink_binary *bin) {
     xlink_binary_add_segment(bin, ext->public->segment);
   }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS) with bin->entry first */
-  qsort(bin->segments, bin->nsegments, sizeof(xlink_omf_segment *), seg_comp);
+  qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
   if (bin->segments[0] != bin->main->segment) {
     for (i = 1; i < bin->nsegments; i++) {
       if (bin->segments[i] == bin->main->segment) {
@@ -1541,7 +1540,7 @@ void xlink_binary_link(xlink_binary *bin) {
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
   offset = 0x100;
   for (i = 0; i < bin->nsegments; i++) {
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     seg = bin->segments[i];
     offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
     seg->start = offset;
@@ -1563,7 +1562,7 @@ void xlink_binary_link(xlink_binary *bin) {
   out = fopen(bin->output, "wb");
   XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
   for (offset = 0x100, i = 0; i < bin->nsegments; i++) {
-    xlink_omf_segment *seg;
+    xlink_segment *seg;
     seg = bin->segments[i];
     if (seg->info & SEG_HAS_DATA) {
       if (offset != seg->start) {
