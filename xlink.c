@@ -706,8 +706,6 @@ xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
 }
 
 int xlink_module_add_extern(xlink_module *mod, xlink_extern *ext) {
-  ext->index = mod->nexterns;
-  ext->module = mod;
   mod->nexterns++;
   mod->externs =
    xlink_realloc(mod->externs, mod->nexterns*sizeof(xlink_extern *));
@@ -1322,6 +1320,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
           *ext = base;
           strcpy(ext->name, xlink_omf_record_read_string(&rec));
           ext->type_idx = xlink_omf_record_read_index(&rec);
+          ext->index = mod->nexterns;
+          ext->module = mod;
           xlink_module_add_extern(mod, ext);
         }
         break;
