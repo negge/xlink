@@ -629,8 +629,6 @@ xlink_name *xlink_module_get_name(xlink_module *mod, int name_idx) {
 }
 
 int xlink_module_add_segment(xlink_module *mod, xlink_segment *segment) {
-  segment->index = mod->nsegments;
-  segment->module = mod;
   mod->nsegments++;
   mod->segments =
    xlink_realloc(mod->segments, mod->nsegments*sizeof(xlink_segment *));
@@ -1266,6 +1264,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
         seg->data = xlink_malloc(seg->length);
         seg->mask = xlink_malloc(CEIL2(seg->length, 3));
         memset(seg->mask, 0, CEIL2(seg->length, 3));
+        seg->index = mod->nsegments;
+        seg->module = mod;
         xlink_module_add_segment(mod, seg);
         break;
       }
