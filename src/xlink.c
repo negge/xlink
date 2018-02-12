@@ -1069,7 +1069,7 @@ void xlink_module_dump_relocations(xlink_module *mod) {
   }
 }
 
-xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
+xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
   xlink_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
