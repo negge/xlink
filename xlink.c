@@ -333,9 +333,9 @@ struct xlink_extern {
   xlink_public *public;
 };
 
-typedef struct xlink_omf_addend xlink_omf_addend;
+typedef struct xlink_addend xlink_addend;
 
-struct xlink_omf_addend {
+struct xlink_addend {
   unsigned short segment;
   int offset;
 };
@@ -352,7 +352,7 @@ struct xlink_reloc {
   int frame_idx;
   int target_idx;
   unsigned int disp;
-  xlink_omf_addend addend;
+  xlink_addend addend;
 };
 
 typedef struct xlink_omf xlink_omf;
