@@ -789,7 +789,6 @@ void xlink_file_init(xlink_file *file, const char *name) {
   fseek(fp, 0, SEEK_END);
   file->size = ftell(fp);
   file->buf = xlink_malloc(file->size);
-  XLINK_ERROR(file->buf == NULL, ("Could not allocate %i bytes", file->size));
   fseek(fp, 0, SEEK_SET);
   size = fread(file->buf, 1, file->size, fp);
   XLINK_ERROR(size != file->size,
