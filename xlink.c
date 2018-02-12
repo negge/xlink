@@ -937,7 +937,7 @@ void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_module *mod) {
     xlink_segment *seg;
     int offset;
     xlink_omf_record_reset(rec);
-    switch (rec->type) {
+    switch (rec->type & ~1) {
       case OMF_LEDATA : {
         seg = xlink_module_get_segment(mod, xlink_omf_record_read_index(rec));
         offset = xlink_omf_record_read_numeric(rec);
@@ -1081,7 +1081,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
     int i;
     xlink_parse_omf_record(&rec, &ctx);
     xlink_omf_add_record(&omf, &rec);
-    switch (rec.type) {
+    switch (rec.type & ~1) {
       case OMF_THEADR :
       case OMF_LHEADR : {
         strcpy(mod->source, xlink_omf_record_read_string(&rec));
