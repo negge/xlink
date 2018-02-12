@@ -1379,14 +1379,13 @@ void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
   FILE *out;
-  xlink_public *entry;
+  xlink_segment *start;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
-  entry = xlink_binary_find_public(bin, bin->entry);
-  XLINK_ERROR(xlink_segment_get_class(entry->segment) != OMF_SEGMENT_CODE,
+  start = xlink_binary_find_public(bin, bin->entry)->segment;
+  XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
    ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
-   xlink_segment_get_name(entry->segment),
-   xlink_segment_get_class_name(entry->segment)));
-  xlink_binary_process_segment(bin, entry->segment);
+   xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+  xlink_binary_process_segment(bin, start);
   for (i = 0; i < bin->nexterns; i++) {
     xlink_extern *ext;
     ext = bin->externs[i];
@@ -1401,18 +1400,18 @@ void xlink_binary_link(xlink_binary *bin) {
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment *seg;
     seg = bin->segments[i];
-    XLINK_ERROR(entry->segment->attrib.proc != seg->attrib.proc,
+    XLINK_ERROR(start->attrib.proc != seg->attrib.proc,
      ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
-     OMF_SEGDEF_USE[entry->segment->attrib.proc], xlink_segment_get_name(seg),
+     OMF_SEGDEF_USE[start->attrib.proc], xlink_segment_get_name(seg),
      OMF_SEGDEF_USE[seg->attrib.proc]));
   }
-  /* Stage 2: Sort segments by class (CODE, DATA, BSS), entry->segment first */
+  /* Stage 2: Sort segments by class (CODE, DATA, BSS), with start first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
-  if (bin->segments[0] != entry->segment) {
+  if (bin->segments[0] != start) {
     for (i = 1; i < bin->nsegments; i++) {
-      if (bin->segments[i] == entry->segment) {
+      if (bin->segments[i] == start) {
         bin->segments[i] = bin->segments[0];
-        bin->segments[0] = entry->segment;
+        bin->segments[0] = start;
         break;
       }
     }
