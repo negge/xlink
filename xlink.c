@@ -679,8 +679,6 @@ xlink_public *xlink_module_get_public(xlink_module *mod, int public_idx) {
 }
 
 int xlink_module_add_public(xlink_module *mod, xlink_public *public) {
-  public->index = mod->npublics;
-  public->module = mod;
   mod->npublics++;
   mod->publics =
    xlink_realloc(mod->publics, mod->npublics*sizeof(xlink_public *));
@@ -1305,6 +1303,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
           strcpy(pub->name, xlink_omf_record_read_string(&rec));
           pub->offset = xlink_omf_record_read_numeric(&rec);
           pub->type_idx = xlink_omf_record_read_index(&rec);
+          pub->index = mod->npublics;
+          pub->module = mod;
           xlink_module_add_public(mod, pub);
           if (pub->segment) {
             xlink_segment_add_public(pub->segment, pub);
