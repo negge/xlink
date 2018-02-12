@@ -651,8 +651,6 @@ const char *xlink_module_get_segment_name(xlink_module *mod, int segment_idx) {
 }
 
 int xlink_module_add_group(xlink_module *mod, xlink_group *group) {
-  group->index = mod->ngroups;
-  group->module = mod;
   mod->ngroups++;
   mod->groups =
    xlink_realloc(mod->groups, mod->ngroups*sizeof(xlink_group *));
@@ -1282,6 +1280,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
           xlink_group_add_segment(grp,
            xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec)));
         }
+        grp->index = mod->ngroups;
+        grp->module = mod;
         xlink_module_add_group(mod, grp);
         break;
       }
