@@ -239,9 +239,6 @@ struct xlink_parse_ctx {
   const char *error;
 };
 
-void xlink_parse_ctx_init(xlink_parse_ctx *ctx, const unsigned char *buf,
- int size);
-
 typedef struct xlink_omf_record xlink_omf_record;
 
 struct xlink_omf_record {
