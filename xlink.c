@@ -772,7 +772,7 @@ int xlink_binary_has_extern(xlink_binary *bin, xlink_extern *ext) {
   return 0;
 }
 
-void xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
+void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
   int i;
   if (xlink_binary_has_segment(bin, segment)) {
     return;
@@ -798,7 +798,7 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
       xlink_segment *seg;
       seg = xlink_module_get_segment(segment->module, rel->target_idx);
-      xlink_binary_add_segment(bin, seg);
+      xlink_binary_process_segment(bin, seg);
     }
     else {
       XLINK_ERROR(1,
@@ -1469,7 +1469,7 @@ void xlink_binary_link(xlink_binary *bin) {
   FILE *out;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
   bin->main = xlink_binary_find_public(bin, bin->entry);
-  xlink_binary_add_segment(bin, bin->main->segment);
+  xlink_binary_process_segment(bin, bin->main->segment);
   for (i = 0; i < bin->nexterns; i++) {
     xlink_extern *ext;
     ext = bin->externs[i];
@@ -1479,7 +1479,7 @@ void xlink_binary_link(xlink_binary *bin) {
     else {
       ext->public = xlink_binary_find_public(bin, ext->name);
     }
-    xlink_binary_add_segment(bin, ext->public->segment);
+    xlink_binary_process_segment(bin, ext->public->segment);
   }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS) with bin->entry first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
