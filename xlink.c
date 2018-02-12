@@ -752,6 +752,14 @@ xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
   return ret;
 }
 
+int xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
+  bin->nsegments++;
+  bin->segments =
+   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_segment *));
+  bin->segments[bin->nsegments - 1] = segment;
+  return bin->nsegments;
+}
+
 int xlink_binary_has_segment(xlink_binary *bin, xlink_segment *segment) {
   int i;
   for (i = 0; i < bin->nsegments; i++) {
@@ -760,6 +768,14 @@ int xlink_binary_has_segment(xlink_binary *bin, xlink_segment *segment) {
     }
   }
   return 0;
+}
+
+int xlink_binary_add_extern(xlink_binary *bin, xlink_extern *ext) {
+  bin->nexterns++;
+  bin->externs =
+   xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_extern *));
+  bin->externs[bin->nexterns - 1] = ext;
+  return bin->nexterns;
 }
 
 int xlink_binary_has_extern(xlink_binary *bin, xlink_extern *ext) {
@@ -777,10 +793,7 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
   if (xlink_binary_has_segment(bin, segment)) {
     return;
   }
-  bin->nsegments++;
-  bin->segments =
-   xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_segment *));
-  bin->segments[bin->nsegments - 1] = segment;
+  xlink_binary_add_segment(bin, segment);
   for (i = 0; i < segment->nrelocs; i++) {
     xlink_reloc *rel;
     rel = segment->relocs[i];
@@ -790,10 +803,7 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
       if (xlink_binary_has_extern(bin, ext)) {
         continue;
       }
-      bin->nexterns++;
-      bin->externs =
-       xlink_realloc(bin->externs, bin->nexterns*sizeof(xlink_extern *));
-      bin->externs[bin->nexterns - 1] = ext;
+      xlink_binary_add_extern(bin, ext);
     }
     else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
       xlink_segment *seg;
