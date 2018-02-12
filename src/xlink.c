@@ -233,7 +233,7 @@ typedef struct xlink_file xlink_file;
 struct xlink_file {
   const char *name;
   int size;
-  unsigned char *buf;
+  const unsigned char *buf;
 };
 
 typedef struct xlink_parse_ctx xlink_parse_ctx;
@@ -775,25 +775,27 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
 }
 
 void xlink_file_clear(xlink_file *file) {
-  free(file->buf);
   memset(file, 0, sizeof(xlink_file));
 }
 
-void xlink_file_init(xlink_file *file, const char *name) {
+unsigned char *xlink_file_init(xlink_file *file, const char *name) {
   FILE *fp;
   int size;
+  unsigned char *buf;
   fp = fopen(name, "rb");
   XLINK_ERROR(fp == NULL, ("Could not open OMF file %s", name));
   memset(file, 0, sizeof(xlink_file));
   file->name = name;
   fseek(fp, 0, SEEK_END);
   file->size = ftell(fp);
-  file->buf = xlink_malloc(file->size);
+  buf = xlink_malloc(file->size);
+  file->buf = buf;
   fseek(fp, 0, SEEK_SET);
-  size = fread(file->buf, 1, file->size, fp);
+  size = fread(buf, 1, file->size, fp);
   XLINK_ERROR(size != file->size,
    ("Problem reading OMF file, got %i of %i bytes", size, file->size));
   fclose(fp);
+  return buf;
 }
 
 void xlink_parse_ctx_init(xlink_parse_ctx *ctx, const unsigned char *buf,
@@ -1544,13 +1546,15 @@ int main(int argc, char *argv[]) {
     bin.map = mapfile;
   }
   for (c = optind; c < argc; c++) {
+    unsigned char *buf;
     xlink_file file;
     xlink_module *mod;
-    xlink_file_init(&file, argv[c]);
+    buf = xlink_file_init(&file, argv[c]);
     mod = xlink_file_load_module(&file, dump);
     mod->index = bin.nmodules;
     xlink_binary_add_module(&bin, mod);
     xlink_file_clear(&file);
+    free(buf);
   }
   if (!dump) {
     xlink_binary_link(&bin);
