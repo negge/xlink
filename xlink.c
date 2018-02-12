@@ -735,8 +735,6 @@ xlink_reloc *xlink_module_get_reloc(xlink_module *mod, int reloc_idx) {
 }
 
 int xlink_module_add_reloc(xlink_module *mod, xlink_reloc *reloc) {
-  reloc->index = mod->nrelocs;
-  reloc->module = mod;
   mod->nrelocs++;
   mod->relocs =
    xlink_realloc(mod->relocs, mod->nrelocs*sizeof(xlink_reloc *));
@@ -1453,6 +1451,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
                 XLINK_ERROR(1, ("Unsupported location %i", rel->location));
               }
             }
+            rel->index = mod->nrelocs;
+            rel->module = mod;
             xlink_module_add_reloc(mod, rel);
             xlink_segment_add_reloc(rel->segment, rel);
           }
