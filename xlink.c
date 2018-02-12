@@ -759,6 +759,15 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
         }
         break;
       }
+      case OMF_LOCATION_32BIT : {
+        if (rel->mode == OMF_MODE_EXPLICIT) {
+          *(uint32_t *)data = target + rel->addend.offset;
+        }
+        else {
+          *(uint32_t *)data = target + rel->addend.offset - offset - 4;
+        }
+        break;
+      }
       default : {
         XLINK_ERROR(1, ("Unsupported location %i", rel->location));
       }
