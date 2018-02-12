@@ -681,22 +681,24 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
   for (i = 0; i < segment->nrelocs; i++) {
     xlink_reloc *rel;
     rel = segment->relocs[i];
-    if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_extern *ext;
-      ext = xlink_module_get_extern(segment->module, rel->target_idx);
-      if (xlink_binary_has_extern(bin, ext)) {
-        continue;
+    switch (rel->target) {
+      case OMF_TARGET_EXT : {
+        xlink_extern *ext;
+        ext = xlink_module_get_extern(segment->module, rel->target_idx);
+        if (!xlink_binary_has_extern(bin, ext)) {
+          xlink_binary_add_extern(bin, ext);
+        }
+        break;
       }
-      xlink_binary_add_extern(bin, ext);
-    }
-    else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_segment *seg;
-      seg = xlink_module_get_segment(segment->module, rel->target_idx);
-      xlink_binary_process_segment(bin, seg);
-    }
-    else {
-      XLINK_ERROR(1,
-       ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
+      case OMF_TARGET_SEG : {
+        xlink_segment *seg;
+        seg = xlink_module_get_segment(segment->module, rel->target_idx);
+        xlink_binary_process_segment(bin, seg);
+        break;
+      }
+      default : {
+        XLINK_ERROR(1, ("Unsupported target T%i", rel->target));
+      }
     }
   }
 }
@@ -725,19 +727,22 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
     rel = segment->relocs[i];
     data = segment->data + rel->offset;
     offset = segment->start + rel->offset;
-    if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_public *pub;
-      pub = xlink_module_get_extern(segment->module, rel->target_idx)->public;
-      target = pub->segment->start + pub->offset;
-    }
-    else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_segment *seg;
-      seg = xlink_module_get_segment(segment->module, rel->target_idx);
-      target = seg->start;
-    }
-    else {
-      XLINK_ERROR(1,
-       ("Unsupported frame F%i and target T%i", rel->frame, rel->target));
+    switch (rel->target) {
+      case OMF_TARGET_EXT : {
+        xlink_public *pub;
+        pub = xlink_module_get_extern(segment->module, rel->target_idx)->public;
+        target = pub->segment->start + pub->offset;
+        break;
+      }
+      case OMF_TARGET_SEG : {
+        xlink_segment *seg;
+        seg = xlink_module_get_segment(segment->module, rel->target_idx);
+        target = seg->start;
+        break;
+      }
+      default : {
+        XLINK_ERROR(1, ("Unsupported target T%i", rel->target));
+      }
     }
     switch (rel->location) {
       case OMF_LOCATION_16BIT : {
@@ -1028,25 +1033,29 @@ void xlink_module_dump_relocations(xlink_module *mod) {
     xlink_segment *seg;
     rel = mod->relocs[i];
     seg = rel->segment;
-    if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
-      xlink_extern *ext;
-      ext = xlink_module_get_extern(seg->module, rel->target_idx);
-      printf("  FIXUPP: %6s %c seg %s off 0x%03x -> ext %15s addend %s\n",
-       OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
-       xlink_segment_get_name(seg), rel->offset, xlink_extern_get_name(ext),
-       xlink_reloc_get_addend(rel));
-    }
-    else if (rel->frame == OMF_FRAME_GRP && rel->target == OMF_TARGET_SEG) {
-      xlink_segment *target;
-      target = xlink_module_get_segment(seg->module, rel->target_idx);
-      printf("  FIXUPP: %6s %c seg %s off 0x%03x -> seg %s off 0x0 addend %s\n",
-       OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
-       xlink_segment_get_name(seg), rel->offset, xlink_segment_get_name(target),
-       xlink_reloc_get_addend(rel));
-    }
-    else {
-      XLINK_ERROR(1,
-       ("asdf Unsupported frame F%i and target T%i", rel->frame, rel->target));
+    switch (rel->target) {
+      case OMF_TARGET_EXT : {
+        xlink_extern *ext;
+        ext = xlink_module_get_extern(seg->module, rel->target_idx);
+        printf("  FIXUPP: %6s %c seg %s off 0x%03x -> ext %13s addend %s\n",
+         OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
+         xlink_segment_get_name(seg), rel->offset, xlink_extern_get_name(ext),
+         xlink_reloc_get_addend(rel));
+        break;
+      }
+      case OMF_TARGET_SEG : {
+        xlink_segment *target;
+        target = xlink_module_get_segment(seg->module, rel->target_idx);
+        printf(
+         "  FIXUPP: %6s %c seg %s off 0x%03x -> seg %s off 0x0 addend %s\n",
+         OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
+         xlink_segment_get_name(seg), rel->offset,
+         xlink_segment_get_name(target), xlink_reloc_get_addend(rel));
+        break;
+      }
+      default : {
+        XLINK_ERROR(1, ("Unsupported target T%i", rel->target));
+      }
     }
   }
 }
