@@ -265,7 +265,7 @@ struct xlink_name {
 
 typedef struct xlink_module xlink_module;
 typedef struct xlink_public xlink_public;
-typedef struct xlink_omf_reloc xlink_omf_reloc;
+typedef struct xlink_reloc xlink_reloc;
 
 #define SEG_HAS_DATA 0x1
 
@@ -285,7 +285,7 @@ struct xlink_segment {
   unsigned char *mask;
   xlink_public **publics;
   int npublics;
-  xlink_omf_reloc **relocs;
+  xlink_reloc **relocs;
   int nrelocs;
   int start;
 };
@@ -340,7 +340,7 @@ struct xlink_omf_addend {
   int offset;
 };
 
-struct xlink_omf_reloc {
+struct xlink_reloc {
   int index;
   xlink_module *module;
   xlink_segment *segment;
@@ -376,7 +376,7 @@ struct xlink_module {
   int npublics;
   xlink_extern **externs;
   int nexterns;
-  xlink_omf_reloc **relocs;
+  xlink_reloc **relocs;
   int nrelocs;
 };
 
@@ -485,10 +485,10 @@ int xlink_segment_add_public(xlink_segment *seg, xlink_public *public) {
   return seg->npublics;
 }
 
-int xlink_segment_add_reloc(xlink_segment *seg, xlink_omf_reloc *reloc) {
+int xlink_segment_add_reloc(xlink_segment *seg, xlink_reloc *reloc) {
   seg->nrelocs++;
   seg->relocs =
-   xlink_realloc(seg->relocs, seg->nrelocs*sizeof(xlink_omf_reloc *));
+   xlink_realloc(seg->relocs, seg->nrelocs*sizeof(xlink_reloc *));
   seg->relocs[seg->nrelocs - 1] = reloc;
   return seg->nrelocs;
 }
@@ -518,7 +518,7 @@ const char *xlink_extern_get_name(xlink_extern *ext) {
   return name;
 }
 
-const char *xlink_reloc_get_addend(xlink_omf_reloc *rel) {
+const char *xlink_reloc_get_addend(xlink_reloc *rel) {
   static char str[256];
   switch (rel->location) {
     case OMF_LOCATION_8BIT :
@@ -736,18 +736,18 @@ const char *xlink_module_get_extern_name(xlink_module *mod,
   return name;
 }
 
-xlink_omf_reloc *xlink_module_get_reloc(xlink_module *mod, int reloc_idx) {
+xlink_reloc *xlink_module_get_reloc(xlink_module *mod, int reloc_idx) {
   XLINK_ERROR(reloc_idx < 1 || reloc_idx > mod->nrelocs,
    ("Could not get reloc %i, nrelocs = %i", reloc_idx, mod->relocs));
   return mod->relocs[reloc_idx - 1];
 }
 
-int xlink_module_add_reloc(xlink_module *mod, xlink_omf_reloc *reloc) {
+int xlink_module_add_reloc(xlink_module *mod, xlink_reloc *reloc) {
   reloc->index = mod->nrelocs;
   reloc->module = mod;
   mod->nrelocs++;
   mod->relocs =
-   xlink_realloc(mod->relocs, mod->nrelocs*sizeof(xlink_omf_reloc *));
+   xlink_realloc(mod->relocs, mod->nrelocs*sizeof(xlink_reloc *));
   mod->relocs[mod->nrelocs - 1] = reloc;
   return mod->nrelocs;
 }
@@ -826,7 +826,7 @@ void xlink_binary_add_segment(xlink_binary *bin, xlink_segment *segment) {
    xlink_realloc(bin->segments, bin->nsegments*sizeof(xlink_segment *));
   bin->segments[bin->nsegments - 1] = segment;
   for (i = 0; i < segment->nrelocs; i++) {
-    xlink_omf_reloc *rel;
+    xlink_reloc *rel;
     rel = segment->relocs[i];
     if (rel->frame == OMF_FRAME_TARG && rel->target == OMF_TARGET_EXT) {
       xlink_extern *ext;
@@ -868,7 +868,7 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
 void xlink_segment_apply_relocations(xlink_segment *segment) {
   int i;
   for (i = 0; i < segment->nrelocs; i++) {
-    xlink_omf_reloc *rel;
+    xlink_reloc *rel;
     unsigned char *data;
     int offset;
     int target;
@@ -1183,7 +1183,7 @@ void xlink_module_dump_relocations(xlink_module *mod) {
     }
   }
   for (i = 0; i < mod->nrelocs; i++) {
-    xlink_omf_reloc *rel;
+    xlink_reloc *rel;
     xlink_segment *seg;
     rel = mod->relocs[i];
     seg = rel->segment;
@@ -1347,12 +1347,12 @@ xlink_module *xlink_file_load_module(xlink_file *file, int dump) {
           unsigned char byte;
           byte = xlink_omf_record_read_byte(&rec);
           if (byte & 0x80) {
-            xlink_omf_reloc *rel;
+            xlink_reloc *rel;
             xlink_omf_fixup_locat locat;
             xlink_omf_fixup_fixdata fixdata;
             const unsigned char *data;
             XLINK_ERROR(seg == NULL, ("Got FIXUP before LxDATA record"));
-            rel = xlink_malloc(sizeof(xlink_omf_reloc));
+            rel = xlink_malloc(sizeof(xlink_reloc));
             rel->segment = seg;
             locat.b0 = byte;
             locat.b1 = xlink_omf_record_read_byte(&rec);
