@@ -385,7 +385,6 @@ struct xlink_binary {
   char *map;
   xlink_module **modules;
   int nmodules;
-  xlink_public *main;
   xlink_segment **segments;
   int nsegments;
   xlink_extern **externs;
@@ -1384,9 +1383,10 @@ void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
   FILE *out;
+  xlink_public *entry;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
-  bin->main = xlink_binary_find_public(bin, bin->entry);
-  xlink_binary_process_segment(bin, bin->main->segment);
+  entry = xlink_binary_find_public(bin, bin->entry);
+  xlink_binary_process_segment(bin, entry->segment);
   for (i = 0; i < bin->nexterns; i++) {
     xlink_extern *ext;
     ext = bin->externs[i];
@@ -1398,13 +1398,13 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
-  /* Stage 2: Sort segments by class (CODE, DATA, BSS) with bin->entry first */
+  /* Stage 2: Sort segments by class (CODE, DATA, BSS), entry->segment first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
-  if (bin->segments[0] != bin->main->segment) {
+  if (bin->segments[0] != entry->segment) {
     for (i = 1; i < bin->nsegments; i++) {
-      if (bin->segments[i] == bin->main->segment) {
+      if (bin->segments[i] == entry->segment) {
         bin->segments[i] = bin->segments[0];
-        bin->segments[0] = bin->main->segment;
+        bin->segments[0] = entry->segment;
         break;
       }
     }
