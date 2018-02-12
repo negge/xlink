@@ -743,7 +743,6 @@ int xlink_module_add_reloc(xlink_module *mod, xlink_reloc *reloc) {
 }
 
 int xlink_binary_add_module(xlink_binary *bin, xlink_module *module) {
-  module->index = bin->nmodules;
   bin->nmodules++;
   bin->modules =
    xlink_realloc(bin->modules, bin->nmodules*sizeof(xlink_module *));
@@ -1657,8 +1656,11 @@ int main(int argc, char *argv[]) {
   }
   for (c = optind; c < argc; c++) {
     xlink_file file;
+    xlink_module *mod;
     xlink_file_init(&file, argv[c]);
-    xlink_binary_add_module(&bin, xlink_file_load_module(&file, dump));
+    mod = xlink_file_load_module(&file, dump);
+    mod->index = bin.nmodules;
+    xlink_binary_add_module(&bin, mod);
     xlink_file_clear(&file);
   }
   if (!dump) {
