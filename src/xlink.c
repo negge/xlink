@@ -1402,6 +1402,14 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
+  for (i = 0; i < bin->nsegments; i++) {
+    xlink_segment *seg;
+    seg = bin->segments[i];
+    XLINK_ERROR(entry->segment->attrib.proc != seg->attrib.proc,
+     ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
+     OMF_SEGDEF_USE[entry->segment->attrib.proc], xlink_segment_get_name(seg),
+     OMF_SEGDEF_USE[seg->attrib.proc]));
+  }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS), entry->segment first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
   if (bin->segments[0] != entry->segment) {
