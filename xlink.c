@@ -231,9 +231,6 @@ struct xlink_file {
   unsigned char *buf;
 };
 
-void xlink_file_clear(xlink_file *file);
-void xlink_file_init(xlink_file *file, const char *name);
-
 typedef struct xlink_parse_ctx xlink_parse_ctx;
 
 struct xlink_parse_ctx {
