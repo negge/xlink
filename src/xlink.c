@@ -1375,18 +1375,14 @@ int seg_comp(const void *a, const void *b) {
   return xlink_segment_get_class(seg_a) - xlink_segment_get_class(seg_b);
 }
 
-void xlink_binary_link(xlink_binary *bin) {
+/* Links a segment into the binary by recursively walking its externs, resolving
+    them to a public symbol, and linking the related segment to the binary. */
+void xlink_binary_link_segment(xlink_binary *bin, xlink_segment *segment) {
+  int start;
   int i;
-  int offset;
-  FILE *out;
-  xlink_segment *start;
-  /* Stage 1: Resolve all symbol references, starting from bin->entry */
-  start = xlink_binary_find_public(bin, bin->entry)->segment;
-  XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
-   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
-   xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
-  xlink_binary_process_segment(bin, start);
-  for (i = 0; i < bin->nexterns; i++) {
+  start = bin->nexterns;
+  xlink_binary_process_segment(bin, segment);
+  for (i = start; i < bin->nexterns; i++) {
     xlink_extern *ext;
     ext = bin->externs[i];
     if (ext->is_local) {
@@ -1397,6 +1393,19 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
+}
+
+void xlink_binary_link(xlink_binary *bin) {
+  int i;
+  int offset;
+  FILE *out;
+  xlink_segment *start;
+  /* Stage 1: Resolve all symbol references, starting from bin->entry */
+  start = xlink_binary_find_public(bin, bin->entry)->segment;
+  XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
+   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
+   xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+  xlink_binary_link_segment(bin, start);
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment *seg;
     seg = bin->segments[i];
