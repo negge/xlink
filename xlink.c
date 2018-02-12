@@ -290,8 +290,6 @@ struct xlink_segment {
   int start;
 };
 
-void xlink_segment_clear(xlink_segment *segment);
-
 #define CEIL2(len, bits) (((len) + ((1 << (bits)) - 1)) >> (bits))
 
 #define CLEARBIT(mask, idx)  (mask)[(idx)/8] &= ~(1 << ((idx)%8))
@@ -437,6 +435,14 @@ void xlink_omf_init(xlink_omf *omf) {
 
 void xlink_omf_clear(xlink_omf *omf) {
   free(omf->records);
+}
+
+void xlink_segment_clear(xlink_segment *segment) {
+  free(segment->data);
+  free(segment->mask);
+  free(segment->publics);
+  free(segment->relocs);
+  memset(segment, 0, sizeof(xlink_segment));
 }
 
 const char *xlink_segment_get_name(xlink_segment *seg) {
@@ -893,14 +899,6 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
       }
     }
   }
-}
-
-void xlink_segment_clear(xlink_segment *segment) {
-  free(segment->data);
-  free(segment->mask);
-  free(segment->publics);
-  free(segment->relocs);
-  memset(segment, 0, sizeof(xlink_segment));
 }
 
 void xlink_file_clear(xlink_file *file) {
