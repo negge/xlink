@@ -1386,6 +1386,10 @@ void xlink_binary_link(xlink_binary *bin) {
   xlink_public *entry;
   /* Stage 1: Resolve all symbol references, starting from bin->entry */
   entry = xlink_binary_find_public(bin, bin->entry);
+  XLINK_ERROR(xlink_segment_get_class(entry->segment) != OMF_SEGMENT_CODE,
+   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
+   xlink_segment_get_name(entry->segment),
+   xlink_segment_get_class_name(entry->segment)));
   xlink_binary_process_segment(bin, entry->segment);
   for (i = 0; i < bin->nexterns; i++) {
     xlink_extern *ext;
