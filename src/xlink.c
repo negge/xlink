@@ -236,6 +236,8 @@ struct xlink_file {
   const unsigned char *buf;
 };
 
+#include "stubs.h"
+
 typedef struct xlink_parse_ctx xlink_parse_ctx;
 
 struct xlink_parse_ctx {
@@ -1405,6 +1407,20 @@ void xlink_binary_link(xlink_binary *bin) {
   XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
    ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
    xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+  /* If this is a 32-bit program, add the protected mode stub */
+  if (start->attrib.proc == OMF_SEGMENT_USE32) {
+    xlink_module *mod;
+    mod = xlink_file_load_module(&STUB32_MODULE, 0);
+    /* Assume the first segment is the stub code to link */
+    start = mod->segments[0];
+    XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
+     ("Stub segment %s with class %s not 'CODE'",
+     xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+    /* Assume the first extern is for the main_ function, and rewrite it */
+    strcpy(mod->externs[0]->name, bin->entry);
+    mod->index = bin->nmodules;
+    xlink_binary_add_module(bin, mod);
+  }
   xlink_binary_link_segment(bin, start);
   for (i = 0; i < bin->nsegments; i++) {
     xlink_segment *seg;
@@ -1452,9 +1468,6 @@ void xlink_binary_link(xlink_binary *bin) {
   for (offset = 0x100, i = 0; i < bin->nsegments; i++) {
     xlink_segment *seg;
     seg = bin->segments[i];
-    XLINK_ERROR(seg->attrib.proc == OMF_SEGMENT_USE32,
-     ("Cannot link USE32 segment %s into COM file",
-     xlink_segment_get_name(seg)));
     if (seg->info & SEG_HAS_DATA) {
       if (offset != seg->start) {
         unsigned char buf[4096];
