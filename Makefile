@@ -29,8 +29,12 @@ $(SRC_DIR)/stubs.h: $(STBS)
 	@$(foreach s,$(patsubst $(BIN_DIR)/%.o,%,$^), \
 		$(eval SIZE = $(shell stat -c %s $(BIN_DIR)/$s.o)) \
 		$(eval NAME = $(shell echo $s | tr '[.a-z]' '[_A-Z]')) \
-		echo 'const unsigned char $(NAME)_MODULE[$(SIZE)] = {' >> $@; \
+		echo 'const xlink_file $(NAME)_MODULE = {' >> $@; \
+		echo '  "$s.o",' >> $@; \
+		echo '  $(SIZE),' >> $@; \
+		echo '  (char[]){' >> $@; \
 		xxd -i - < $(BIN_DIR)/$s.o >> $@; \
+		echo '  }' >> $@; \
 		echo '};' >> $@; \
 	)
 
