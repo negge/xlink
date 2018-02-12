@@ -774,10 +774,6 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
   }
 }
 
-void xlink_file_clear(xlink_file *file) {
-  memset(file, 0, sizeof(xlink_file));
-}
-
 unsigned char *xlink_file_init(xlink_file *file, const char *name) {
   FILE *fp;
   int size;
@@ -1552,7 +1548,6 @@ int main(int argc, char *argv[]) {
     mod = xlink_file_load_module(&file, dump);
     mod->index = bin.nmodules;
     xlink_binary_add_module(&bin, mod);
-    xlink_file_clear(&file);
     free(buf);
   }
   if (!dump) {
