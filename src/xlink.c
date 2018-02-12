@@ -784,7 +784,6 @@ unsigned char *xlink_file_init(xlink_file *file, const char *name) {
   unsigned char *buf;
   fp = fopen(name, "rb");
   XLINK_ERROR(fp == NULL, ("Could not open OMF file %s", name));
-  memset(file, 0, sizeof(xlink_file));
   file->name = name;
   fseek(fp, 0, SEEK_END);
   file->size = ftell(fp);
