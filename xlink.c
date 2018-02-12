@@ -730,13 +730,6 @@ xlink_module *xlink_binary_get_module(xlink_binary *bin, int module_idx) {
   return bin->modules[module_idx - 1];
 }
 
-const char *xlink_binary_get_module_name(xlink_binary *bin, int module_idx) {
-  static char name[256];
-  sprintf(name, "%s:%i", xlink_binary_get_module(bin, module_idx)->filename,
-   module_idx);
-  return name;
-}
-
 xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
   xlink_public *ret;
   int i, j;
