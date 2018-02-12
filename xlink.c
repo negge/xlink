@@ -654,14 +654,6 @@ xlink_group *xlink_module_get_group(xlink_module *mod, int group_idx) {
   return mod->groups[group_idx - 1];
 }
 
-const char *xlink_module_get_group_name(xlink_module *mod, int group_idx) {
-  xlink_group *grp;
-  static char name[256];
-  grp = xlink_module_get_group(mod, group_idx);
-  sprintf(name, "%s:%i", grp->name->str, group_idx);
-  return name;
-}
-
 xlink_public *xlink_module_get_public(xlink_module *mod, int public_idx) {
   XLINK_ERROR(public_idx < 1 || public_idx > mod->npublics,
    ("Could not get public %i, npublics = %i\n", public_idx, mod->npublics));
