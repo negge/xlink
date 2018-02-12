@@ -83,6 +83,11 @@ typedef enum {
   OMF_SEGMENT_DWORD
 } xlink_segment_align;
 
+typedef enum {
+  OMF_SEGMENT_USE16,
+  OMF_SEGMENT_USE32
+} xlink_segment_use;
+
 typedef union xlink_omf_attribute xlink_omf_attribute;
 
 union xlink_omf_attribute {
@@ -1422,6 +1427,9 @@ void xlink_binary_link(xlink_binary *bin) {
   for (offset = 0x100, i = 0; i < bin->nsegments; i++) {
     xlink_segment *seg;
     seg = bin->segments[i];
+    XLINK_ERROR(seg->attrib.proc == OMF_SEGMENT_USE32,
+     ("Cannot link USE32 segment %s into COM file",
+     xlink_segment_get_name(seg)));
     if (seg->info & SEG_HAS_DATA) {
       if (offset != seg->start) {
         unsigned char buf[4096];
