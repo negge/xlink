@@ -387,8 +387,6 @@ struct xlink_binary {
   int nexterns;
 };
 
-xlink_module *xlink_binary_get_module(xlink_binary *bin, int module_idx);
-
 void xlink_log(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
