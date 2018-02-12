@@ -702,14 +702,6 @@ xlink_extern *xlink_module_get_extern(xlink_module *mod,
   return mod->externs[extern_idx - 1];
 }
 
-const char *xlink_module_get_extern_name(xlink_module *mod,
- int extern_idx) {
-  static char name[256];
-  sprintf(name, "%s:%i", xlink_module_get_extern(mod, extern_idx)->name,
-   extern_idx);
-  return name;
-}
-
 xlink_reloc *xlink_module_get_reloc(xlink_module *mod, int reloc_idx) {
   XLINK_ERROR(reloc_idx < 1 || reloc_idx > mod->nrelocs,
    ("Could not get reloc %i, nrelocs = %i", reloc_idx, mod->relocs));
