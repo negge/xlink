@@ -951,7 +951,7 @@ void xlink_omf_dump_lxdata(xlink_omf *omf, xlink_module *mod) {
         seg = xlink_module_get_segment(mod, xlink_omf_record_read_index(rec));
         offset = xlink_omf_record_read_numeric(rec);
         printf("  LEDATA: segment %8s, offset 0x%04x, size 0x%04x\n",
-         xlink_segment_get_name(seg), offset, rec->size - 4);
+         xlink_segment_get_name(seg), offset, 3 + rec->size - 1 - rec->idx);
         break;
       }
       case OMF_LIDATA : {
