@@ -632,6 +632,25 @@ XLINK_LIST_FUNCS(module, public);
 XLINK_LIST_FUNCS(module, extern);
 XLINK_LIST_FUNCS(module, reloc);
 
+xlink_segment *xlink_module_find_segment(xlink_module *mod, const char *name) {
+  xlink_segment *ret;
+  int i;
+  ret = NULL;
+  for (i = 0; i < mod->nsegments; i++) {
+    xlink_segment *seg;
+    seg = mod->segments[i];
+    if (strcmp(name, seg->name->str) == 0) {
+      XLINK_ERROR(ret != NULL,
+       ("Duplicate segment definition found for name %s in %s", name,
+       mod->filename));
+      ret = seg;
+    }
+  }
+  XLINK_ERROR(ret == NULL,
+   ("Could not find segment definition %s in %s", name, mod->filename));
+  return ret;
+}
+
 xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
   xlink_public *ret;
   int i;
@@ -1411,8 +1430,8 @@ void xlink_binary_link(xlink_binary *bin) {
   if (start->attrib.proc == OMF_SEGMENT_USE32) {
     xlink_module *mod;
     mod = xlink_file_load_module(&STUB32_MODULE, 0);
-    /* Assume the first segment is the stub code to link */
-    start = mod->segments[0];
+    /* The stub code is always in segment _MAIN */
+    start = xlink_module_find_segment(mod, "_MAIN");
     XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
      ("Stub segment %s with class %s not 'CODE'",
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
