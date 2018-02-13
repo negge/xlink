@@ -38,7 +38,8 @@ dpmi_ok:
   ; Call the real-to-protected mode entry point with the following paramters:
   ;  AX = flags, bit 0 should be 1 for 32-bit applications
   ;  ES = real mode segment of DPMI host private data area
-  call far [esp]
+  mov di, sp
+  call far [di]
 
   ; BX = 0xffff
   push bx
