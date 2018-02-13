@@ -8,9 +8,9 @@ GLOBAL _xlink_base
 
 stub32:
   ; DX = CS
-  movzx edx, dx
-  shl edx, 4
-  mov [_xlink_base], edx
+  movzx eax, dx
+  shl eax, 4
+  mov [_xlink_base], eax
 
   ; AX = 0x1687 get DPMI real mode to protected mode entry point
   mov ax,0x1687
