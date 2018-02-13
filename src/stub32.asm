@@ -69,8 +69,9 @@ dpmi_ok:
   ;  BX = selector
   int 0x31
 
-  mov [_xlink_base + 2], cx
-  mov [_xlink_base], dx
+  push cx
+  push dx
+  pop dword [_xlink_base]
 
   ; AH = 0
   mov al, 0x9
