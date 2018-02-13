@@ -50,16 +50,8 @@ dpmi_ok:
   pop cx
   pop dx
 
-  ; DS = selector with base of real mode DS and a 64 KB limit
   ; ES = selector to program's PSP with a 100H byte limit
-  push ds
-  push es
-
-  ; AX = 1
-  mov bp, ax
-
-@L1:
-  pop bx
+  mov bx, es
 
   ; AH = 0
   mov al, 0x8
@@ -70,8 +62,8 @@ dpmi_ok:
   ;  CX:DX = 32-bit segment limit
   int 0x31
 
-  dec bp
-  jnz @L1
+  push es
+  pop ds
 
   ; AH = 0
   mov al, 0x9
