@@ -7,11 +7,6 @@ GLOBAL _xlink_base
   bits 16
 
 stub32:
-  ; DX = CS
-  movzx eax, dx
-  shl eax, 4
-  mov [_xlink_base], eax
-
   ; AX = 0x1687 get DPMI real mode to protected mode entry point
   mov ax,0x1687
   int 0x2f
@@ -65,6 +60,17 @@ dpmi_ok:
 
   push es
   pop ds
+
+  ; AH = 0
+  mov al, 0x6
+
+  ; Gets the segment base address
+  ;  AX = 0006h
+  ;  BX = selector
+  int 0x31
+
+  mov [_xlink_base + 2], cx
+  mov [_xlink_base], dx
 
   ; AH = 0
   mov al, 0x9
