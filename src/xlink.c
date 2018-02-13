@@ -670,6 +670,25 @@ xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
   return ret;
 }
 
+xlink_extern *xlink_module_find_extern(xlink_module *mod, const char *name) {
+  xlink_extern *ret;
+  int i;
+  ret = NULL;
+  for (i = 0; i < mod->nexterns; i++) {
+    xlink_extern *ext;
+    ext = mod->externs[i];
+    if (!ext->is_local && strcmp(name, ext->name) == 0) {
+      XLINK_ERROR(ret != NULL,
+       ("Duplicate extern definition found for name %s in %s", name,
+       mod->filename));
+      ret = ext;
+    }
+  }
+  XLINK_ERROR(ret == NULL,
+   ("Could not find extern definition %s in %s", name, mod->filename));
+  return ret;
+}
+
 XLINK_LIST_FUNCS(binary, module);
 
 xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
@@ -1435,8 +1454,8 @@ void xlink_binary_link(xlink_binary *bin) {
     XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
      ("Stub segment %s with class %s not 'CODE'",
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
-    /* Assume the first extern is for the main_ function, and rewrite it */
-    strcpy(mod->externs[0]->name, bin->entry);
+    /* The stub code calls an external main_ function, find and rewrite it */
+    strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
     mod->index = bin->nmodules;
     xlink_binary_add_module(bin, mod);
   }
