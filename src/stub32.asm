@@ -8,6 +8,7 @@ GLOBAL _xlink_base
 
 stub32:
   ; DX = CS
+  movzx edx, dx
   shl edx, 4
   mov [_xlink_base], edx
 
