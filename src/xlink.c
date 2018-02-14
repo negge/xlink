@@ -258,13 +258,16 @@ struct xlink_omf_record {
 
 typedef char xlink_string[256];
 
+typedef struct xlink_module xlink_module;
+
 typedef struct xlink_name xlink_name;
 
 struct xlink_name {
+  int index;
+  xlink_module *module;
   xlink_string str;
 };
 
-typedef struct xlink_module xlink_module;
 typedef struct xlink_public xlink_public;
 typedef struct xlink_reloc xlink_reloc;
 
@@ -1138,6 +1141,8 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           xlink_name *name;
           name = xlink_malloc(sizeof(xlink_name));
           strcpy(name->str, xlink_omf_record_read_string(&rec));
+          name->index = mod->nnames;
+          name->module = mod;
           xlink_module_add_name(mod, name);
         }
         break;
