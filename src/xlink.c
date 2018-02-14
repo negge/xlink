@@ -361,9 +361,12 @@ struct xlink_omf {
   int nrecords;
 };
 
+typedef struct xlink_binary xlink_binary;
+
 struct xlink_module {
   const char *filename;
   int index;
+  xlink_binary *binary;
   xlink_string source;
   xlink_name **names;
   int nnames;
@@ -378,8 +381,6 @@ struct xlink_module {
   xlink_reloc **relocs;
   int nrelocs;
 };
-
-typedef struct xlink_binary xlink_binary;
 
 struct xlink_binary {
   char *output;
@@ -1437,6 +1438,7 @@ void xlink_binary_link(xlink_binary *bin) {
     /* The stub code calls an external main_ function, find and rewrite it */
     strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
     mod->index = bin->nmodules;
+    mod->binary = bin;
     xlink_binary_add_module(bin, mod);
   }
   /* Link the starting segment recursively by walking its externs, resolving
