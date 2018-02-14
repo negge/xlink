@@ -464,6 +464,11 @@ int xlink_##parent##_has_##child(xlink_##parent *p, xlink_##child *c) {       \
   return 0;                                                                   \
 }
 
+#define XLINK_LIST_ADD(parent, child, p, c)                                   \
+  c->index = p->n##child##s;                                                  \
+  c->parent = p;                                                              \
+  xlink_##parent##_add_##child(p, c);
+
 XLINK_LIST_FUNCS(segment, public);
 XLINK_LIST_FUNCS(segment, reloc);
 
@@ -1141,9 +1146,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           xlink_name *name;
           name = xlink_malloc(sizeof(xlink_name));
           strcpy(name->str, xlink_omf_record_read_string(&rec));
-          name->index = mod->nnames;
-          name->module = mod;
-          xlink_module_add_name(mod, name);
+          XLINK_LIST_ADD(module, name, mod, name);
         }
         break;
       }
@@ -1171,9 +1174,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
         seg->data = xlink_malloc(seg->length);
         seg->mask = xlink_malloc(CEIL2(seg->length, 3));
         memset(seg->mask, 0, CEIL2(seg->length, 3));
-        seg->index = mod->nsegments;
-        seg->module = mod;
-        xlink_module_add_segment(mod, seg);
+        XLINK_LIST_ADD(module, segment, mod, seg);
         break;
       }
       case OMF_GRPDEF : {
@@ -1189,9 +1190,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           xlink_group_add_segment(grp,
            xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec)));
         }
-        grp->index = mod->ngroups;
-        grp->module = mod;
-        xlink_module_add_group(mod, grp);
+        XLINK_LIST_ADD(module, group, mod, grp);
         break;
       }
       case OMF_PUBDEF :
@@ -1214,9 +1213,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           strcpy(pub->name, xlink_omf_record_read_string(&rec));
           pub->offset = xlink_omf_record_read_numeric(&rec);
           pub->type_idx = xlink_omf_record_read_index(&rec);
-          pub->index = mod->npublics;
-          pub->module = mod;
-          xlink_module_add_public(mod, pub);
+          XLINK_LIST_ADD(module, public, mod, pub);
           if (pub->segment) {
             xlink_segment_add_public(pub->segment, pub);
           }
@@ -1233,9 +1230,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           *ext = base;
           strcpy(ext->name, xlink_omf_record_read_string(&rec));
           ext->type_idx = xlink_omf_record_read_index(&rec);
-          ext->index = mod->nexterns;
-          ext->module = mod;
-          xlink_module_add_extern(mod, ext);
+          XLINK_LIST_ADD(module, extern, mod, ext);
         }
         break;
       }
@@ -1366,9 +1361,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
                 XLINK_ERROR(1, ("Unsupported location %i", rel->location));
               }
             }
-            rel->index = mod->nrelocs;
-            rel->module = mod;
-            xlink_module_add_reloc(mod, rel);
+            XLINK_LIST_ADD(module, reloc, mod, rel);
             xlink_segment_add_reloc(rel->segment, rel);
           }
           else {
@@ -1442,9 +1435,7 @@ void xlink_binary_link(xlink_binary *bin) {
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
     /* The stub code calls an external main_ function, find and rewrite it */
     strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
-    mod->index = bin->nmodules;
-    mod->binary = bin;
-    xlink_binary_add_module(bin, mod);
+    XLINK_LIST_ADD(binary, module, bin, mod);
   }
   /* Link the starting segment recursively by walking its externs, resolving
       each to a public symbol, and linking in that public symbol's segment */
