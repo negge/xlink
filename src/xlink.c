@@ -1205,7 +1205,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
          segment_idx ? xlink_module_get_segment(mod, segment_idx) : NULL;
         base.base_frame =
          base.segment == NULL ? xlink_omf_record_read_word(&rec) : 0;
-        base.is_local = (rec.type == OMF_LPUBDEF);
+        base.is_local = ((rec.type & ~1) == OMF_LPUBDEF);
         while (xlink_omf_record_has_data(&rec)) {
           xlink_public *pub;
           pub = xlink_malloc(sizeof(xlink_public));
