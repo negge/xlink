@@ -1074,18 +1074,7 @@ void xlink_module_dump_segments(xlink_module *mod) {
 }
 
 void xlink_module_dump_relocations(xlink_module *mod) {
-  int i, j;
-  for (i = 0; i < mod->nsegments; i++) {
-    xlink_segment *seg;
-    seg = mod->segments[i];
-    if (seg->info & SEG_HAS_DATA) {
-      for (j = 0; j < seg->length; j++) {
-        XLINK_ERROR(GETBIT(seg->mask, j) == 0,
-         ("Missing data for segment %s, offset = %i",
-         xlink_segment_get_name(seg), j));
-      }
-    }
-  }
+  int i;
   for (i = 0; i < mod->nrelocs; i++) {
     xlink_reloc *rel;
     xlink_segment *seg;
@@ -1124,6 +1113,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
   xlink_omf omf;
   xlink_segment *seg;
   int offset;
+  int i, j;
   mod = xlink_malloc(sizeof(xlink_module));
   xlink_module_init(mod, file->name);
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
@@ -1375,6 +1365,22 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
           }
         }
       }
+    }
+  }
+  /* Check that all segments are either fully populated or uninitialized */
+  for (i = 0; i < mod->nsegments; i++) {
+    seg = mod->segments[i];
+    if (seg->info & SEG_HAS_DATA) {
+      for (j = 0; j < seg->length; j++) {
+        XLINK_ERROR(GETBIT(seg->mask, j) == 0,
+         ("Missing data for segment %s, offset = %i",
+         xlink_segment_get_name(seg), j));
+      }
+    }
+    else {
+      free(seg->data);
+      free(seg->mask);
+      seg->data = seg->mask = NULL;
     }
   }
   if (dump) {
