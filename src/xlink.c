@@ -1094,9 +1094,10 @@ void xlink_module_dump_relocations(xlink_module *mod) {
         xlink_segment *target;
         target = xlink_module_get_segment(seg->module, rel->target_idx);
         printf(
-         "  FIXUPP: %6s %c seg %s off 0x%03x -> seg %s off 0x0 addend %s\n",
+         "  FIXUPP: %6s %c seg %s off 0x%03x -> ",
          OMF_FIXUP_LOCATION[rel->location], rel->mode ? 'E' : 'R',
-         xlink_segment_get_name(seg), rel->offset,
+         xlink_segment_get_name(seg), rel->offset);
+        printf("seg %8s off 0x0 addend %s\n",
          xlink_segment_get_name(target), xlink_reloc_get_addend(rel));
         break;
       }
