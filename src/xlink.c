@@ -1633,8 +1633,7 @@ int main(int argc, char *argv[]) {
     xlink_module *mod;
     buf = xlink_file_init(&file, argv[c]);
     mod = xlink_file_load_module(&file, dump);
-    mod->index = bin.nmodules;
-    xlink_binary_add_module(&bin, mod);
+    XLINK_LIST_ADD(binary, module, &bin, mod);
     free(buf);
   }
   if (!dump) {
