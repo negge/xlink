@@ -1107,6 +1107,22 @@ void xlink_module_dump_relocations(xlink_module *mod) {
   }
 }
 
+int pub_comp(const void *a, const void *b) {
+  const xlink_public *pub_a;
+  const xlink_public *pub_b;
+  pub_a = *(xlink_public **)a;
+  pub_b = *(xlink_public **)b;
+  return pub_a->offset - pub_b->offset;
+}
+
+int rel_comp(const void *a, const void *b) {
+  const xlink_reloc *rel_a;
+  const xlink_reloc *rel_b;
+  rel_a = *(xlink_reloc **)a;
+  rel_b = *(xlink_reloc **)b;
+  return rel_a->offset - rel_b->offset;
+}
+
 xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
   xlink_module *mod;
   xlink_parse_ctx ctx;
@@ -1367,9 +1383,9 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
       }
     }
   }
-  /* Check that all segments are either fully populated or uninitialized */
   for (i = 0; i < mod->nsegments; i++) {
     seg = mod->segments[i];
+    /* Check that all segments are either fully populated or uninitialized */
     if (seg->info & SEG_HAS_DATA) {
       for (j = 0; j < seg->length; j++) {
         XLINK_ERROR(GETBIT(seg->mask, j) == 0,
@@ -1381,6 +1397,14 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
       free(seg->data);
       free(seg->mask);
       seg->data = seg->mask = NULL;
+    }
+    /* Sort the PUBDEF and FIXUPP records by their offset into segment */
+    qsort(seg->publics, seg->npublics, sizeof(xlink_public *), pub_comp);
+    qsort(seg->relocs, seg->nrelocs, sizeof(xlink_reloc *), rel_comp);
+    if ((seg->info & SEG_HAS_DATA) == 0) {
+      XLINK_ERROR(seg->nrelocs != 0,
+       ("Uninitialized segment %s has %i relocations, should have none",
+       xlink_segment_get_name(seg), seg->nrelocs));
     }
   }
   if (dump) {
