@@ -465,8 +465,8 @@ int xlink_##parent##_has_##child(xlink_##parent *p, xlink_##child *c) {       \
 }
 
 #define XLINK_LIST_ADD(parent, child, p, c)                                   \
-  c->index = p->n##child##s;                                                  \
-  c->parent = p;                                                              \
+  (c)->index = (p)->n##child##s;                                              \
+  (c)->parent = p;                                                            \
   xlink_##parent##_add_##child(p, c);
 
 XLINK_LIST_FUNCS(segment, public);
