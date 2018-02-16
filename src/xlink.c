@@ -1124,7 +1124,11 @@ int rel_comp(const void *a, const void *b) {
   return rel_a->offset - rel_b->offset;
 }
 
-xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
+#define MOD_DUMP  (0x1)
+#define MOD_MAP   (0x2)
+
+xlink_module *xlink_file_load_module(const xlink_file *file,
+ unsigned int flags) {
   xlink_module *mod;
   xlink_parse_ctx ctx;
   xlink_omf omf;
@@ -1414,7 +1418,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
        xlink_segment_get_name(seg), seg->nrelocs));
     }
   }
-  if (dump) {
+  if (flags & MOD_DUMP) {
     printf("Module: %s\n", mod->filename);
     xlink_omf_dump_records(&omf);
     xlink_module_dump_names(mod);
@@ -1574,12 +1578,10 @@ int main(int argc, char *argv[]) {
   xlink_binary bin;
   int c;
   int opt_index;
-  int dump;
-  int map;
+  unsigned int flags;
   char mapfile[256];
   xlink_binary_init(&bin);
-  dump = 0;
-  map = 0;
+  flags = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &opt_index)) != EOF) {
     switch (c) {
       case 'o' : {
@@ -1591,11 +1593,11 @@ int main(int argc, char *argv[]) {
         break;
       }
       case 'd' : {
-        dump = 1;
+        flags |= MOD_DUMP;
         break;
       }
       case 'm' : {
-        map = 1;
+        flags |= MOD_MAP;
         break;
       }
       case 'h' :
@@ -1610,12 +1612,12 @@ int main(int argc, char *argv[]) {
     usage(argv[0]);
     return EXIT_FAILURE;
   }
-  if (!dump && bin.output == NULL) {
+  if (!(flags & MOD_DUMP) && bin.output == NULL) {
     printf("Output -o <program> is required!\n\n");
     usage(argv[0]);
     return EXIT_FAILURE;
   }
-  if (map && !dump) {
+  if ((flags & MOD_MAP) && !(flags & MOD_DUMP)) {
     int len;
     len = strlen(bin.output);
     strcpy(mapfile, bin.output);
@@ -1632,11 +1634,11 @@ int main(int argc, char *argv[]) {
     xlink_file file;
     xlink_module *mod;
     buf = xlink_file_init(&file, argv[c]);
-    mod = xlink_file_load_module(&file, dump);
+    mod = xlink_file_load_module(&file, flags);
     XLINK_LIST_ADD(binary, module, &bin, mod);
     free(buf);
   }
-  if (!dump) {
+  if (!(flags & MOD_DUMP)) {
     xlink_binary_link(&bin);
   }
   xlink_binary_clear(&bin);
