@@ -8,6 +8,7 @@
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
   OMF_LHEADR  = 0x82,  // Library Module Header Record
+  OMF_MODEND  = 0x8A,  // (0x8B) Module End Record
   OMF_EXTDEF  = 0x8C,  // External Names Definition Record
   OMF_PUBDEF  = 0x90,  // (0x91) Public Names Definition Record
   OMF_FIXUPP  = 0x9C,  // (0x9D) Fixup Record
@@ -1236,13 +1237,15 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
   xlink_omf omf;
   xlink_segment *seg;
   int offset;
+  int done;
   int i, j;
   mod = xlink_malloc(sizeof(xlink_module));
   xlink_module_init(mod, file->name);
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
   seg = NULL;
-  while (ctx.size > 0) {
+  done = 0;
+  while (ctx.size > 0 && !done) {
     xlink_omf_record rec;
     int i;
     xlink_parse_omf_record(&rec, &ctx);
@@ -1251,6 +1254,10 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
       case OMF_THEADR :
       case OMF_LHEADR : {
         strcpy(mod->source, xlink_omf_record_read_string(&rec));
+        break;
+      }
+      case OMF_MODEND : {
+        done = 1;
         break;
       }
       case OMF_LNAMES :
@@ -1496,6 +1503,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
       }
     }
   }
+  XLINK_ERROR(!done, ("Got EOF before reading MODEND in %s", file->name));
   for (i = 1; i <= mod->nsegments; i++) {
     seg = xlink_module_get_segment(mod, i);
     /* Check that all segments are either fully populated or uninitialized */
