@@ -465,7 +465,7 @@ int xlink_##parent##_has_##child(xlink_##parent *p, xlink_##child *c) {       \
 }
 
 #define XLINK_LIST_ADD(parent, child, p, c)                                   \
-  (c)->index = (p)->n##child##s;                                              \
+  (c)->index = (p)->n##child##s + 1;                                          \
   (c)->parent = p;                                                            \
   xlink_##parent##_add_##child(p, c);
 
@@ -645,9 +645,9 @@ xlink_segment *xlink_module_find_segment(xlink_module *mod, const char *name) {
   xlink_segment *ret;
   int i;
   ret = NULL;
-  for (i = 0; i < mod->nsegments; i++) {
+  for (i = 1; i <= mod->nsegments; i++) {
     xlink_segment *seg;
-    seg = mod->segments[i];
+    seg = xlink_module_get_segment(mod, i);
     if (strcmp(name, seg->name->str) == 0) {
       XLINK_ERROR(ret != NULL,
        ("Duplicate segment definition found for name %s in %s", name,
@@ -664,9 +664,9 @@ xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
   xlink_public *ret;
   int i;
   ret = NULL;
-  for (i = 0; i < mod->npublics; i++) {
+  for (i = 1; i <= mod->npublics; i++) {
     xlink_public *pub;
-    pub = mod->publics[i];
+    pub = xlink_module_get_public(mod, i);
     if (pub->is_local && strcmp(symb, pub->name) == 0) {
       XLINK_ERROR(ret != NULL,
        ("Duplicate local public definition found for symbol %s in %s", symb,
@@ -683,9 +683,9 @@ xlink_extern *xlink_module_find_extern(xlink_module *mod, const char *name) {
   xlink_extern *ret;
   int i;
   ret = NULL;
-  for (i = 0; i < mod->nexterns; i++) {
+  for (i = 1; i <= mod->nexterns; i++) {
     xlink_extern *ext;
-    ext = mod->externs[i];
+    ext = xlink_module_get_extern(mod, i);
     if (!ext->is_local && strcmp(name, ext->name) == 0) {
       XLINK_ERROR(ret != NULL,
        ("Duplicate extern definition found for name %s in %s", name,
@@ -704,12 +704,12 @@ xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
   xlink_public *ret;
   int i, j;
   ret = NULL;
-  for (i = 0; i < bin->nmodules; i++) {
+  for (i = 1; i <= bin->nmodules; i++) {
     xlink_module *mod;
-    mod = bin->modules[i];
-    for (j = 0; j < mod->npublics; j++) {
+    mod = xlink_binary_get_module(bin, i);
+    for (j = 1; j <= mod->npublics; j++) {
       xlink_public *pub;
-      pub = mod->publics[j];
+      pub = xlink_module_get_public(mod, j);
       if (!pub->is_local && strcmp(symb, pub->name) == 0) {
         XLINK_ERROR(ret != NULL,
          ("Duplicate public definition found for symbol %s in %s and %s",
@@ -731,9 +731,9 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
     return;
   }
   xlink_binary_add_segment(bin, segment);
-  for (i = 0; i < segment->nrelocs; i++) {
+  for (i = 1; i <= segment->nrelocs; i++) {
     xlink_reloc *rel;
-    rel = segment->relocs[i];
+    rel = xlink_segment_get_reloc(segment, i);
     switch (rel->target) {
       case OMF_TARGET_EXT : {
         xlink_extern *ext;
@@ -759,9 +759,9 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
 void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
   int i;
   fprintf(out, "Segment layout:\n");
-  for (i = 0; i < bin->nsegments; i++) {
+  for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
-    seg = bin->segments[i];
+    seg = xlink_binary_get_segment(bin, i);
     fprintf(out, " %4x %8s segment %s %s %s %6s %08x bytes%s\n",
      seg->start, xlink_segment_get_name(seg),
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
@@ -772,12 +772,12 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
 
 void xlink_segment_apply_relocations(xlink_segment *segment) {
   int i;
-  for (i = 0; i < segment->nrelocs; i++) {
+  for (i = 1; i <= segment->nrelocs; i++) {
     xlink_reloc *rel;
     unsigned char *data;
     int offset;
     int target;
-    rel = segment->relocs[i];
+    rel = xlink_segment_get_reloc(segment, i);
     data = segment->data + rel->offset;
     offset = segment->start + rel->offset;
     switch (rel->target) {
@@ -1014,9 +1014,9 @@ void xlink_module_dump_names(xlink_module *mod) {
   int i;
   if (mod->nnames > 0) {
     printf("Local names:\n");
-    for (i = 0; i < mod->nnames; i++) {
+    for (i = 1; i <= mod->nnames; i++) {
       char buf[256];
-      sprintf(buf, "'%s'", mod->names[i]->str);
+      sprintf(buf, "'%s'", xlink_module_get_name(mod, i)->str);
       printf("%2i : %8s\n", i, buf);
     }
   }
@@ -1026,10 +1026,10 @@ void xlink_module_dump_symbols(xlink_module *mod) {
   int i;
   if (mod->npublics > 0) {
     printf("Public names:\n");
-    for (i = 0; i < mod->npublics; i++) {
+    for (i = 1; i <= mod->npublics; i++) {
       xlink_public *pub;
       char buf[256];
-      pub = mod->publics[i];
+      pub = xlink_module_get_public(mod, i);
       sprintf(buf, "'%s'", pub->name);
       printf("%2i : %16s %c group %8s, segment %8s, offset 0x%04x, type %i\n",
        i, buf, pub->is_local ? 'L' : ' ',
@@ -1040,10 +1040,10 @@ void xlink_module_dump_symbols(xlink_module *mod) {
   }
   if (mod->nexterns > 0) {
     printf("External names:\n");
-    for (i = 0; i < mod->nexterns; i++) {
+    for (i = 1; i <= mod->nexterns; i++) {
       xlink_extern *ext;
       char buf[256];
-      ext = mod->externs[i];
+      ext = xlink_module_get_extern(mod, i);
       sprintf(buf, "'%s'", ext->name);
       printf("%2i : %16s %c type %i\n", i, buf, ext->is_local ? 'L' : ' ',
        ext->type_idx);
@@ -1054,31 +1054,31 @@ void xlink_module_dump_symbols(xlink_module *mod) {
 void xlink_module_dump_segments(xlink_module *mod) {
   int i, j;
   printf("Segment records:\n");
-  for (i = 0; i < mod->nsegments; i++) {
+  for (i = 1; i <= mod->nsegments; i++) {
     xlink_segment *seg;
-    seg = mod->segments[i];
+    seg = xlink_module_get_segment(mod, i);
     printf("%2i : %6s segment %s %s %s %6s 0x%04x bytes%s\n", i, seg->name->str,
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
      seg->length, seg->attrib.big ? ", big" : "");
   }
-  for (i = 0; i < mod->ngroups; i++) {
+  for (i = 1; i <= mod->ngroups; i++) {
     xlink_group *grp;
-    grp = mod->groups[i];
+    grp = xlink_module_get_group(mod, i);
     printf("Group: %s\n", xlink_group_get_name(grp));
-    for (j = 0; j < grp->nsegments; j++) {
+    for (j = 1; j <= grp->nsegments; j++) {
       printf("%2i : segment %8s\n", j,
-       xlink_segment_get_name(grp->segments[j]));
+       xlink_segment_get_name(xlink_group_get_segment(grp, j)));
     }
   }
 }
 
 void xlink_module_dump_relocations(xlink_module *mod) {
   int i;
-  for (i = 0; i < mod->nrelocs; i++) {
+  for (i = 1; i <= mod->nrelocs; i++) {
     xlink_reloc *rel;
     xlink_segment *seg;
-    rel = mod->relocs[i];
+    rel = xlink_module_get_reloc(mod, i);
     seg = rel->segment;
     switch (rel->target) {
       case OMF_TARGET_EXT : {
@@ -1390,8 +1390,8 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
       }
     }
   }
-  for (i = 0; i < mod->nsegments; i++) {
-    seg = mod->segments[i];
+  for (i = 1; i <= mod->nsegments; i++) {
+    seg = xlink_module_get_segment(mod, i);
     /* Check that all segments are either fully populated or uninitialized */
     if (seg->info & SEG_HAS_DATA) {
       for (j = 0; j < seg->length; j++) {
@@ -1477,9 +1477,9 @@ void xlink_binary_link(xlink_binary *bin) {
   /* Link the starting segment recursively by walking its externs, resolving
       each to a public symbol, and linking in that public symbol's segment */
   xlink_binary_process_segment(bin, start);
-  for (i = 0; i < bin->nexterns; i++) {
+  for (i = 1; i <= bin->nexterns; i++) {
     xlink_extern *ext;
-    ext = bin->externs[i];
+    ext = xlink_binary_get_extern(bin, i);
     if (ext->is_local) {
       ext->public = xlink_module_find_public(ext->module, ext->name);
     }
@@ -1488,9 +1488,9 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
-  for (i = 0; i < bin->nsegments; i++) {
+  for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
-    seg = bin->segments[i];
+    seg = xlink_binary_get_segment(bin, i);
     XLINK_ERROR(start->attrib.proc != seg->attrib.proc,
      ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
      OMF_SEGDEF_USE[start->attrib.proc], xlink_segment_get_name(seg),
@@ -1509,9 +1509,9 @@ void xlink_binary_link(xlink_binary *bin) {
   }
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
   offset = 0x100;
-  for (i = 0; i < bin->nsegments; i++) {
+  for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
-    seg = bin->segments[i];
+    seg = xlink_binary_get_segment(bin, i);
     offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
     seg->start = offset;
     offset += seg->length;
@@ -1525,15 +1525,15 @@ void xlink_binary_link(xlink_binary *bin) {
     fclose(out);
   }
   /* Stage 4: Apply relocations to each segment based on memory location */
-  for (i = 0; i < bin->nsegments; i++) {
-    xlink_segment_apply_relocations(bin->segments[i]);
+  for (i = 1; i <= bin->nsegments; i++) {
+    xlink_segment_apply_relocations(xlink_binary_get_segment(bin, i));
   }
   /* Stage 5: Write the COM file to disk a segment at a time */
   out = fopen(bin->output, "wb");
   XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
-  for (offset = 0x100, i = 0; i < bin->nsegments; i++) {
+  for (offset = 0x100, i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
-    seg = bin->segments[i];
+    seg = xlink_binary_get_segment(bin, i);
     if (seg->info & SEG_HAS_DATA) {
       if (offset != seg->start) {
         unsigned char buf[4096];
