@@ -1108,6 +1108,107 @@ void xlink_module_dump_relocations(xlink_module *mod) {
   }
 }
 
+void xlink_module_split_segments(xlink_module *mod) {
+  int i, j, k, n, m;
+  for (i = 0; i < mod->nsegments; i++) {
+    xlink_segment *seg;
+    seg = mod->segments[i];
+    if (seg->npublics > 1) {
+      int *offsets;
+      xlink_segment **segs;
+      /* Allocate space for the worst case, a segment for every public */
+      segs = xlink_malloc(seg->npublics*sizeof(xlink_segment *));
+      offsets = xlink_malloc(seg->npublics*sizeof(int));
+      /* All publics with offset == 0 stay in the existing segment */
+      for (n = 0; n < seg->npublics && seg->publics[n]->offset == 0; n++);
+      /* All publics with offset > 0 are split into their own segment */
+      for (m = 0, j = seg->npublics - 1; j > n - 1; m++) {
+        xlink_public *pub;
+        pub = seg->publics[j];
+        segs[m] = xlink_malloc(sizeof(xlink_segment));
+        offsets[m] = pub->offset;
+        *segs[m] = *seg;
+        segs[m]->publics = NULL;
+        segs[m]->relocs = NULL;
+        segs[m]->npublics = segs[m]->nrelocs = 0;
+        segs[m]->length = seg->length - offsets[m];
+        if (seg->info & SEG_HAS_DATA) {
+          segs[m]->data = xlink_malloc(segs[m]->length);
+          segs[m]->mask = NULL;
+          memcpy(segs[m]->data, &seg->data[offsets[m]], segs[m]->length);
+        }
+        seg->length -= segs[m]->length;
+        /* Add all publics with the same offset to this new segment */
+        for (; pub->offset == offsets[m]; j--, pub = seg->publics[j]) {
+          pub->offset = 0;
+          pub->segment = segs[m];
+          xlink_segment_add_public(segs[m], pub);
+        }
+      }
+      seg->npublics = n;
+      /* Add the new segments to the module in the original order */
+      for (j = m; j-- > 0; ) {
+        XLINK_LIST_ADD(module, segment, mod, segs[j]);
+      }
+      /* All relocs with offset < seg->length stay in the existing segment */
+      n = 0;
+      for (; n < seg->nrelocs && seg->relocs[n]->offset < seg->length; n++) {
+        xlink_reloc *rel;
+        rel = seg->relocs[n];
+        XLINK_ERROR(seg->length < rel->offset + OMF_FIXUP_SIZE[rel->location],
+         ("FIXUP offset %i past segment end %i", rel->offset, seg->length));
+      }
+      /* Move all relocs with offset >= seg->lengt to the right segment */
+      for (j = n; j < seg->nrelocs; j++) {
+        xlink_reloc *rel;
+        rel = seg->relocs[j];
+        for (k = 0; k < m && offsets[k] + segs[k]->length < rel->offset; k++);
+        XLINK_ERROR(k == m,
+         ("Could not find segment for reloc offset %i", rel->offset));
+        rel->offset -= offsets[k];
+        XLINK_ERROR(
+         segs[k]->length < rel->offset + OMF_FIXUP_SIZE[rel->location],
+         ("FIXUP offset %i past segment end %i", rel->offset, seg->length));
+        rel->segment = segs[k];
+        xlink_segment_add_reloc(segs[k], rel);
+      }
+      seg->nrelocs = n;
+      /* If seg was part of a group, insert new segments into that group */
+      if (seg->group != NULL) {
+        xlink_group *grp;
+        grp = seg->group;
+        for (n = 0; n < grp->nsegments && grp->segments[n] != seg; n++);
+        n++;
+        grp->nsegments += m;
+        grp->segments =
+         xlink_realloc(grp->segments, grp->nsegments*sizeof(xlink_segment *));
+        memmove(&grp->segments[n + m], &grp->segments[n],
+         (grp->nsegments - (n + m))*sizeof(xlink_segment *));
+        for (j = m; j-- > 0; ) {
+          grp->segments[n + m - (j + 1)] = segs[j];
+        }
+      }
+      /* If any relocs pointed into the segment, set their index and offset */
+      for (j = 0; j < mod->nrelocs; j++) {
+        xlink_reloc *rel;
+        rel = mod->relocs[j];
+        if (rel->target == OMF_TARGET_SEG && rel->target_idx == seg->index ) {
+          k = 0;
+          while (k < m && offsets[k] + segs[k]->length < rel->addend.offset) {
+            k++;
+          }
+          XLINK_ERROR(k == m,
+           ("Could not find segment for reloc offset %i", rel->offset));
+          rel->target_idx = segs[k]->index;
+          rel->addend.offset -= offsets[k];
+        }
+      }
+      free(segs);
+      free(offsets);
+    }
+  }
+}
+
 int pub_comp(const void *a, const void *b) {
   const xlink_public *pub_a;
   const xlink_public *pub_b;
@@ -1126,6 +1227,7 @@ int rel_comp(const void *a, const void *b) {
 
 #define MOD_DUMP  (0x1)
 #define MOD_MAP   (0x2)
+#define MOD_SPLIT (0x4)
 
 xlink_module *xlink_file_load_module(const xlink_file *file,
  unsigned int flags) {
@@ -1418,6 +1520,9 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
        xlink_segment_get_name(seg), seg->nrelocs));
     }
   }
+  if (flags & MOD_SPLIT) {
+    xlink_module_split_segments(mod);
+  }
   if (flags & MOD_DUMP) {
     printf("Module: %s\n", mod->filename);
     xlink_omf_dump_records(&omf);
@@ -1552,11 +1657,12 @@ void xlink_binary_link(xlink_binary *bin) {
   fclose(out);
 }
 
-const char *OPTSTRING = "o:e:mdh";
+const char *OPTSTRING = "o:e:smdh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
+  { "split", no_argument,        NULL, 's' },
   { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
   { "help", no_argument,         NULL, 'h' },
@@ -1570,6 +1676,7 @@ static void usage(const char *argv0) {
    "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
+   "  -s --split                      Split segments into linkable pieces.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
@@ -1598,6 +1705,10 @@ int main(int argc, char *argv[]) {
       }
       case 'm' : {
         flags |= MOD_MAP;
+        break;
+      }
+      case 's' : {
+        flags |= MOD_SPLIT;
         break;
       }
       case 'h' :
