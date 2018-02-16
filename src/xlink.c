@@ -268,6 +268,7 @@ struct xlink_name {
   xlink_string str;
 };
 
+typedef struct xlink_group xlink_group;
 typedef struct xlink_public xlink_public;
 typedef struct xlink_reloc xlink_reloc;
 
@@ -287,6 +288,7 @@ struct xlink_segment {
   unsigned int info;
   unsigned char *data;
   unsigned char *mask;
+  xlink_group *group;
   xlink_public **publics;
   int npublics;
   xlink_reloc **relocs;
@@ -301,8 +303,6 @@ struct xlink_segment {
 #define GETBIT(mask, idx)   ((mask)[(idx)/8] &   (1 << ((idx)%8)))
 
 #define ALIGN2(len, bits) (((len) + ((1 << (bits)) - 1)) & ~((1 << (bits)) - 1))
-
-typedef struct xlink_group xlink_group;
 
 struct xlink_group {
   int index;
@@ -1192,10 +1192,16 @@ xlink_module *xlink_file_load_module(const xlink_file *file, int dump) {
         grp->nsegments = 0;
         while (xlink_omf_record_has_data(&rec)) {
           unsigned char index;
+          xlink_segment *s;
           index = xlink_omf_record_read_byte(&rec);
           XLINK_ERROR(index != 0xFF, ("Invalid segment index %i", index));
-          xlink_group_add_segment(grp,
-           xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec)));
+          s = xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
+          XLINK_ERROR(s->group != NULL,
+           ("Cannot add segment %s to group %s, already added to group %s:%i",
+           xlink_segment_get_name(s), xlink_group_get_name(grp), s->group->name,
+           s->group->index));
+          s->group = grp;
+          xlink_group_add_segment(grp, s);
         }
         XLINK_LIST_ADD(module, group, mod, grp);
         break;
