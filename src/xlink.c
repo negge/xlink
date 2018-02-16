@@ -1743,10 +1743,20 @@ int main(int argc, char *argv[]) {
   for (c = optind; c < argc; c++) {
     unsigned char *buf;
     xlink_file file;
-    xlink_module *mod;
     buf = xlink_file_init(&file, argv[c]);
-    mod = xlink_file_load_module(&file, flags);
-    XLINK_LIST_ADD(binary, module, &bin, mod);
+    switch (buf[0]) {
+      case OMF_THEADR :
+      case OMF_LHEADR : {
+        xlink_module *mod;
+        mod = xlink_file_load_module(&file, flags);
+        XLINK_LIST_ADD(binary, module, &bin, mod);
+        break;
+      }
+      default : {
+        XLINK_ERROR(1,
+         ("Unsupported file format, unknown record type %02X", buf[0]));
+      }
+    }
     free(buf);
   }
   if (!(flags & MOD_DUMP)) {
