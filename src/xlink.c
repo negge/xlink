@@ -569,11 +569,6 @@ const char *xlink_reloc_get_addend(xlink_reloc *rel) {
   return str;
 }
 
-void xlink_module_init(xlink_module *mod, const char *filename) {
-  memset(mod, 0, sizeof(xlink_module));
-  mod->filename = filename;
-}
-
 void xlink_module_clear(xlink_module *mod) {
   int i;
   for (i = 0; i < mod->nnames; i++) {
@@ -1238,7 +1233,7 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
   int done;
   int i, j;
   mod = xlink_malloc(sizeof(xlink_module));
-  xlink_module_init(mod, file->name);
+  mod->filename = file->name;
   xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
   seg = NULL;
