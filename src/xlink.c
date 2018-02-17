@@ -244,7 +244,6 @@ typedef struct xlink_parse_ctx xlink_parse_ctx;
 struct xlink_parse_ctx {
   const unsigned char *pos;
   int size;
-  const char *error;
 };
 
 typedef struct xlink_omf_record xlink_omf_record;
@@ -254,7 +253,6 @@ struct xlink_omf_record {
   int idx;
   unsigned char type;
   unsigned short size;
-  const char *error;
 };
 
 typedef char xlink_string[256];
