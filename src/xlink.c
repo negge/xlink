@@ -239,13 +239,6 @@ struct xlink_file {
 
 #include "stubs.h"
 
-typedef struct xlink_parse_ctx xlink_parse_ctx;
-
-struct xlink_parse_ctx {
-  const unsigned char *pos;
-  int size;
-};
-
 typedef struct xlink_omf_record xlink_omf_record;
 
 struct xlink_omf_record {
@@ -836,13 +829,6 @@ unsigned char *xlink_file_init(xlink_file *file, const char *name) {
   return buf;
 }
 
-void xlink_parse_ctx_init(xlink_parse_ctx *ctx, const unsigned char *buf,
- int size) {
-  memset(ctx, 0, sizeof(xlink_parse_ctx));
-  ctx->pos = buf;
-  ctx->size = size;
-}
-
 static void xlink_omf_record_reset(xlink_omf_record *rec) {
   rec->idx = 3;
 }
@@ -942,19 +928,20 @@ unsigned int xlink_omf_record_read_lidata_block(xlink_omf_record *rec) {
   return repeat_count * size;
 }
 
-static void xlink_parse_omf_record(xlink_omf_record *rec,
- xlink_parse_ctx *ctx) {
+static void xlink_file_load_omf_record(xlink_file *file,
+ xlink_omf_record *rec) {
   unsigned char checksum;
-  XLINK_ERROR(ctx->size < 3,
-   ("Need 3 bytes for a record but only have %i", ctx->size));
-  rec->buf = ctx->pos;
+  XLINK_ERROR(file->size < 3,
+   ("Need 3 bytes for a record but only have %i", file->size));
+  rec->buf = file->buf;
   rec->idx = 0;
   rec->type = xlink_omf_record_read_byte(rec);
   rec->size = xlink_omf_record_read_word(rec);
-  XLINK_ERROR(ctx->size - 3 < rec->size,
-   ("Record extends %i bytes past the end of file", rec->size - ctx->size + 3));
-  ctx->pos += 3 + rec->size;
-  ctx->size -= 3 + rec->size;
+  XLINK_ERROR(file->size - 3 < rec->size,
+   ("Record extends %i bytes past the end of file %s",
+   rec->size - file->size + 3, file->name));
+  file->buf += 3 + rec->size;
+  file->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
   if (checksum != 0) {
     int i;
@@ -1223,10 +1210,8 @@ int rel_comp(const void *a, const void *b) {
 #define MOD_MAP   (0x2)
 #define MOD_SPLIT (0x4)
 
-xlink_module *xlink_file_load_module(const xlink_file *file,
- unsigned int flags) {
+xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
-  xlink_parse_ctx ctx;
   xlink_omf omf;
   xlink_segment *seg;
   int offset;
@@ -1234,14 +1219,13 @@ xlink_module *xlink_file_load_module(const xlink_file *file,
   int i, j;
   mod = xlink_malloc(sizeof(xlink_module));
   mod->filename = file->name;
-  xlink_parse_ctx_init(&ctx, file->buf, file->size);
   xlink_omf_init(&omf);
   seg = NULL;
   done = 0;
-  while (ctx.size > 0 && !done) {
+  while (file->size > 0 && !done) {
     xlink_omf_record rec;
     int i;
-    xlink_parse_omf_record(&rec, &ctx);
+    xlink_file_load_omf_record(file, &rec);
     xlink_omf_add_record(&omf, &rec);
     switch (rec.type & ~1) {
       case OMF_THEADR :
@@ -1573,8 +1557,10 @@ void xlink_binary_link(xlink_binary *bin) {
    xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
   /* If this is a 32-bit program, add the protected mode stub */
   if (start->attrib.proc == OMF_SEGMENT_USE32) {
+    xlink_file file;
     xlink_module *mod;
-    mod = xlink_file_load_module(&STUB32_MODULE, 0);
+    file = STUB32_MODULE;
+    mod = xlink_file_load_module(&file, 0);
     /* The stub code is always in segment _MAIN */
     start = xlink_module_find_segment(mod, "_MAIN");
     XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
