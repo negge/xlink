@@ -63,18 +63,6 @@ dpmi_ok:
   pop ds
 
   ; AH = 0
-  mov al, 0x6
-
-  ; Gets the segment base address
-  ;  AX = 0006h
-  ;  BX = selector
-  int 0x31
-
-  push cx
-  push dx
-  pop dword [_xlink_base]
-
-  ; AH = 0
   mov al, 0x9
 
   ; CS = 16-bit selector with base of real mode CS and a 64KB limit
@@ -99,8 +87,3 @@ dpmi_ok:
 
   mov ah, 0x4c
   int 0x21
-
-SEGMENT _BSS USE32 CLASS=BSS
-
-_xlink_base:
-  RESD 1
