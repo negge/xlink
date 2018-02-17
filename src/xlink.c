@@ -711,7 +711,7 @@ XLINK_LIST_FUNCS(binary, library);
 
 xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
   xlink_public *ret;
-  int i, j;
+  int i, j, k;
   ret = NULL;
   for (i = 1; i <= bin->nmodules; i++) {
     xlink_module *mod;
@@ -724,6 +724,24 @@ xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
          ("Duplicate public definition found for symbol %s in %s and %s",
          symb, ret->module->filename, mod->filename));
         ret = pub;
+      }
+    }
+  }
+  for (i = 1; i <= bin->nlibrarys; i++) {
+    xlink_library *lib;
+    lib = xlink_binary_get_library(bin, i);
+    for (j = 1; j <= lib->nmodules; j++) {
+      xlink_module *mod;
+      mod = xlink_library_get_module(lib, j);
+      for (k = 1; k <= mod->npublics; k++) {
+        xlink_public *pub;
+        pub = xlink_module_get_public(mod, k);
+        if (!pub->is_local && strcmp(symb, pub->name) == 0) {
+          XLINK_ERROR(ret != NULL,
+           ("Duplicate public definition found for symbol %s in %s and %s",
+           symb, ret->module->filename, mod->filename));
+          ret = pub;
+        }
       }
     }
   }
