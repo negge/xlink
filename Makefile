@@ -31,7 +31,7 @@ $(SRC_DIR)/stubs.h: $(STBS)
 		$(eval NAME = $(shell echo $s | tr '[.a-z]' '[_A-Z]')) \
 		echo 'const xlink_file $(NAME)_MODULE = {' >> $@; \
 		echo '  "$s.o",' >> $@; \
-		echo '  $(SIZE),' >> $@; \
+		echo '  $(SIZE), 0,' >> $@; \
 		echo '  (char[]){' >> $@; \
 		xxd -i - < $(BIN_DIR)/$s.o >> $@; \
 		echo '  }' >> $@; \

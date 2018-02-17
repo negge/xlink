@@ -233,7 +233,8 @@ typedef struct xlink_file xlink_file;
 
 struct xlink_file {
   const char *name;
-  int size;
+  unsigned int size;
+  unsigned int pos;
   const unsigned char *buf;
 };
 
@@ -826,6 +827,7 @@ unsigned char *xlink_file_init(xlink_file *file, const char *name) {
   XLINK_ERROR(size != file->size,
    ("Problem reading OMF file, got %i of %i bytes", size, file->size));
   fclose(fp);
+  file->pos = 0;
   return buf;
 }
 
@@ -941,6 +943,7 @@ static void xlink_file_load_omf_record(xlink_file *file,
    ("Record extends %i bytes past the end of file %s",
    rec->size - file->size + 3, file->name));
   file->buf += 3 + rec->size;
+  file->pos += 3 + rec->size;
   file->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
   if (checksum != 0) {
