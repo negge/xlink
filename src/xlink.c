@@ -23,6 +23,8 @@ typedef enum {
   OMF_CEXTDEF = 0xBC,  // COMDAT External Names Definition Record
   OMF_COMDAT  = 0xC2,  // (0xC3) Initialized Communal Data Record
   OMF_LLNAMES = 0xCA,  // Local Logical Names Definition Record
+  OMF_LIBHDR  = 0xF0,  // Library Header Record
+  OMF_LIBEND  = 0xF1,  // Library End Record
 } xlink_omf_record_type;
 
 typedef enum {
@@ -357,12 +359,17 @@ struct xlink_omf {
   int nrecords;
 };
 
+typedef struct xlink_library xlink_library;
+
 typedef struct xlink_binary xlink_binary;
 
 struct xlink_module {
   const char *filename;
   int index;
-  xlink_binary *binary;
+  union {
+    xlink_binary *binary;
+    xlink_library *library;
+  };
   xlink_string source;
   xlink_name **names;
   int nnames;
@@ -378,12 +385,23 @@ struct xlink_module {
   int nrelocs;
 };
 
+struct xlink_library {
+  const char *filename;
+  int index;
+  xlink_binary *binary;
+  int page_size;
+  xlink_module **modules;
+  int nmodules;
+};
+
 struct xlink_binary {
   char *output;
   char *entry;
   char *map;
   xlink_module **modules;
   int nmodules;
+  xlink_library **librarys;
+  int nlibrarys;
   xlink_segment **segments;
   int nsegments;
   xlink_extern **externs;
@@ -686,7 +704,10 @@ xlink_extern *xlink_module_find_extern(xlink_module *mod, const char *name) {
   return ret;
 }
 
+XLINK_LIST_FUNCS(library, module);
+
 XLINK_LIST_FUNCS(binary, module);
+XLINK_LIST_FUNCS(binary, library);
 
 xlink_public *xlink_binary_find_public(xlink_binary *bin, const char *symb) {
   xlink_public *ret;
@@ -1524,6 +1545,49 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   return mod;
 }
 
+xlink_library *xlink_file_load_library(xlink_file *file, unsigned int flags) {
+  xlink_library *lib;
+  int done;
+  lib = xlink_malloc(sizeof(xlink_library));
+  done = 0;
+  while (file->size > 0 && !done) {
+    switch (file->buf[0]) {
+      case OMF_LIBHDR : {
+        xlink_omf_record rec;
+        xlink_file_load_omf_record(file, &rec);
+        lib->page_size = rec.size + 3;
+        break;
+      }
+      case OMF_LIBEND : {
+        done = 1;
+        break;
+      }
+      case OMF_THEADR :
+      case OMF_LHEADR : {
+        int mask;
+        int skip;
+        xlink_module *mod;
+        /* TODO: Find embedded module name in dictionary, set file->name here */
+        mod = xlink_file_load_module(file, flags);
+        XLINK_LIST_ADD(library, module, lib, mod);
+        /* Page size is always a power of two */
+        mask = lib->page_size - 1;
+        /* Compute the number of bytes to skip to reach the next page */
+        skip = ((file->pos + mask) & ~mask) - file->pos;
+        file->buf += skip;
+        file->pos += skip;
+        file->size -= skip;
+        break;
+      }
+      default : {
+        XLINK_ERROR(1, ("Unknown record type %02X", file->buf[0]));
+      }
+    }
+  }
+  XLINK_ERROR(!done, ("Got EOF before reading LIBEND in %s", file->name));
+  return lib;
+}
+
 xlink_segment_class xlink_segment_get_class(const xlink_segment *seg) {
   if (strcmp(seg->class->str, "CODE") == 0) {
     return OMF_SEGMENT_CODE;
@@ -1740,6 +1804,12 @@ int main(int argc, char *argv[]) {
         xlink_module *mod;
         mod = xlink_file_load_module(&file, flags);
         XLINK_LIST_ADD(binary, module, &bin, mod);
+        break;
+      }
+      case OMF_LIBHDR : {
+        xlink_library *lib;
+        lib = xlink_file_load_library(&file, flags);
+        XLINK_LIST_ADD(binary, library, &bin, lib);
         break;
       }
       default : {
