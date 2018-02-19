@@ -27,18 +27,18 @@ dpmi_ok:
   ; BX = 1 if DPMI host supports 32-bit programs
   xchg ax, bx
 
+  ; SP points to ES:DI on the stack
+  mov di, sp
+
   ; SI = number of paragraphs required for DPMI host private data area
-  mov dx, cs
-  inc dh
-  push dx
-  ; This sets ES = CS + 0x100 or 4k past the entry point
-  ; TODO: ensure this doesn't collide with other BSS data
+  ; Rather than allocate memory, set ES = CS + 0x200 (8kB past the load address)
+  push cs
+  add byte [di+bx], 2
   pop es
 
   ; Call the real-to-protected mode entry point with the following paramters:
   ;  AX = flags, bit 0 should be 1 for 32-bit applications
   ;  ES = real mode segment of DPMI host private data area
-  mov di, sp
   call far [di]
 
   ; BX = 0xffff
