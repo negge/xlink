@@ -191,6 +191,7 @@ static const char *xlink_omf_record_get_name(xlink_omf_record_type type) {
   switch (type & ~1) {
     case OMF_THEADR : return "THEADR";
     case OMF_LHEADR : return "LHEADR";
+    case OMF_MODEND : return "MODEND";
     case OMF_EXTDEF : return "EXTDEF";
     case OMF_PUBDEF : return "PUBDEF";
     case OMF_FIXUPP : return "FIXUPP";
@@ -213,6 +214,7 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
   switch (type & ~1) {
     case OMF_THEADR : return "Translator Header";
     case OMF_LHEADR : return "Library Module Header";
+    case OMF_MODEND : return "Module End";
     case OMF_EXTDEF : return "External Names Definition";
     case OMF_PUBDEF : return "Public Names Definition";
     case OMF_FIXUPP : return "Fixup";
