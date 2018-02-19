@@ -1699,7 +1699,7 @@ void xlink_binary_link(xlink_binary *bin) {
     seg->start = offset;
     offset += seg->length;
   }
-  XLINK_ERROR(offset > 65536,
+  XLINK_ERROR(start->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
    ("Address space exceeds 65536 bytes, %i", offset));
   /* Optionally write the map file. */
   if (bin->map != NULL) {
