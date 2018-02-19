@@ -1183,12 +1183,12 @@ void xlink_module_split_segments(xlink_module *mod) {
         XLINK_ERROR(seg->length < rel->offset + OMF_FIXUP_SIZE[rel->location],
          ("FIXUP offset %i past segment end %i", rel->offset, seg->length));
       }
-      /* Move all relocs with offset >= seg->lengt to the right segment */
-      for (j = n; j < seg->nrelocs; j++) {
+      /* Move all relocs with offset >= seg->length to the right segment */
+      for (k = m - 1, j = n; j < seg->nrelocs; j++) {
         xlink_reloc *rel;
         rel = seg->relocs[j];
-        for (k = 0; k < m && offsets[k] + segs[k]->length < rel->offset; k++);
-        XLINK_ERROR(k == m,
+        for (; k >= 0 && offsets[k] + segs[k]->length < rel->offset; k--);
+        XLINK_ERROR(k < 0,
          ("Could not find segment for reloc offset %i", rel->offset));
         rel->offset -= offsets[k];
         XLINK_ERROR(
