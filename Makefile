@@ -10,7 +10,7 @@ STBS := $(patsubst $(SRC_DIR)/%.asm,$(BIN_DIR)/%.o,$(wildcard $(SRC_DIR)/*.asm))
 
 CFLAGS := -O2 -Wno-parenthesis -Wno-overlength-strings
 
-ASFLAGS := -f obj
+ASFLAGS := -f obj -i src/
 
 all: $(BINS) $(OBJS) $(STBS)
 

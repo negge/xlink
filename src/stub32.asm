@@ -1,3 +1,6 @@
+;%define DEBUG
+%include 'debug.inc'
+
 SEGMENT _MAIN USE32 CLASS=CODE
 
 EXTERN main_
@@ -14,9 +17,14 @@ stub32:
   dec ax
   js dpmi_ok
 
+  ; Print an error message and exit
+  LOG 'No DPMI host found.'
+
   ret
 
 dpmi_ok:
+
+  ASSERT {test bx, 1}, NZ, 'DPMI host missing 32-bit support.'
 
   ; ES:DI = segment:offset of the real-to-protected mode entry point
   push es
@@ -40,6 +48,8 @@ dpmi_ok:
   ;  ES = real mode segment of DPMI host private data area
   call far [di]
 
+  ASSERT {}, NC, 'Failed to enter DPMI protected mode.'
+
   ; BX = 0xffff
   push bx
   push bx
@@ -57,6 +67,8 @@ dpmi_ok:
   ;  BX = selector
   ;  CX:DX = 32-bit segment limit
   int 0x31
+
+  ASSERT {}, NC, 'Failed to set 4 GB segment limit for ES.'
 
   push es
   pop ds
@@ -81,6 +93,8 @@ dpmi_ok:
 
   ; Switch to 32-bit code
   bits 32
+
+  ASSERT {}, NC, 'Failed to change code segment to 32-bit.'
 
   call main_
 
