@@ -146,6 +146,16 @@ dpmi_ok:
   ; CS = 16-bit selector with base of real mode CS and a 64KB limit
   mov bx, cs
 
+%if XLINK_STUB_PACK
+
+  ; Sets the segment limit to 4GB
+  ;  AX = 0008h
+  ;  BX = selector
+  ;  CX:DX = 32-bit segment limit
+  int 0x31
+
+%endif
+
   ASSERT {}, NC, 'Failed to set 4 GB segment limit for CS.'
 
   ; Load access rights into CH
