@@ -70,14 +70,22 @@ dpmi_ok:
 
   ASSERT {}, NC, 'Failed to set 4 GB segment limit for ES.'
 
+  ; CS = 16-bit selector with base of real mode CS and a 64KB limit
+  mov bx, cs
+
+  ; Sets the segment limit to 4GB
+  ;  AX = 0008h
+  ;  BX = selector
+  ;  CX:DX = 32-bit segment limit
+  int 0x31
+
+  ASSERT {}, NC, 'Failed to set 4 GB segment limit for CS.'
+
   push es
   pop ds
 
   ; AH = 0
   mov al, 0x9
-
-  ; CS = 16-bit selector with base of real mode CS and a 64KB limit
-  mov bx, cs
 
   ; CX = 0xffff
   inc cx
