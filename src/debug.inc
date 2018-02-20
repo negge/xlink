@@ -47,7 +47,8 @@ print_string:
   pusha
 
 .L1:
-  lodsb
+  mov al, [cs:esi]
+  inc esi
   cmp al, '$'
   je .L2
 
