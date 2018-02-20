@@ -1,7 +1,6 @@
 SEGMENT _MAIN USE32 CLASS=CODE
 
 EXTERN main_
-GLOBAL _xlink_base
 
   ; Start with 16-bit code
   bits 16
