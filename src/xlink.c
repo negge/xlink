@@ -1289,6 +1289,7 @@ int rel_comp(const void *a, const void *b) {
 #define MOD_DUMP  (0x1)
 #define MOD_MAP   (0x2)
 #define MOD_SPLIT (0x4)
+#define MOD_CHECK (0x8)
 
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
@@ -1924,7 +1925,7 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
   return byte;
 }
 
-const char *OPTSTRING = "o:e:smdh";
+const char *OPTSTRING = "o:e:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
@@ -1932,6 +1933,7 @@ const struct option OPTIONS[] = {
   { "split", no_argument,        NULL, 's' },
   { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
+  { "check", no_argument,        NULL, 'c' },
   { "help", no_argument,         NULL, 'h' },
   { NULL,   0,                   NULL,  0  }
 };
@@ -1944,6 +1946,7 @@ static void usage(const char *argv0) {
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -s --split                      Split segments into linkable pieces.\n"
+   "  -C --check                      Compress stdin and print stats.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
@@ -1978,12 +1981,31 @@ int main(int argc, char *argv[]) {
         flags |= MOD_SPLIT;
         break;
       }
+      case 'C' : {
+        flags |= MOD_CHECK;
+        break;
+      }
       case 'h' :
       default : {
         usage(argv[0]);
         return EXIT_FAILURE;
       }
     }
+  }
+  if (flags & MOD_CHECK) {
+    xlink_encoder enc;
+    xlink_context ctx;
+    unsigned int byte;
+    xlink_encoder_init(&enc, 1024);
+    xlink_context_init(&ctx, 1024);
+    for (byte = getc(stdin); byte != EOF; byte = getc(stdin)) {
+      xlink_encoder_write_byte(&enc, &ctx, byte);
+    }
+    xlink_encoder_finalize(&enc);
+    printf("Read %i bytes, compressed to %i bytes\n", ctx.pos, enc.pos - 4);
+    xlink_encoder_clear(&enc);
+    xlink_context_clear(&ctx);
+    return EXIT_SUCCESS;
   }
   if (optind == argc) {
     printf("No <modules> specified!\n\n");
