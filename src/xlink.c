@@ -1817,14 +1817,6 @@ void xlink_encoder_clear(xlink_encoder *enc) {
 
 XLINK_LIST_FUNCS(encoder, symbol);
 
-void xlink_encoder_write_bit(xlink_encoder *enc, int bit, xlink_prob prob) {
-  xlink_symbol *symb;
-  symb = xlink_malloc(sizeof(xlink_symbol));
-  symb->bit = bit;
-  symb->prob = prob;
-  xlink_encoder_add_symbol(enc, symb);
-}
-
 void xlink_encoder_write_byte(xlink_encoder *enc, xlink_context *ctx,
  unsigned char byte) {
   unsigned char partial;
@@ -1898,27 +1890,6 @@ void xlink_decoder_init(xlink_decoder *dec, const unsigned char *buf,
   dec->size = size;
   dec->state = *((unsigned int *)dec->buf);
   dec->pos = 4;
-}
-
-int xlink_decoder_read_bit(xlink_decoder *dec, xlink_prob prob) {
-  int r, s, t;
-  XLINK_ERROR(dec->state >= ANS_BASE * IO_BASE || dec->state < ANS_BASE,
-   ("Decoder state %x invalid at position %i", dec->state, dec->pos));
-  s = dec->state*(PROB_MAX - prob);
-  t = (s >> PROB_BITS);
-  dec->state -= t;
-  r = (s & (PROB_MAX - 1)) >= prob;
-  if (r) {
-    dec->state = t;
-  }
-  while (dec->state < ANS_BASE) {
-    XLINK_ERROR(dec->pos >= dec->size,
-     ("Underflow reading byte, pos = %i but size = %i", dec->pos, dec->size));
-    dec->state <<= IO_BITS;
-    dec->state |= dec->buf[dec->pos];
-    dec->pos++;
-  }
-  return r;
 }
 
 unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
