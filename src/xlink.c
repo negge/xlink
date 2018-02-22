@@ -1830,14 +1830,14 @@ void xlink_encoder_write_byte(xlink_encoder *enc, xlink_context *ctx,
   unsigned char partial;
   int i;
   partial = 0;
-  for (i = 0x80; i > 0; i >>= 1) {
-    xlink_prob prob;
-    int bit;
-    prob = xlink_context_get_prob(ctx, partial);
-    bit = !!(byte & i);
-    xlink_encoder_write_bit(enc, bit, prob);
+  for (i = 8; i-- > 0; ) {
+    xlink_symbol *symb;
+    symb = xlink_malloc(sizeof(xlink_symbol));
+    symb->bit = !!(byte & (1 << i));
+    symb->prob = xlink_context_get_prob(ctx, partial);
+    xlink_encoder_add_symbol(enc, symb);
     partial <<= 1;
-    partial |= bit;
+    partial |= symb->bit;
   }
   xlink_context_update(ctx, byte);
 }
