@@ -419,6 +419,14 @@ struct xlink_symbol {
   xlink_prob prob;
 };
 
+typedef struct xlink_context xlink_context;
+
+struct xlink_context {
+  unsigned char *buf;
+  int size;
+  int pos;
+};
+
 typedef struct xlink_encoder xlink_encoder;
 
 struct xlink_encoder {
@@ -1769,6 +1777,29 @@ void xlink_binary_link(xlink_binary *bin) {
 #define FLOOR_DIV(x, y) ((x)/(y))
 #define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
 
+void xlink_context_init(xlink_context *ctx, int size) {
+  memset(ctx, 0, sizeof(xlink_context));
+  ctx->size = size;
+  ctx->buf = xlink_malloc(ctx->size*sizeof(unsigned char));
+}
+
+void xlink_context_clear(xlink_context *ctx) {
+  free(ctx->buf);
+}
+
+xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
+  return (xlink_prob)128;
+}
+
+void xlink_context_update(xlink_context *ctx, unsigned char byte) {
+  ctx->pos++;
+  if (ctx->pos > ctx->size) {
+    ctx->size <<= 1;
+    ctx->buf = xlink_realloc(ctx->buf, ctx->size*sizeof(unsigned char));
+  }
+  ctx->buf[ctx->pos - 1] = byte;
+}
+
 void xlink_encoder_init(xlink_encoder *enc, int size) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = size;
@@ -1794,12 +1825,21 @@ void xlink_encoder_write_bit(xlink_encoder *enc, int bit, xlink_prob prob) {
   xlink_encoder_add_symbol(enc, symb);
 }
 
-void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte,
- xlink_prob prob) {
+void xlink_encoder_write_byte(xlink_encoder *enc, xlink_context *ctx,
+ unsigned char byte) {
+  unsigned char partial;
   int i;
+  partial = 0;
   for (i = 0x80; i > 0; i >>= 1) {
-    xlink_encoder_write_bit(enc, !!(byte & i), prob);
+    xlink_prob prob;
+    int bit;
+    prob = xlink_context_get_prob(ctx, partial);
+    bit = !!(byte & i);
+    xlink_encoder_write_bit(enc, bit, prob);
+    partial <<= 1;
+    partial |= bit;
   }
+  xlink_context_update(ctx, byte);
 }
 
 void xlink_encoder_finalize(xlink_encoder *enc) {
@@ -1879,12 +1919,14 @@ int xlink_decoder_read_bit(xlink_decoder *dec, xlink_prob prob) {
   return r;
 }
 
-unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_prob prob) {
+unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
   unsigned char byte;
   int i;
   byte = 0;
   for (i = 8; i-- > 0; ) {
+    xlink_prob prob;
     int s, t;
+    prob = xlink_context_get_prob(ctx, byte);
     XLINK_ERROR(dec->state >= ANS_BASE * IO_BASE || dec->state < ANS_BASE,
      ("Decoder state %x invalid at position %i", dec->state, dec->pos));
     s = dec->state*(PROB_MAX - prob);
@@ -1903,6 +1945,7 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_prob prob) {
       dec->pos++;
     }
   }
+  xlink_context_update(ctx, byte);
   return byte;
 }
 
