@@ -1854,7 +1854,7 @@ void xlink_encoder_finalize(xlink_encoder *enc) {
     prob = symb->bit ? PROB_MAX - symb->prob : symb->prob;
     XLINK_ERROR(state >= ANS_BASE * IO_BASE || state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", state, i));
-    while (state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
+    if (state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
       enc->pos++;
       if (enc->pos > enc->size) {
         enc->size <<= 1;
@@ -1863,6 +1863,8 @@ void xlink_encoder_finalize(xlink_encoder *enc) {
       enc->buf[enc->pos - 1] = state & (IO_BASE - 1);
       state >>= IO_BITS;
     }
+    XLINK_ERROR(state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
+     ("Need to serialize more state %i at symbol %i", state, i));
     if (symb->bit) {
       state = CEIL_DIV((state + 1) << PROB_BITS, prob) - 1;
     }
@@ -1937,13 +1939,15 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
       dec->state = t;
       byte++;
     }
-    while (dec->state < ANS_BASE) {
+    if (dec->state < ANS_BASE) {
       XLINK_ERROR(dec->pos >= dec->size,
        ("Underflow reading byte, pos = %i but size = %i", dec->pos, dec->size));
       dec->state <<= IO_BITS;
       dec->state |= dec->buf[dec->pos];
       dec->pos++;
     }
+    XLINK_ERROR(dec->state < ANS_BASE,
+     ("Need to deserialize more state %i at symbol %i", dec->state, i));
   }
   xlink_context_update(ctx, byte);
   return byte;
