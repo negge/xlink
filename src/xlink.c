@@ -443,7 +443,6 @@ struct xlink_encoder {
   unsigned char *buf;
   int size;
   int pos;
-  xlink_context ctx;
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -453,7 +452,6 @@ struct xlink_decoder {
   int size;
   int pos;
   unsigned int state;
-  xlink_context ctx;
 };
 
 void xlink_log(const char *fmt, ...) {
@@ -1818,7 +1816,6 @@ void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = BUF_SIZE;
   enc->buf = xlink_malloc(enc->size*sizeof(unsigned char));
-  xlink_context_init(&enc->ctx);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
@@ -1828,7 +1825,6 @@ void xlink_encoder_clear(xlink_encoder *enc) {
   }
   free(enc->symbols);
   free(enc->buf);
-  xlink_context_clear(&enc->ctx);
 }
 
 XLINK_LIST_FUNCS(encoder, symbol);
@@ -1846,7 +1842,6 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
     xlink_symbol *symb;
     symb = xlink_malloc(sizeof(xlink_symbol));
     symb->bit = !!(byte & (1 << i));
-    symb->prob = xlink_context_get_prob(&enc->ctx, partial);
     xlink_encoder_add_symbol(enc, symb);
     partial <<= 1;
     partial |= symb->bit;
@@ -1857,7 +1852,6 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
     enc->buf = xlink_realloc(enc->buf, enc->size*sizeof(unsigned char));
   }
   enc->buf[enc->pos - 1] = byte;
-  xlink_context_update(&enc->ctx, byte);
 }
 
 void xlink_encoder_update_probs(xlink_encoder *enc, xlink_context *ctx) {
@@ -1876,13 +1870,15 @@ void xlink_encoder_update_probs(xlink_encoder *enc, xlink_context *ctx) {
   }
 }
 
-void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
+void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
+ xlink_bitstream *bs) {
   int i, j;
   int size;
   size = BUF_SIZE;
   xlink_bitstream_init(bs);
   bs->buf = xlink_malloc(size*sizeof(unsigned char));
   bs->state = ANS_BASE;
+  xlink_encoder_update_probs(enc, ctx);
   for (i = enc->nsymbols; i > 0; i--) {
     xlink_symbol *symb;
     xlink_prob prob;
@@ -1923,21 +1919,19 @@ void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
   dec->buf = bs->buf;
   dec->size = bs->size;
   dec->state = bs->state;
-  xlink_context_init(&dec->ctx);
 }
 
 void xlink_decoder_clear(xlink_decoder *dec) {
-  xlink_context_clear(&dec->ctx);
 }
 
-unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
+unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
   unsigned char byte;
   int i;
   byte = 0;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
     int s, t;
-    prob = xlink_context_get_prob(&dec->ctx, byte);
+    prob = xlink_context_get_prob(ctx, byte);
     XLINK_ERROR(dec->state >= ANS_BASE * IO_BASE || dec->state < ANS_BASE,
      ("Decoder state %x invalid at position %i", dec->state, dec->pos));
     s = dec->state*(PROB_MAX - prob);
@@ -1958,7 +1952,7 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
     XLINK_ERROR(dec->state < ANS_BASE,
      ("Need to deserialize more state %i at symbol %i", dec->state, i));
   }
-  xlink_context_update(&dec->ctx, byte);
+  xlink_context_update(ctx, byte);
   return byte;
 }
 
@@ -2033,6 +2027,7 @@ int main(int argc, char *argv[]) {
   }
   if (flags & MOD_CHECK) {
     xlink_encoder enc;
+    xlink_context ctx;
     xlink_bitstream bs;
     xlink_decoder dec;
     int i;
@@ -2042,7 +2037,8 @@ int main(int argc, char *argv[]) {
       xlink_encoder_write_byte(&enc, getc(stdin));
     }
     /* Finalize the bitstream */
-    xlink_encoder_finalize(&enc, &bs);
+    xlink_context_init(&ctx);
+    xlink_encoder_finalize(&enc, &ctx, &bs);
     printf("Compressed %i bytes to %i bytes\n", bs.length, bs.size);
     /* Initialize decoder with bitstream */
     xlink_decoder_init(&dec, &bs);
@@ -2051,11 +2047,12 @@ int main(int argc, char *argv[]) {
       unsigned char orig;
       unsigned char byte;
       orig = xlink_encoder_get_byte(&enc, i);
-      byte = xlink_decoder_read_byte(&dec);
+      byte = xlink_decoder_read_byte(&dec, &ctx);
       XLINK_ERROR(byte != orig,
        ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
     }
     xlink_encoder_clear(&enc);
+    xlink_context_clear(&ctx);
     xlink_decoder_clear(&dec);
     xlink_bitstream_clear(&bs);
     return EXIT_SUCCESS;
