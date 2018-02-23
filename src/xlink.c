@@ -1804,6 +1804,10 @@ void xlink_context_update(xlink_context *ctx, unsigned char byte) {
   ctx->buf[ctx->pos - 1] = byte;
 }
 
+int xlink_context_bytes_seen(xlink_context *ctx) {
+  return ctx->pos;
+}
+
 void xlink_encoder_init(xlink_encoder *enc, int size) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = size;
@@ -1904,12 +1908,16 @@ void xlink_decoder_clear(xlink_decoder *dec) {
   xlink_context_clear(&dec->ctx);
 }
 
+int xlink_decoder_bytes_read(xlink_decoder *dec) {
+  return xlink_context_bytes_seen(&dec->ctx);
+}
+
 unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   unsigned char byte;
   int i;
-  XLINK_ERROR(dec->ctx.pos >= dec->length,
+  XLINK_ERROR(xlink_decoder_bytes_read(dec) >= dec->length,
    ("Attempting to decode more bytes than encoded, read = %i but length = %i\n",
-   dec->ctx.pos, dec->length));
+   xlink_decoder_bytes_read(dec), dec->length));
   byte = 0;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
