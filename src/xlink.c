@@ -1996,6 +1996,8 @@ static void usage(const char *argv0) {
    argv0);
 }
 
+#define FEOF(fp) (ungetc(getc(fp), fp) == EOF)
+
 int main(int argc, char *argv[]) {
   xlink_binary bin;
   int c;
@@ -2039,13 +2041,12 @@ int main(int argc, char *argv[]) {
   }
   if (flags & MOD_CHECK) {
     xlink_encoder enc;
-    unsigned int byte;
     xlink_decoder dec;
     int i;
     /* Read and compress bytes */
     xlink_encoder_init(&enc, 1024);
-    for (byte = getc(stdin); byte != EOF; byte = getc(stdin)) {
-      xlink_encoder_write_byte(&enc, byte);
+    while (!FEOF(stdin)) {
+      xlink_encoder_write_byte(&enc, getc(stdin));
     }
     /* Finalize the bitstream */
     xlink_encoder_finalize(&enc);
@@ -2056,7 +2057,8 @@ int main(int argc, char *argv[]) {
      xlink_encoder_bitstream_size(&enc), xlink_encoder_bytes_written(&enc));
     /* Test that decoded bytes match original input */
     for (i = 0; i < xlink_encoder_bytes_written(&enc); i++) {
-      unsigned int orig;
+      unsigned char orig;
+      unsigned char byte;
       orig = xlink_encoder_get_byte(&enc, i);
       byte = xlink_decoder_read_byte(&dec);
       XLINK_ERROR(byte != orig,
