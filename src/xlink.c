@@ -2040,14 +2040,30 @@ int main(int argc, char *argv[]) {
   if (flags & MOD_CHECK) {
     xlink_encoder enc;
     unsigned int byte;
+    xlink_decoder dec;
+    int i;
+    /* Read and compress bytes */
     xlink_encoder_init(&enc, 1024);
     for (byte = getc(stdin); byte != EOF; byte = getc(stdin)) {
       xlink_encoder_write_byte(&enc, byte);
     }
+    /* Finalize the bitstream */
     xlink_encoder_finalize(&enc);
     printf("Compressed %i bytes to %i bytes\n",
      xlink_encoder_bytes_written(&enc), xlink_encoder_bitstream_size(&enc) - 4);
+    /* Initialize decoder with bitstream */
+    xlink_decoder_init(&dec, xlink_encoder_get_bitstream(&enc),
+     xlink_encoder_bitstream_size(&enc), xlink_encoder_bytes_written(&enc));
+    /* Test that decoded bytes match original input */
+    for (i = 0; i < xlink_encoder_bytes_written(&enc); i++) {
+      unsigned int orig;
+      orig = xlink_encoder_get_byte(&enc, i);
+      byte = xlink_decoder_read_byte(&dec);
+      XLINK_ERROR(byte != orig,
+       ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
+    }
     xlink_encoder_clear(&enc);
+    xlink_decoder_clear(&dec);
     return EXIT_SUCCESS;
   }
   if (optind == argc) {
