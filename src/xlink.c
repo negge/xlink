@@ -1826,6 +1826,7 @@ XLINK_LIST_FUNCS(encoder, symbol);
 void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   unsigned char partial;
   int i;
+  XLINK_ERROR(enc->pos != 0, ("Encoder already finalized"));
   partial = 0;
   for (i = 8; i-- > 0; ) {
     xlink_symbol *symb;
