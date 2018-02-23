@@ -422,9 +422,8 @@ struct xlink_symbol {
 typedef struct xlink_context xlink_context;
 
 struct xlink_context {
-  unsigned char *buf;
-  int size;
-  int pos;
+  unsigned char buf[8];
+  int idx;
 };
 
 typedef struct xlink_bitstream xlink_bitstream;
@@ -1791,14 +1790,11 @@ void xlink_binary_link(xlink_binary *bin) {
 #define FLOOR_DIV(x, y) ((x)/(y))
 #define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
 
-void xlink_context_init(xlink_context *ctx, int size) {
+void xlink_context_init(xlink_context *ctx) {
   memset(ctx, 0, sizeof(xlink_context));
-  ctx->size = size;
-  ctx->buf = xlink_malloc(ctx->size*sizeof(unsigned char));
 }
 
 void xlink_context_clear(xlink_context *ctx) {
-  free(ctx->buf);
 }
 
 xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
@@ -1806,12 +1802,8 @@ xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
 }
 
 void xlink_context_update(xlink_context *ctx, unsigned char byte) {
-  ctx->pos++;
-  if (ctx->pos > ctx->size) {
-    ctx->size <<= 1;
-    ctx->buf = xlink_realloc(ctx->buf, ctx->size*sizeof(unsigned char));
-  }
-  ctx->buf[ctx->pos - 1] = byte;
+  ctx->buf[ctx->idx] = byte;
+  ctx->idx = (ctx->idx + 1) & 0x7;
 }
 
 void xlink_bitstream_init(xlink_bitstream *bs) {
@@ -1826,7 +1818,7 @@ void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = BUF_SIZE;
   enc->buf = xlink_malloc(enc->size*sizeof(unsigned char));
-  xlink_context_init(&enc->ctx, BUF_SIZE);
+  xlink_context_init(&enc->ctx);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
@@ -1931,7 +1923,7 @@ void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
   dec->buf = bs->buf;
   dec->size = bs->size;
   dec->state = bs->state;
-  xlink_context_init(&dec->ctx, bs->length);
+  xlink_context_init(&dec->ctx);
 }
 
 void xlink_decoder_clear(xlink_decoder *dec) {
