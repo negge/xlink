@@ -435,6 +435,7 @@ struct xlink_encoder {
   unsigned char *buf;
   int size;
   int pos;
+  xlink_context ctx;
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -445,6 +446,7 @@ struct xlink_decoder {
   int pos;
   int length;
   unsigned int state;
+  xlink_context ctx;
 };
 
 void xlink_log(const char *fmt, ...) {
@@ -1806,6 +1808,7 @@ void xlink_encoder_init(xlink_encoder *enc, int size) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = size;
   enc->buf = xlink_malloc(enc->size*sizeof(unsigned char));
+  xlink_context_init(&enc->ctx, size);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
@@ -1815,12 +1818,12 @@ void xlink_encoder_clear(xlink_encoder *enc) {
   }
   free(enc->symbols);
   free(enc->buf);
+  xlink_context_clear(&enc->ctx);
 }
 
 XLINK_LIST_FUNCS(encoder, symbol);
 
-void xlink_encoder_write_byte(xlink_encoder *enc, xlink_context *ctx,
- unsigned char byte) {
+void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   unsigned char partial;
   int i;
   partial = 0;
@@ -1828,12 +1831,12 @@ void xlink_encoder_write_byte(xlink_encoder *enc, xlink_context *ctx,
     xlink_symbol *symb;
     symb = xlink_malloc(sizeof(xlink_symbol));
     symb->bit = !!(byte & (1 << i));
-    symb->prob = xlink_context_get_prob(ctx, partial);
+    symb->prob = xlink_context_get_prob(&enc->ctx, partial);
     xlink_encoder_add_symbol(enc, symb);
     partial <<= 1;
     partial |= symb->bit;
   }
-  xlink_context_update(ctx, byte);
+  xlink_context_update(&enc->ctx, byte);
 }
 
 void xlink_encoder_finalize(xlink_encoder *enc) {
@@ -1893,19 +1896,24 @@ void xlink_decoder_init(xlink_decoder *dec, const unsigned char *buf,
   dec->length = length;
   dec->state = *((unsigned int *)dec->buf);
   dec->pos = 4;
+  xlink_context_init(&dec->ctx, length);
 }
 
-unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
+void xlink_decoder_clear(xlink_decoder *dec) {
+  xlink_context_clear(&dec->ctx);
+}
+
+unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   unsigned char byte;
   int i;
-  XLINK_ERROR(ctx->pos >= dec->length,
+  XLINK_ERROR(dec->ctx.pos >= dec->length,
    ("Attempting to decode more bytes than encoded, read = %i but length = %i\n",
-   ctx->pos, dec->length));
+   dec->ctx.pos, dec->length));
   byte = 0;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
     int s, t;
-    prob = xlink_context_get_prob(ctx, byte);
+    prob = xlink_context_get_prob(&dec->ctx, byte);
     XLINK_ERROR(dec->state >= ANS_BASE * IO_BASE || dec->state < ANS_BASE,
      ("Decoder state %x invalid at position %i", dec->state, dec->pos));
     s = dec->state*(PROB_MAX - prob);
@@ -1926,7 +1934,7 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
     XLINK_ERROR(dec->state < ANS_BASE,
      ("Need to deserialize more state %i at symbol %i", dec->state, i));
   }
-  xlink_context_update(ctx, byte);
+  xlink_context_update(&dec->ctx, byte);
   return byte;
 }
 
@@ -1999,17 +2007,14 @@ int main(int argc, char *argv[]) {
   }
   if (flags & MOD_CHECK) {
     xlink_encoder enc;
-    xlink_context ctx;
     unsigned int byte;
     xlink_encoder_init(&enc, 1024);
-    xlink_context_init(&ctx, 1024);
     for (byte = getc(stdin); byte != EOF; byte = getc(stdin)) {
-      xlink_encoder_write_byte(&enc, &ctx, byte);
+      xlink_encoder_write_byte(&enc, byte);
     }
     xlink_encoder_finalize(&enc);
-    printf("Read %i bytes, compressed to %i bytes\n", ctx.pos, enc.pos - 4);
+    printf("Read %i bytes, compressed to %i bytes\n", enc.ctx.pos, enc.pos - 4);
     xlink_encoder_clear(&enc);
-    xlink_context_clear(&ctx);
     return EXIT_SUCCESS;
   }
   if (optind == argc) {
