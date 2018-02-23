@@ -441,6 +441,9 @@ typedef struct xlink_encoder xlink_encoder;
 struct xlink_encoder {
   xlink_symbol **symbols;
   int nsymbols;
+  unsigned char *buf;
+  int size;
+  int pos;
   xlink_context ctx;
 };
 
@@ -1811,11 +1814,6 @@ void xlink_context_update(xlink_context *ctx, unsigned char byte) {
   ctx->buf[ctx->pos - 1] = byte;
 }
 
-unsigned char xlink_context_get_byte(xlink_context *ctx, int i) {
-  XLINK_ERROR(i >= ctx->pos, ("Have not seen byte %i, pos = %i", i, ctx->pos));
-  return ctx->buf[i];
-}
-
 void xlink_bitstream_init(xlink_bitstream *bs) {
   memset(bs, 0, sizeof(xlink_bitstream));
 }
@@ -1826,6 +1824,8 @@ void xlink_bitstream_clear(xlink_bitstream *bs) {
 
 void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
+  enc->size = BUF_SIZE;
+  enc->buf = xlink_malloc(enc->size*sizeof(unsigned char));
   xlink_context_init(&enc->ctx, BUF_SIZE);
 }
 
@@ -1835,10 +1835,16 @@ void xlink_encoder_clear(xlink_encoder *enc) {
     free(enc->symbols[i]);
   }
   free(enc->symbols);
+  free(enc->buf);
   xlink_context_clear(&enc->ctx);
 }
 
 XLINK_LIST_FUNCS(encoder, symbol);
+
+unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
+  XLINK_ERROR(i >= enc->pos, ("Could not get byte %i, pos = %i", i, enc->pos));
+  return enc->buf[i];
+}
 
 void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   unsigned char partial;
@@ -1853,6 +1859,12 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
     partial <<= 1;
     partial |= symb->bit;
   }
+  enc->pos++;
+  if (enc->pos > enc->size) {
+    enc->size <<= 1;
+    enc->buf = xlink_realloc(enc->buf, enc->size*sizeof(unsigned char));
+  }
+  enc->buf[enc->pos - 1] = byte;
   xlink_context_update(&enc->ctx, byte);
 }
 
@@ -1911,7 +1923,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     bs->buf[i] = bs->buf[j];
     bs->buf[j] = c;
   }
-  bs->length = (enc->nsymbols + 7)/8;
+  bs->length = enc->pos;
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
@@ -2046,7 +2058,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < bs.length; i++) {
       unsigned char orig;
       unsigned char byte;
-      orig = xlink_context_get_byte(&enc.ctx, i);
+      orig = xlink_encoder_get_byte(&enc, i);
       byte = xlink_decoder_read_byte(&dec);
       XLINK_ERROR(byte != orig,
        ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
