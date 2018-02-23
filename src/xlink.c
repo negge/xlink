@@ -1844,6 +1844,20 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   xlink_context_update(&enc->ctx, byte);
 }
 
+int xlink_encoder_bytes_written(xlink_encoder *enc) {
+  return xlink_context_bytes_seen(&enc->ctx);
+}
+
+const unsigned char *xlink_encoder_get_bitstream(xlink_encoder *enc) {
+  XLINK_ERROR(enc->pos == 0, ("Encoder not finalized"));
+  return enc->buf;
+}
+
+int xlink_encoder_bitstream_size(xlink_encoder *enc) {
+  XLINK_ERROR(enc->pos == 0, ("Encoder not finalized"));
+  return enc->pos;
+}
+
 void xlink_encoder_finalize(xlink_encoder *enc) {
   int i, j;
   unsigned int state;
@@ -2022,7 +2036,8 @@ int main(int argc, char *argv[]) {
       xlink_encoder_write_byte(&enc, byte);
     }
     xlink_encoder_finalize(&enc);
-    printf("Read %i bytes, compressed to %i bytes\n", enc.ctx.pos, enc.pos - 4);
+    printf("Compressed %i bytes to %i bytes\n",
+     xlink_encoder_bytes_written(&enc), xlink_encoder_bitstream_size(&enc) - 4);
     xlink_encoder_clear(&enc);
     return EXIT_SUCCESS;
   }
