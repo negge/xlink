@@ -1808,6 +1808,11 @@ int xlink_context_bytes_seen(xlink_context *ctx) {
   return ctx->pos;
 }
 
+unsigned char xlink_context_get_byte(xlink_context *ctx, int i) {
+  XLINK_ERROR(i >= ctx->pos, ("Have not seen byte %i, pos = %i", i, ctx->pos));
+  return ctx->buf[i];
+}
+
 void xlink_encoder_init(xlink_encoder *enc, int size) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->size = size;
@@ -1842,6 +1847,10 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
     partial |= symb->bit;
   }
   xlink_context_update(&enc->ctx, byte);
+}
+
+unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
+  return xlink_context_get_byte(&enc->ctx, i);
 }
 
 int xlink_encoder_bytes_written(xlink_encoder *enc) {
