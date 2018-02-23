@@ -1856,6 +1856,22 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   xlink_context_update(&enc->ctx, byte);
 }
 
+void xlink_encoder_update_probs(xlink_encoder *enc, xlink_context *ctx) {
+  unsigned char partial;
+  int i;
+  for (i = 1; i <= enc->nsymbols; i++) {
+    if (i & 0x7 == 1) {
+      partial = 0;
+    }
+    xlink_symbol *symb;
+    /* TODO: replace this with a bit array */
+    symb = xlink_encoder_get_symbol(enc, i);
+    symb->prob = xlink_context_get_prob(ctx, partial);
+    partial <<= 1;
+    partial |= symb->bit;
+  }
+}
+
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   int i, j;
   int size;
