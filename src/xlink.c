@@ -450,7 +450,6 @@ struct xlink_decoder {
   const unsigned char *buf;
   int size;
   int pos;
-  int length;
   unsigned int state;
   xlink_context ctx;
 };
@@ -1812,10 +1811,6 @@ void xlink_context_update(xlink_context *ctx, unsigned char byte) {
   ctx->buf[ctx->pos - 1] = byte;
 }
 
-int xlink_context_bytes_seen(xlink_context *ctx) {
-  return ctx->pos;
-}
-
 unsigned char xlink_context_get_byte(xlink_context *ctx, int i) {
   XLINK_ERROR(i >= ctx->pos, ("Have not seen byte %i, pos = %i", i, ctx->pos));
   return ctx->buf[i];
@@ -1907,7 +1902,6 @@ void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
   memset(dec, 0, sizeof(xlink_decoder));
   dec->buf = bs->buf;
   dec->size = bs->size;
-  dec->length = bs->length;
   dec->state = bs->state;
   xlink_context_init(&dec->ctx, bs->length);
 }
@@ -1919,9 +1913,6 @@ void xlink_decoder_clear(xlink_decoder *dec) {
 unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   unsigned char byte;
   int i;
-  XLINK_ERROR(xlink_context_bytes_seen(&dec->ctx) >= dec->length,
-   ("Attempting to decode more bytes than encoded, read = %i but length = %i\n",
-   xlink_context_bytes_seen(&dec->ctx), dec->length));
   byte = 0;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
