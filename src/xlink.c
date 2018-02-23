@@ -443,6 +443,7 @@ struct xlink_decoder {
   const unsigned char *buf;
   int size;
   int pos;
+  int length;
   unsigned int state;
 };
 
@@ -1884,11 +1885,12 @@ void xlink_encoder_finalize(xlink_encoder *enc) {
 }
 
 void xlink_decoder_init(xlink_decoder *dec, const unsigned char *buf,
- int size) {
+ int size, int length) {
   XLINK_ERROR(size < 4,
    ("Bitstream does not include initial 4 byte state, size = %i\n", size));
   dec->buf = buf;
   dec->size = size;
+  dec->length = length;
   dec->state = *((unsigned int *)dec->buf);
   dec->pos = 4;
 }
@@ -1896,6 +1898,9 @@ void xlink_decoder_init(xlink_decoder *dec, const unsigned char *buf,
 unsigned char xlink_decoder_read_byte(xlink_decoder *dec, xlink_context *ctx) {
   unsigned char byte;
   int i;
+  XLINK_ERROR(ctx->pos >= dec->length,
+   ("Attempting to decode more bytes than encoded, read = %i but length = %i\n",
+   ctx->pos, dec->length));
   byte = 0;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
