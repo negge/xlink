@@ -412,13 +412,6 @@ struct xlink_binary {
 
 typedef unsigned int xlink_prob;
 
-typedef struct xlink_symbol xlink_symbol;
-
-struct xlink_symbol {
-  int bit;
-  xlink_prob prob;
-};
-
 typedef struct xlink_context xlink_context;
 
 struct xlink_context {
@@ -438,8 +431,6 @@ struct xlink_bitstream {
 typedef struct xlink_encoder xlink_encoder;
 
 struct xlink_encoder {
-  xlink_symbol **symbols;
-  int nsymbols;
   unsigned char *buf;
   int size;
   int pos;
@@ -1826,14 +1817,8 @@ void xlink_encoder_init(xlink_encoder *enc) {
 
 void xlink_encoder_clear(xlink_encoder *enc) {
   int i;
-  for (i = 0; i < enc->nsymbols; i++) {
-    free(enc->symbols[i]);
-  }
-  free(enc->symbols);
   free(enc->buf);
 }
-
-XLINK_LIST_FUNCS(encoder, symbol);
 
 unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
   XLINK_ERROR(i >= enc->pos, ("Could not get byte %i, pos = %i", i, enc->pos));
@@ -1841,17 +1826,6 @@ unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
 }
 
 void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
-  unsigned char partial;
-  int i;
-  partial = 0;
-  for (i = 8; i-- > 0; ) {
-    xlink_symbol *symb;
-    symb = xlink_malloc(sizeof(xlink_symbol));
-    symb->bit = !!(byte & (1 << i));
-    xlink_encoder_add_symbol(enc, symb);
-    partial <<= 1;
-    partial |= symb->bit;
-  }
   enc->pos++;
   if (enc->pos > enc->size) {
     enc->size <<= 1;
@@ -1881,11 +1855,11 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
   xlink_bitstream_init(bs);
   bs->buf = xlink_malloc(size*sizeof(unsigned char));
   bs->state = ANS_BASE;
-  for (i = enc->nsymbols; i-- > 0; ) {
-    xlink_symbol *symb;
+  for (i = enc->pos*8; i-- > 0; ) {
+    int bit;
     xlink_prob prob;
-    symb = xlink_encoder_get_symbol(enc, i + 1);
-    prob = symb->bit ? PROB_MAX - probs[i] : probs[i];
+    bit = !!(enc->buf[i/8] & (1 << (7 - (i%8))));
+    prob = bit ? PROB_MAX - probs[i] : probs[i];
     XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", bs->state, i));
     if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
@@ -1899,7 +1873,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     }
     XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
      ("Need to serialize more state %i at symbol %i", bs->state, i));
-    if (symb->bit) {
+    if (bit) {
       bs->state = CEIL_DIV((bs->state + 1) << PROB_BITS, prob) - 1;
     }
     else {
