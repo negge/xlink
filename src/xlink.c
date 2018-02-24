@@ -1860,36 +1860,32 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   enc->buf[enc->pos - 1] = byte;
 }
 
-void xlink_encoder_update_probs(xlink_encoder *enc, xlink_context *ctx) {
-  unsigned char partial;
-  int i;
-  for (i = 1; i <= enc->nsymbols; i++) {
-    if (i & 0x7 == 1) {
-      partial = 0;
-    }
-    xlink_symbol *symb;
-    /* TODO: replace this with a bit array */
-    symb = xlink_encoder_get_symbol(enc, i);
-    symb->prob = xlink_context_get_prob(ctx, partial);
-    partial <<= 1;
-    partial |= symb->bit;
-  }
-}
-
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
   int i, j;
+  xlink_prob *probs;
   int size;
+  probs = xlink_malloc(8*enc->pos*sizeof(xlink_prob));
+  for (j = 0; j < enc->pos; j++) {
+    unsigned char partial;
+    partial = 0;
+    for (i = 0; i < 8; i++) {
+      int bit;
+      bit = !!(enc->buf[j] & (1 << (7 - i)));
+      probs[j*8 + i] = xlink_context_get_prob(ctx, partial);
+      partial <<= 1;
+      partial |= bit;
+    }
+  }
   size = BUF_SIZE;
   xlink_bitstream_init(bs);
   bs->buf = xlink_malloc(size*sizeof(unsigned char));
   bs->state = ANS_BASE;
-  xlink_encoder_update_probs(enc, ctx);
-  for (i = enc->nsymbols; i > 0; i--) {
+  for (i = enc->nsymbols; i-- > 0; ) {
     xlink_symbol *symb;
     xlink_prob prob;
-    symb = xlink_encoder_get_symbol(enc, i);
-    prob = symb->bit ? PROB_MAX - symb->prob : symb->prob;
+    symb = xlink_encoder_get_symbol(enc, i + 1);
+    prob = symb->bit ? PROB_MAX - probs[i] : probs[i];
     XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", bs->state, i));
     if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
@@ -1910,6 +1906,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
       bs->state = FLOOR_DIV(bs->state << PROB_BITS, prob);
     }
   }
+  free(probs);
   /* Reverse byte order of the bitstream. */
   for (i = 0, j = bs->size - 1; i < j; i++, j--) {
     unsigned char c;
