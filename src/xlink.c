@@ -1790,13 +1790,19 @@ void xlink_binary_link(xlink_binary *bin) {
 
 void xlink_context_init(xlink_context *ctx) {
   memset(ctx, 0, sizeof(xlink_context));
+  srand(0);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
 }
 
+void xlink_context_reset(xlink_context *ctx) {
+  xlink_context_clear(ctx);
+  xlink_context_init(ctx);
+}
+
 xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
-  return (xlink_prob)128;
+  return (xlink_prob)(rand()%255 + 1);
 }
 
 void xlink_context_update(xlink_context *ctx, unsigned char byte) {
@@ -2041,6 +2047,7 @@ int main(int argc, char *argv[]) {
     xlink_encoder_finalize(&enc, &ctx, &bs);
     printf("Compressed %i bytes to %i bytes\n", bs.length, bs.size);
     /* Initialize decoder with bitstream */
+    xlink_context_reset(&ctx);
     xlink_decoder_init(&dec, &bs);
     /* Test that decoded bytes match original input */
     for (i = 0; i < bs.length; i++) {
