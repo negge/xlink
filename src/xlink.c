@@ -1924,49 +1924,55 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
   xlink_list probs;
   int i, j;
+  /* ANS requires we precompute all probabilities used to encode bitstream. */
   xlink_list_init(&probs, sizeof(xlink_prob), 8*xlink_list_length(&enc->input));
   for (j = 0; j < xlink_list_length(&enc->input); j++) {
     unsigned char byte;
     unsigned char partial;
     byte = xlink_encoder_get_byte(enc, j);
     partial = 0;
-    for (i = 0; i < 8; i++) {
+    /* Build partially seen byte from high bit to low bit to match decoder. */
+    for (i = 8; i-- > 0; ) {
       xlink_prob prob;
       prob = xlink_context_get_prob(ctx, partial);
       xlink_list_add(&probs, &prob);
       partial <<= 1;
-      partial |= !!(byte & (1 << (7 - i)));
+      partial |= !!(byte & (1 << i));
     }
     XLINK_ERROR(partial != byte,
      ("Mismatch between partial %02x and byte %02x", partial, byte));
   }
+  /* Encode the bitstream by processing bytes in reverse order. */
   xlink_bitstream_init(bs);
   bs->state = ANS_BASE;
-  for (i = xlink_list_length(&enc->input)*8; i-- > 0; ) {
+  for (j = xlink_list_length(&enc->input); j-- > 0; ) {
     unsigned char byte;
-    int bit;
-    xlink_prob prob;
-    byte = xlink_encoder_get_byte(enc, i/8);
-    bit = !!(byte & (1 << (7 - (i%8))));
-    prob = *(xlink_prob *)xlink_list_get(&probs, i);
-    if (bit) {
-      prob = PROB_MAX - prob;
-    }
-    XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
-     ("Encoder state %x invalid at symbol %i", bs->state, i));
-    if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
-      unsigned char byte;
-      byte = bs->state & (IO_BASE - 1);
-      bs->state >>= IO_BITS;
-      xlink_list_add(&bs->bytes, &byte);
-    }
-    XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
-     ("Need to serialize more state %i at symbol %i", bs->state, i));
-    if (bit) {
-      bs->state = CEIL_DIV((bs->state + 1) << PROB_BITS, prob) - 1;
-    }
-    else {
-      bs->state = FLOOR_DIV(bs->state << PROB_BITS, prob);
+    byte = xlink_encoder_get_byte(enc, j);
+    /* Add bits from low to high, the opposite order they are decoded. */
+    for (i = 0; i < 8; i++) {
+      int bit;
+      xlink_prob prob;
+      bit = !!(byte & (1 << i));
+      prob = *(xlink_prob *)xlink_list_get(&probs, j*8 + (7 - i));
+      if (bit) {
+        prob = PROB_MAX - prob;
+      }
+      XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
+       ("Encoder state %x invalid at symbol %i", bs->state, i));
+      if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
+        unsigned char byte;
+        byte = bs->state & (IO_BASE - 1);
+        bs->state >>= IO_BITS;
+        xlink_list_add(&bs->bytes, &byte);
+      }
+      XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
+       ("Need to serialize more state %i at symbol %i", bs->state, i));
+      if (bit) {
+        bs->state = CEIL_DIV((bs->state + 1) << PROB_BITS, prob) - 1;
+      }
+      else {
+        bs->state = FLOOR_DIV(bs->state << PROB_BITS, prob);
+      }
     }
   }
   xlink_list_clear(&probs);
