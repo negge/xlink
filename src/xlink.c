@@ -482,6 +482,7 @@ typedef struct xlink_encoder xlink_encoder;
 struct xlink_encoder {
   xlink_list input;
   xlink_list counts;
+  xlink_set matches;
   unsigned char buf[8];
 };
 
@@ -2156,11 +2157,15 @@ void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
   xlink_list_init(&enc->input, sizeof(unsigned char), 0);
   xlink_list_init(&enc->counts, sizeof(xlink_counts), 0);
+  /* TODO: Buffer the input before calling init() and use actual size here. */
+  xlink_set_init(&enc->matches, match_hash_code, match_equals,
+   sizeof(xlink_match), 8196*8*256, 0.5);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
   xlink_list_clear(&enc->input);
   xlink_list_clear(&enc->counts);
+  xlink_set_clear(&enc->matches);
 }
 
 unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
@@ -2168,7 +2173,38 @@ unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
 }
 
 void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
-  int i;
+  unsigned char partial;
+  xlink_match key;
+  int i, j;
+  partial = 0;
+  memcpy(key.buf, enc->buf, sizeof(enc->buf));
+  for (i = 8; i-- > 0; ) {
+    int bit;
+    xlink_counts counts;
+    key.partial = partial;
+    key.bits = 7 - i;
+    bit = !!(byte & (1 << i));
+    for (j = 0; j < 256; j++) {
+      xlink_match *match;
+      key.mask = j;
+      match = xlink_set_get(&enc->matches, &key);
+      if (match == NULL) {
+        memset(key.counts, 0, sizeof(key.counts));
+        match = xlink_set_put(&enc->matches, &key);
+      }
+      XLINK_ERROR(match == NULL,
+       ("Null pointer for match, should point to allocated xlink_match"));
+      counts[j][0] = match->counts[0];
+      counts[j][1] = match->counts[1];
+      match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
+      if (match->counts[1 - bit] > 1) {
+        match->counts[1 - bit] >>= 1;
+      }
+    }
+    xlink_list_add(&enc->counts, &counts);
+    partial <<= 1;
+    partial |= bit;
+  }
   for (i = 8; i-- > 1; ) {
     enc->buf[i] = enc->buf[i - 1];
   }
