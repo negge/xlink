@@ -425,7 +425,6 @@ typedef struct xlink_context xlink_context;
 
 struct xlink_context {
   unsigned char buf[8];
-  int idx;
 };
 
 typedef struct xlink_bitstream xlink_bitstream;
@@ -1890,8 +1889,11 @@ xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
 }
 
 void xlink_context_update(xlink_context *ctx, unsigned char byte) {
-  ctx->buf[ctx->idx] = byte;
-  ctx->idx = (ctx->idx + 1) & 0x7;
+  int i;
+  for (i = 8; i-- > 1; ) {
+    ctx->buf[i] = ctx->buf[i - 1];
+  }
+  ctx->buf[0] = byte;
 }
 
 void xlink_bitstream_init(xlink_bitstream *bs) {
