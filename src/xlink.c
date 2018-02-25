@@ -431,9 +431,8 @@ struct xlink_context {
 typedef struct xlink_bitstream xlink_bitstream;
 
 struct xlink_bitstream {
-  unsigned char *buf;
-  int size;
   int state;
+  xlink_list bytes;
 };
 
 typedef struct xlink_encoder xlink_encoder;
@@ -1897,10 +1896,11 @@ void xlink_context_update(xlink_context *ctx, unsigned char byte) {
 
 void xlink_bitstream_init(xlink_bitstream *bs) {
   memset(bs, 0, sizeof(xlink_bitstream));
+  xlink_list_init(&bs->bytes, sizeof(unsigned char), 0);
 }
 
 void xlink_bitstream_clear(xlink_bitstream *bs) {
-  free(bs->buf);
+  xlink_list_clear(&bs->bytes);
 }
 
 void xlink_encoder_init(xlink_encoder *enc) {
@@ -1932,7 +1932,6 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
   int i, j;
   xlink_prob *probs;
-  int size;
   probs = xlink_malloc(8*enc->pos*sizeof(xlink_prob));
   for (j = 0; j < enc->pos; j++) {
     unsigned char partial;
@@ -1945,9 +1944,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
       partial |= bit;
     }
   }
-  size = BUF_SIZE;
   xlink_bitstream_init(bs);
-  bs->buf = xlink_malloc(size*sizeof(unsigned char));
   bs->state = ANS_BASE;
   for (i = enc->pos*8; i-- > 0; ) {
     int bit;
@@ -1957,13 +1954,10 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", bs->state, i));
     if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
-      bs->size++;
-      if (bs->size > size) {
-        size <<= 1;
-        bs->buf = xlink_realloc(bs->buf, size*sizeof(unsigned char));
-      }
-      bs->buf[bs->size - 1] = bs->state & (IO_BASE - 1);
+      unsigned char byte;
+      byte = bs->state & (IO_BASE - 1);
       bs->state >>= IO_BITS;
+      xlink_list_add(&bs->bytes, &byte);
     }
     XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
      ("Need to serialize more state %i at symbol %i", bs->state, i));
@@ -1976,18 +1970,13 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
   }
   free(probs);
   /* Reverse byte order of the bitstream. */
-  for (i = 0, j = bs->size - 1; i < j; i++, j--) {
-    unsigned char c;
-    c = bs->buf[i];
-    bs->buf[i] = bs->buf[j];
-    bs->buf[j] = c;
-  }
+  xlink_list_reverse(&bs->bytes);
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
   memset(dec, 0, sizeof(xlink_decoder));
-  dec->buf = bs->buf;
-  dec->size = bs->size;
+  dec->buf = xlink_list_get(&bs->bytes, 0);
+  dec->size = xlink_list_length(&bs->bytes);
   dec->state = bs->state;
 }
 
@@ -2109,7 +2098,8 @@ int main(int argc, char *argv[]) {
     /* Finalize the bitstream */
     xlink_context_init(&ctx);
     xlink_encoder_finalize(&enc, &ctx, &bs);
-    printf("Compressed %i bytes to %i bytes\n", enc.pos, bs.size);
+    printf("Compressed %i bytes to %i bytes\n", enc.pos,
+     xlink_list_length(&bs.bytes));
     /* Initialize decoder with bitstream */
     xlink_context_reset(&ctx);
     xlink_decoder_init(&dec, &bs);
