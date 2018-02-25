@@ -442,10 +442,13 @@ struct xlink_bitstream {
   xlink_list bytes;
 };
 
+typedef unsigned char xlink_counts[256][2];
+
 typedef struct xlink_encoder xlink_encoder;
 
 struct xlink_encoder {
   xlink_list input;
+  xlink_list counts;
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -1920,10 +1923,12 @@ void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
 void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
   xlink_list_init(&enc->input, sizeof(unsigned char), 0);
+  xlink_list_init(&enc->counts, sizeof(xlink_counts), 0);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
   xlink_list_clear(&enc->input);
+  xlink_list_clear(&enc->counts);
 }
 
 unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
