@@ -2123,8 +2123,8 @@ void xlink_context_clear(xlink_context *ctx) {
 }
 
 void xlink_context_reset(xlink_context *ctx) {
-  xlink_context_clear(ctx);
-  xlink_context_init(ctx);
+  memset(ctx->buf, 0, sizeof(ctx->buf));
+  srand(0);
 }
 
 xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
