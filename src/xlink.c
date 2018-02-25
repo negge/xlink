@@ -233,6 +233,15 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
   }
 }
 
+typedef struct xlink_list xlink_list;
+
+struct xlink_list {
+  char *data;
+  size_t size;
+  int length;
+  int capacity;
+};
+
 typedef struct xlink_file xlink_file;
 
 struct xlink_file {
@@ -477,6 +486,77 @@ void *xlink_realloc(void *ptr, size_t size) {
   ptr = realloc(ptr, size);
   XLINK_ERROR(ptr == NULL, ("Insufficient memory for realloc"));
   return ptr;
+}
+
+#define XLINK_MIN(a, b) ((a) <= (b) ? (a) : (b))
+#define XLINK_MAX(a, b) ((a) >= (b) ? (a) : (b))
+
+void xlink_list_init(xlink_list *list, size_t size, int capacity) {
+  memset(list, 0, sizeof(xlink_list));
+  list->size = size;
+  list->capacity = capacity;
+  list->data = xlink_malloc(list->size*list->capacity);
+}
+
+void xlink_list_clear(xlink_list *list) {
+  free(list->data);
+}
+
+int xlink_list_length(xlink_list *list) {
+  return list->length;
+}
+
+void xlink_list_empty(xlink_list *list) {
+  list->length = 0;
+}
+
+void xlink_list_expand_capacity(xlink_list *list, int capacity) {
+  if (list->capacity < capacity) {
+    list->capacity = XLINK_MAX(capacity,
+     XLINK_MAX(4, XLINK_MIN(list->capacity << 1, list->capacity + 1024)));
+    list->data = xlink_realloc(list->data, list->capacity*list->size);
+  }
+}
+
+void *xlink_list_get(xlink_list *list, int index) {
+  XLINK_ERROR(index < 0 || index >= list->length,
+   ("Cannot get element at position %i, length = %i", index, list->length));
+  return &list->data[index*list->size];
+}
+
+void xlink_list_set(xlink_list *list, int index, const void *element) {
+  XLINK_ERROR(index < 0 || index >= list->length,
+   ("Cannot set element at position %i, length = %i", index, list->length));
+  memcpy(xlink_list_get(list, index), element, list->size);
+}
+
+int xlink_list_add(xlink_list *list, const void *element) {
+  xlink_list_expand_capacity(list, list->length + 1);
+  list->length++;
+  xlink_list_set(list, list->length - 1, element);
+  return list->length;
+}
+
+void xlink_list_insert(xlink_list *list, int index, const void *element) {
+  XLINK_ERROR(index < 0 || index > list->length,
+   ("Cannot insert element at position %i, length = %i", index, list->length));
+  xlink_list_expand_capacity(list, list->length + 1);
+  list->length++;
+  if (list->length - 1 > index) {
+    memmove(xlink_list_get(list, index + 1), xlink_list_get(list, index),
+     list->size*(list->length - 1 - index));
+  }
+  xlink_list_set(list, index, element);
+}
+
+void xlink_list_remove(xlink_list *list, int index) {
+  XLINK_ERROR(index < 0 || index >= list->length,
+   ("Cannot remove element at position %i, length = %i", index, list->length));
+  list->length--;
+  if (list->length > index) {
+    memmove(xlink_list_get(list, index), xlink_list_get(list, index + 1),
+     list->size*(list->length - index));
+  }
 }
 
 void xlink_omf_init(xlink_omf *omf) {
