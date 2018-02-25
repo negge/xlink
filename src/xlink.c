@@ -451,6 +451,16 @@ struct xlink_model {
   int weight;
 };
 
+typedef struct xlink_match xlink_match;
+
+struct xlink_match {
+  int bits;
+  unsigned char partial;
+  unsigned char mask;
+  unsigned char buf[8];
+  unsigned char counts[2];
+};
+
 typedef struct xlink_context xlink_context;
 
 struct xlink_context {
@@ -2039,6 +2049,67 @@ void xlink_binary_link(xlink_binary *bin) {
 
 #define FLOOR_DIV(x, y) ((x)/(y))
 #define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
+
+int match_comp(const void *a, const void *b) {
+  const xlink_match *mat_a;
+  const xlink_match *mat_b;
+  mat_a = (xlink_match *)a;
+  mat_b = (xlink_match *)b;
+  int i;
+  if (mat_a->mask == mat_b->mask) {
+    if (mat_a->bits == mat_b->bits) {
+      if (mat_a->partial == mat_b->partial) {
+        for (i = 0; i < 8; i++) {
+          if (mat_a->mask & (1 << (7 - i))) {
+            if (mat_a->buf[i] == mat_b->buf[i]) {
+              continue;
+            }
+            return mat_a->buf[i] - mat_b->buf[i];
+          }
+        }
+        return 0;
+      }
+      return mat_a->partial - mat_b->partial;
+    }
+    return mat_a->bits - mat_b->bits;
+  }
+  return mat_a->mask - mat_b->mask;
+}
+
+unsigned int match_hash_code(const void *m) {
+  const xlink_match *mat;
+  unsigned int hash;
+  int i;
+  mat = (xlink_match *)m;
+  hash = 0x0;
+  /* Combine the mask */
+  hash += mat->mask;
+  hash *= 0x6f;
+  hash ^= mat->mask;
+  /* Combine the bits */
+  hash += mat->bits;
+  hash *= 0x6f;
+  hash ^= mat->bits;
+  /* Combine the partial */
+  hash += mat->partial;
+  hash *= 0x6f;
+  hash ^= mat->partial;
+  /* Combine the history */
+  for (i = 0; i < 8; i++) {
+    if (mat->mask & (1 << (7 - i))) {
+      hash += mat->buf[i];
+      hash *= 0x6f;
+      hash ^= mat->buf[i];
+    }
+  }
+  /* Extra hashing for good measure */
+  hash ^= (hash >> 20) ^ (hash >> 12);
+  return hash ^ (hash >> 7) ^ (hash >> 4);
+}
+
+int match_equals(const void *a, const void *b) {
+  return match_comp(a, b) == 0;
+}
 
 void xlink_context_init(xlink_context *ctx) {
   memset(ctx, 0, sizeof(xlink_context));
