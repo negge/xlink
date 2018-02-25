@@ -1930,7 +1930,7 @@ unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
   return *(unsigned char *)xlink_list_get(&enc->input, i);
 }
 
-void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
+void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
   xlink_list_add(&enc->input, &byte);
 }
 
@@ -2120,7 +2120,7 @@ int main(int argc, char *argv[]) {
     /* Read and compress bytes */
     xlink_encoder_init(&enc);
     while (!FEOF(stdin)) {
-      xlink_encoder_write_byte(&enc, getc(stdin));
+      xlink_encoder_add_byte(&enc, getc(stdin));
     }
     /* Finalize the bitstream */
     xlink_context_init(&ctx);
