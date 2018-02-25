@@ -558,6 +558,21 @@ void xlink_list_remove(xlink_list *list, int index) {
   }
 }
 
+void xlink_list_reverse(xlink_list *list) {
+  int i, j;
+  void *c;
+  c = xlink_malloc(list->size);
+  for (i = 0, j = list->length - 1; i < j; i++, j--) {
+    void *a, *b;
+    a = xlink_list_get(list, i);
+    b = xlink_list_get(list, j);
+    memcpy(c, a, list->size);
+    memcpy(a, b, list->size);
+    memcpy(b, c, list->size);
+  }
+  free(c);
+}
+
 void xlink_omf_init(xlink_omf *omf) {
   memset(omf, 0, sizeof(xlink_omf));
 }
