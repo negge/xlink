@@ -437,9 +437,7 @@ struct xlink_bitstream {
 typedef struct xlink_encoder xlink_encoder;
 
 struct xlink_encoder {
-  unsigned char *buf;
-  int size;
-  int pos;
+  xlink_list input;
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -1907,53 +1905,49 @@ void xlink_bitstream_clear(xlink_bitstream *bs) {
 
 void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
-  enc->size = BUF_SIZE;
-  enc->buf = xlink_malloc(enc->size*sizeof(unsigned char));
+  xlink_list_init(&enc->input, sizeof(unsigned char), 0);
 }
 
 void xlink_encoder_clear(xlink_encoder *enc) {
-  int i;
-  free(enc->buf);
+  xlink_list_clear(&enc->input);
 }
 
 unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
-  XLINK_ERROR(i >= enc->pos, ("Could not get byte %i, pos = %i", i, enc->pos));
-  return enc->buf[i];
+  return *(unsigned char *)xlink_list_get(&enc->input, i);
 }
 
 void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
-  enc->pos++;
-  if (enc->pos > enc->size) {
-    enc->size <<= 1;
-    enc->buf = xlink_realloc(enc->buf, enc->size*sizeof(unsigned char));
-  }
-  enc->buf[enc->pos - 1] = byte;
+  xlink_list_add(&enc->input, &byte);
 }
 
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
   int i, j;
   xlink_prob *probs;
-  probs = xlink_malloc(8*enc->pos*sizeof(xlink_prob));
-  for (j = 0; j < enc->pos; j++) {
+  probs = xlink_malloc(8*xlink_list_length(&enc->input)*sizeof(xlink_prob));
+  for (j = 0; j < xlink_list_length(&enc->input); j++) {
+    unsigned char byte;
     unsigned char partial;
+    byte = xlink_encoder_get_byte(enc, j);
     partial = 0;
     for (i = 0; i < 8; i++) {
       int bit;
-      bit = !!(enc->buf[j] & (1 << (7 - i)));
+      bit = !!(byte & (1 << (7 - i)));
       probs[j*8 + i] = xlink_context_get_prob(ctx, partial);
       partial <<= 1;
       partial |= bit;
     }
-    XLINK_ERROR(partial != enc->buf[j],
-     ("Mismatch between partial %02x and byte %02x", partial, enc->buf[j]));
+    XLINK_ERROR(partial != byte,
+     ("Mismatch between partial %02x and byte %02x", partial, byte));
   }
   xlink_bitstream_init(bs);
   bs->state = ANS_BASE;
-  for (i = enc->pos*8; i-- > 0; ) {
+  for (i = xlink_list_length(&enc->input)*8; i-- > 0; ) {
+    unsigned char byte;
     int bit;
     xlink_prob prob;
-    bit = !!(enc->buf[i/8] & (1 << (7 - (i%8))));
+    byte = xlink_encoder_get_byte(enc, i/8);
+    bit = !!(byte & (1 << (7 - (i%8))));
     prob = bit ? PROB_MAX - probs[i] : probs[i];
     XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", bs->state, i));
@@ -2102,13 +2096,13 @@ int main(int argc, char *argv[]) {
     /* Finalize the bitstream */
     xlink_context_init(&ctx);
     xlink_encoder_finalize(&enc, &ctx, &bs);
-    printf("Compressed %i bytes to %i bytes\n", enc.pos,
-     xlink_list_length(&bs.bytes));
+    printf("Compressed %i bytes to %i bytes\n",
+     xlink_list_length(&enc.input), xlink_list_length(&bs.bytes));
     /* Initialize decoder with bitstream */
     xlink_context_reset(&ctx);
     xlink_decoder_init(&dec, &bs);
     /* Test that decoded bytes match original input */
-    for (i = 0; i < enc.pos; i++) {
+    for (i = 0; i < xlink_list_length(&enc.input); i++) {
       unsigned char orig;
       unsigned char byte;
       orig = xlink_encoder_get_byte(&enc, i);
