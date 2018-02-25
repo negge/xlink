@@ -1903,6 +1903,10 @@ void xlink_bitstream_clear(xlink_bitstream *bs) {
   xlink_list_clear(&bs->bytes);
 }
 
+void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
+  xlink_list_add(&bs->bytes, &byte);
+}
+
 void xlink_encoder_init(xlink_encoder *enc) {
   memset(enc, 0, sizeof(xlink_encoder));
   xlink_list_init(&enc->input, sizeof(unsigned char), 0);
@@ -1920,6 +1924,16 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
   xlink_list_add(&enc->input, &byte);
 }
 
+#define xlink_add_prob(probs, prob) \
+  do { \
+    xlink_prob p_; \
+    p_ = prob; \
+    xlink_list_add(probs, &p_); \
+  } \
+  while (0)
+
+#define xlink_get_prob(probs, idx) (*(xlink_prob *)xlink_list_get(probs, idx))
+
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
   xlink_list probs;
@@ -1933,9 +1947,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     partial = 0;
     /* Build partially seen byte from high bit to low bit to match decoder. */
     for (i = 8; i-- > 0; ) {
-      xlink_prob prob;
-      prob = xlink_context_get_prob(ctx, partial);
-      xlink_list_add(&probs, &prob);
+      xlink_add_prob(&probs, xlink_context_get_prob(ctx, partial));
       partial <<= 1;
       partial |= !!(byte & (1 << i));
     }
@@ -1953,17 +1965,15 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
       int bit;
       xlink_prob prob;
       bit = !!(byte & (1 << i));
-      prob = *(xlink_prob *)xlink_list_get(&probs, j*8 + (7 - i));
+      prob = xlink_get_prob(&probs, j*8 + (7 - i));
       if (bit) {
         prob = PROB_MAX - prob;
       }
       XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
        ("Encoder state %x invalid at symbol %i", bs->state, i));
       if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
-        unsigned char byte;
-        byte = bs->state & (IO_BASE - 1);
+        xlink_bitstream_write_byte(bs, bs->state & (IO_BASE - 1));
         bs->state >>= IO_BITS;
-        xlink_list_add(&bs->bytes, &byte);
       }
       XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
        ("Need to serialize more state %i at symbol %i", bs->state, i));
