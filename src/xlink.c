@@ -1922,16 +1922,18 @@ void xlink_encoder_write_byte(xlink_encoder *enc, unsigned char byte) {
 
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
  xlink_bitstream *bs) {
+  xlink_list probs;
   int i, j;
-  xlink_prob *probs;
-  probs = xlink_malloc(8*xlink_list_length(&enc->input)*sizeof(xlink_prob));
+  xlink_list_init(&probs, sizeof(xlink_prob), 8*xlink_list_length(&enc->input));
   for (j = 0; j < xlink_list_length(&enc->input); j++) {
     unsigned char byte;
     unsigned char partial;
     byte = xlink_encoder_get_byte(enc, j);
     partial = 0;
     for (i = 0; i < 8; i++) {
-      probs[j*8 + i] = xlink_context_get_prob(ctx, partial);
+      xlink_prob prob;
+      prob = xlink_context_get_prob(ctx, partial);
+      xlink_list_add(&probs, &prob);
       partial <<= 1;
       partial |= !!(byte & (1 << (7 - i)));
     }
@@ -1946,7 +1948,10 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     xlink_prob prob;
     byte = xlink_encoder_get_byte(enc, i/8);
     bit = !!(byte & (1 << (7 - (i%8))));
-    prob = bit ? PROB_MAX - probs[i] : probs[i];
+    prob = *(xlink_prob *)xlink_list_get(&probs, i);
+    if (bit) {
+      prob = PROB_MAX - prob;
+    }
     XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
      ("Encoder state %x invalid at symbol %i", bs->state, i));
     if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
@@ -1964,7 +1969,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
       bs->state = FLOOR_DIV(bs->state << PROB_BITS, prob);
     }
   }
-  free(probs);
+  xlink_list_clear(&probs);
   /* Reverse byte order of the bitstream. */
   xlink_list_reverse(&bs->bytes);
 }
