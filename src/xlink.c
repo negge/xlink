@@ -1931,11 +1931,9 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     byte = xlink_encoder_get_byte(enc, j);
     partial = 0;
     for (i = 0; i < 8; i++) {
-      int bit;
-      bit = !!(byte & (1 << (7 - i)));
       probs[j*8 + i] = xlink_context_get_prob(ctx, partial);
       partial <<= 1;
-      partial |= bit;
+      partial |= !!(byte & (1 << (7 - i)));
     }
     XLINK_ERROR(partial != byte,
      ("Mismatch between partial %02x and byte %02x", partial, byte));
