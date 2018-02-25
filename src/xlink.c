@@ -482,6 +482,7 @@ typedef struct xlink_encoder xlink_encoder;
 struct xlink_encoder {
   xlink_list input;
   xlink_list counts;
+  unsigned char buf[8];
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -2167,6 +2168,11 @@ unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
 }
 
 void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
+  int i;
+  for (i = 8; i-- > 1; ) {
+    enc->buf[i] = enc->buf[i - 1];
+  }
+  enc->buf[0] = byte;
   xlink_list_add(&enc->input, &byte);
 }
 
