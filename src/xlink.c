@@ -1945,6 +1945,8 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
       partial <<= 1;
       partial |= bit;
     }
+    XLINK_ERROR(partial != enc->buf[j],
+     ("Mismatch between partial %02x and byte %02x", partial, enc->buf[j]));
   }
   xlink_bitstream_init(bs);
   bs->state = ANS_BASE;
