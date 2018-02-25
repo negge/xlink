@@ -421,10 +421,18 @@ struct xlink_binary {
 
 typedef unsigned int xlink_prob;
 
+typedef struct xlink_model xlink_model;
+
+struct xlink_model {
+  unsigned char mask;
+  int weight;
+};
+
 typedef struct xlink_context xlink_context;
 
 struct xlink_context {
   unsigned char buf[8];
+  xlink_list models;
 };
 
 typedef struct xlink_bitstream xlink_bitstream;
@@ -1872,9 +1880,11 @@ void xlink_binary_link(xlink_binary *bin) {
 void xlink_context_init(xlink_context *ctx) {
   memset(ctx, 0, sizeof(xlink_context));
   srand(0);
+  xlink_list_init(&ctx->models, sizeof(xlink_model), 0);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
+  xlink_list_clear(&ctx->models);
 }
 
 void xlink_context_reset(xlink_context *ctx) {
