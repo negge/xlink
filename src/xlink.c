@@ -433,7 +433,6 @@ typedef struct xlink_bitstream xlink_bitstream;
 struct xlink_bitstream {
   unsigned char *buf;
   int size;
-  int length;
   int state;
 };
 
@@ -1968,7 +1967,6 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_context *ctx,
     bs->buf[i] = bs->buf[j];
     bs->buf[j] = c;
   }
-  bs->length = enc->pos;
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_bitstream *bs) {
@@ -2096,12 +2094,12 @@ int main(int argc, char *argv[]) {
     /* Finalize the bitstream */
     xlink_context_init(&ctx);
     xlink_encoder_finalize(&enc, &ctx, &bs);
-    printf("Compressed %i bytes to %i bytes\n", bs.length, bs.size);
+    printf("Compressed %i bytes to %i bytes\n", enc.pos, bs.size);
     /* Initialize decoder with bitstream */
     xlink_context_reset(&ctx);
     xlink_decoder_init(&dec, &bs);
     /* Test that decoded bytes match original input */
-    for (i = 0; i < bs.length; i++) {
+    for (i = 0; i < enc.pos; i++) {
       unsigned char orig;
       unsigned char byte;
       orig = xlink_encoder_get_byte(&enc, i);
