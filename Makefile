@@ -12,6 +12,8 @@ CFLAGS := -O2 -Wno-parenthesis -Wno-overlength-strings
 
 ASFLAGS := -f obj -i src/
 
+LIBS := -lm
+
 all: $(BINS) $(OBJS) $(STBS)
 
 guard=@mkdir -p $(@D)

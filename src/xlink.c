@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <getopt.h>
+#include <math.h>
 
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
@@ -2210,6 +2211,45 @@ void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
   }
   enc->buf[0] = byte;
   xlink_list_add(&enc->input, &byte);
+}
+
+double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
+  double entropy = 0;
+  int i, j, k;
+  XLINK_ERROR(
+   xlink_list_length(&enc->counts) != 8*xlink_list_length(&enc->input),
+   ("Counts model does not match input bytes, counts = %i and bytes = %i",
+   xlink_list_length(&enc->counts), xlink_list_length(&enc->input)));
+  for (j = 0; j < xlink_list_length(&enc->input); j++) {
+    unsigned char byte;
+    byte = xlink_encoder_get_byte(enc, j);
+    for (i = 8; i-- > 0; ) {
+      int bit;
+      xlink_counts *counts;
+      int c0, c1;
+      bit = !!(byte & (1 << i));
+      counts = xlink_list_get(&enc->counts, j*8 + (7 - i));
+      c0 = c1 = 1;
+      for (k = 0; k < xlink_list_length(models); k++) {
+        xlink_model *model;
+        int weight;
+        model = xlink_list_get(models, k);
+        weight = model->weight;
+        if ((*counts)[model->mask][0] == 0) {
+          weight += 2;
+        }
+        c0 += (*counts)[model->mask][0] << weight;
+        c1 += (*counts)[model->mask][1] << weight;
+      }
+      if (bit) {
+        entropy -= M_LOG2E*log(((double)c1)/(c0 + c1));
+      }
+      else {
+        entropy -= M_LOG2E*log(((double)c0)/(c0 + c1));
+      }
+    }
+  }
+  return entropy;
 }
 
 #define xlink_add_prob(probs, prob) \
