@@ -2229,15 +2229,12 @@ double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
       int c0, c1;
       bit = !!(byte & (1 << i));
       counts = xlink_list_get(&enc->counts, j*8 + (7 - i));
-      c0 = c1 = 1;
+      c0 = c1 = 2;
       for (k = 0; k < xlink_list_length(models); k++) {
         xlink_model *model;
         int weight;
         model = xlink_list_get(models, k);
         weight = model->weight;
-        if ((*counts)[model->mask][0] == 0) {
-          weight += 2;
-        }
         c0 += (*counts)[model->mask][0] << weight;
         c1 += (*counts)[model->mask][1] << weight;
       }
