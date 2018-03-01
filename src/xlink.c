@@ -2079,6 +2079,16 @@ void xlink_binary_link(xlink_binary *bin) {
 #define FLOOR_DIV(x, y) ((x)/(y))
 #define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
 
+void xlink_model_init(xlink_model *model, unsigned char mask) {
+  int i;
+  model->mask = mask;
+  /* For now just compute the weight as the number of bits set in mask */
+  model->weight = 0;
+  for (i = 0; i < 8; i++) {
+    model->weight += !!(mask & (1 << i));
+  }
+}
+
 int match_comp(const void *a, const void *b) {
   const xlink_match *mat_a;
   const xlink_match *mat_b;
