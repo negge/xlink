@@ -478,13 +478,19 @@ struct xlink_bitstream {
 
 typedef unsigned char xlink_counts[256][2];
 
+typedef struct xlink_modeler xlink_modeler;
+
+struct xlink_modeler {
+  xlink_list bytes;
+  xlink_list counts;
+  xlink_set matches;
+};
+
 typedef struct xlink_encoder xlink_encoder;
 
 struct xlink_encoder {
   xlink_context *ctx;
   xlink_list bytes;
-  xlink_list counts;
-  xlink_set matches;
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -2184,23 +2190,20 @@ void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
 
 #define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
 
-void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
-  memset(enc, 0, sizeof(xlink_encoder));
-  enc->ctx = ctx;
-  xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
-  xlink_list_init(&enc->counts, sizeof(xlink_counts), 0);
-  /* TODO: Buffer the input before calling init() and use actual size here. */
-  xlink_set_init(&enc->matches, match_hash_code, match_equals,
-   sizeof(xlink_match), 8196*8*256, 0.5);
+void xlink_modeler_init(xlink_modeler *mod, int bytes) {
+  xlink_list_init(&mod->bytes, sizeof(unsigned char), bytes);
+  xlink_list_init(&mod->counts, sizeof(xlink_counts), 8*bytes);
+  xlink_set_init(&mod->matches, match_hash_code, match_equals,
+   sizeof(xlink_match), 8*bytes, 0.75);
 }
 
-void xlink_encoder_clear(xlink_encoder *enc) {
-  xlink_list_clear(&enc->bytes);
-  xlink_list_clear(&enc->counts);
-  xlink_set_clear(&enc->matches);
+void xlink_modeler_clear(xlink_modeler *mod) {
+  xlink_list_clear(&mod->bytes);
+  xlink_list_clear(&mod->counts);
+  xlink_set_clear(&mod->matches);
 }
 
-void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
+void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes) {
   unsigned char buf[8];
   int i, j, k;
   memset(buf, 0, sizeof(buf));
@@ -2220,10 +2223,10 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
       for (j = 0; j < 256; j++) {
         xlink_match *match;
         key.mask = j;
-        match = xlink_set_get(&enc->matches, &key);
+        match = xlink_set_get(&mod->matches, &key);
         if (match == NULL) {
           memset(key.counts, 0, sizeof(key.counts));
-          match = xlink_set_put(&enc->matches, &key);
+          match = xlink_set_put(&mod->matches, &key);
         }
         XLINK_ERROR(match == NULL,
          ("Null pointer for match, should point to allocated xlink_match"));
@@ -2234,7 +2237,7 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
           match->counts[1 - bit] >>= 1;
         }
       }
-      xlink_list_add(&enc->counts, &counts);
+      xlink_list_add(&mod->counts, &counts);
       partial <<= 1;
       partial |= bit;
     }
@@ -2242,26 +2245,26 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
       buf[i] = buf[i - 1];
     }
     buf[0] = byte;
-    xlink_list_add(&enc->bytes, &byte);
+    xlink_list_add(&mod->bytes, &byte);
   }
 }
 
-double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
+double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   double entropy = 0;
   int i, j, k;
   XLINK_ERROR(
-   xlink_list_length(&enc->counts) != 8*xlink_list_length(&enc->bytes),
+   xlink_list_length(&mod->counts) != 8*xlink_list_length(&mod->bytes),
    ("Counts model does not match input bytes, counts = %i and bytes = %i",
-   xlink_list_length(&enc->counts), xlink_list_length(&enc->bytes)));
-  for (j = 0; j < xlink_list_length(&enc->bytes); j++) {
+   xlink_list_length(&mod->counts), xlink_list_length(&mod->bytes)));
+  for (j = 0; j < xlink_list_length(&mod->bytes); j++) {
     unsigned char byte;
-    byte = *xlink_list_get_byte(&enc->bytes, j);
+    byte = *xlink_list_get_byte(&mod->bytes, j);
     for (i = 8; i-- > 0; ) {
       int bit;
       xlink_counts *counts;
       int c0, c1;
       bit = !!(byte & (1 << i));
-      counts = xlink_list_get(&enc->counts, j*8 + (7 - i));
+      counts = xlink_list_get(&mod->counts, j*8 + (7 - i));
       c0 = c1 = 2;
       for (k = 0; k < xlink_list_length(models); k++) {
         xlink_model *model;
@@ -2280,6 +2283,19 @@ double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
     }
   }
   return entropy;
+}
+
+void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
+  enc->ctx = ctx;
+  xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
+}
+
+void xlink_encoder_clear(xlink_encoder *enc) {
+  xlink_list_clear(&enc->bytes);
+}
+
+void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
+  xlink_list_append(&enc->bytes, bytes);
 }
 
 #define xlink_add_prob(probs, prob) \
