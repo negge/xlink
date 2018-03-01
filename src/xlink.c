@@ -2176,6 +2176,16 @@ void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
   xlink_list_add(&bs->bytes, &byte);
 }
 
+#define xlink_list_add_byte(list, byte) \
+  do { \
+    unsigned char b_; \
+    b_ = byte; \
+    xlink_list_add(list, &b_); \
+  } \
+  while (0)
+
+#define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
+
 void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
   memset(enc, 0, sizeof(xlink_encoder));
   enc->ctx = ctx;
@@ -2190,10 +2200,6 @@ void xlink_encoder_clear(xlink_encoder *enc) {
   xlink_list_clear(&enc->input);
   xlink_list_clear(&enc->counts);
   xlink_set_clear(&enc->matches);
-}
-
-unsigned char xlink_encoder_get_byte(xlink_encoder *enc, int i) {
-  return *(unsigned char *)xlink_list_get(&enc->input, i);
 }
 
 void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
@@ -2245,7 +2251,7 @@ double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
    xlink_list_length(&enc->counts), xlink_list_length(&enc->input)));
   for (j = 0; j < xlink_list_length(&enc->input); j++) {
     unsigned char byte;
-    byte = xlink_encoder_get_byte(enc, j);
+    byte = *xlink_list_get_byte(&enc->input, j);
     for (i = 8; i-- > 0; ) {
       int bit;
       xlink_counts *counts;
@@ -2290,7 +2296,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   for (j = 0; j < xlink_list_length(&enc->input); j++) {
     unsigned char byte;
     unsigned char partial;
-    byte = xlink_encoder_get_byte(enc, j);
+    byte = *xlink_list_get_byte(&enc->input, j);
     partial = 0;
     /* Build partially seen byte from high bit to low bit to match decoder. */
     for (i = 8; i-- > 0; ) {
@@ -2306,7 +2312,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   bs->state = ANS_BASE;
   for (j = xlink_list_length(&enc->input); j-- > 0; ) {
     unsigned char byte;
-    byte = xlink_encoder_get_byte(enc, j);
+    byte = *xlink_list_get_byte(&enc->input, j);
     /* Add bits from low to high, the opposite order they are decoded. */
     for (i = 0; i < 8; i++) {
       int bit;
@@ -2474,7 +2480,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < xlink_list_length(&enc.input); i++) {
       unsigned char orig;
       unsigned char byte;
-      orig = xlink_encoder_get_byte(&enc, i);
+      orig = *xlink_list_get_byte(&enc.input, i);
       byte = xlink_decoder_read_byte(&dec);
       XLINK_ERROR(byte != orig,
        ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
