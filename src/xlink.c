@@ -601,19 +601,26 @@ void xlink_list_remove(xlink_list *list, int index) {
   }
 }
 
-void xlink_list_reverse(xlink_list *list) {
-  int i, j;
-  void *c;
-  c = xlink_malloc(list->size);
-  for (i = 0, j = list->length - 1; i < j; i++, j--) {
-    void *a, *b;
+void xlink_list_swap(xlink_list *list, int i, int j) {
+  XLINK_ERROR(i < 0 || i >= list->length || j < 0 || j >= list->length,
+   ("Cannot swap elements at %i and %i, length = %i", i, j, list->length));
+  if (i != j) {
+    void *a, *b, *c;
+    xlink_list_expand_capacity(list, list->length + 1);
     a = xlink_list_get(list, i);
     b = xlink_list_get(list, j);
+    c = &list->data[list->length*list->size];
     memcpy(c, a, list->size);
     memcpy(a, b, list->size);
     memcpy(b, c, list->size);
   }
-  free(c);
+}
+
+void xlink_list_reverse(xlink_list *list) {
+  int i, j;
+  for (i = 0, j = list->length - 1; i < j; i++, j--) {
+    xlink_list_swap(list, i, j);
+  }
 }
 
 void xlink_set_init(xlink_set *set, xlink_hash_code_func hash_code,
