@@ -328,9 +328,9 @@ struct xlink_segment {
 
 #define CEIL2(len, bits) (((len) + ((1 << (bits)) - 1)) >> (bits))
 
-#define CLEARBIT(mask, idx)  (mask)[(idx)/8] &= ~(1 << ((idx)%8))
-#define SETBIT(mask, idx)    (mask)[(idx)/8] |=  (1 << ((idx)%8))
-#define GETBIT(mask, idx)   ((mask)[(idx)/8] &   (1 << ((idx)%8)))
+#define XLINK_SET_BIT(buf, i, b) ((buf)[(i) >> 3] = \
+ (((buf)[(i) >> 3] & ~(1 << ((i) & 7))) | (!!(b) << ((i) & 7))))
+#define XLINK_GET_BIT(buf, i)    ((buf)[(i) >> 3] >> ((i) & 7) & 1)
 
 #define ALIGN2(len, bits) (((len) + ((1 << (bits)) - 1)) & ~((1 << (bits)) - 1))
 
@@ -1699,11 +1699,11 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
           XLINK_ERROR(i >= seg->length,
            ("LEDATA wrote past end of segment, offset = %i but length = %i",
            i, seg->length));
-          XLINK_ERROR(GETBIT(seg->mask, i),
+          XLINK_ERROR(XLINK_GET_BIT(seg->mask, i),
            ("LEDATA overwrote existing data in segment %s, offset = %i",
            xlink_segment_get_name(seg), i));
           seg->data[i] = xlink_omf_record_read_byte(&rec);
-          SETBIT(seg->mask, i);
+          XLINK_SET_BIT(seg->mask, i, 1);
         }
         break;
       }
@@ -1729,7 +1729,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
              seg->length < rel->offset + OMF_FIXUP_SIZE[rel->location],
              ("FIXUP offset %i past segment end %i", rel->offset, seg->length));
             for (i = 0; i < OMF_FIXUP_SIZE[rel->location]; i++) {
-              XLINK_ERROR(GETBIT(seg->mask, rel->offset + i) == 0,
+              XLINK_ERROR(XLINK_GET_BIT(seg->mask, rel->offset + i) == 0,
                ("FIXUP modifies uninitialized data, location %i",
                rel->offset + i));
             }
@@ -1840,7 +1840,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
     /* Check that all segments are either fully populated or uninitialized */
     if (seg->info & SEG_HAS_DATA) {
       for (j = 0; j < seg->length; j++) {
-        XLINK_ERROR(GETBIT(seg->mask, j) == 0,
+        XLINK_ERROR(XLINK_GET_BIT(seg->mask, j) == 0,
          ("Missing data for segment %s, offset = %i",
          xlink_segment_get_name(seg), j));
       }
