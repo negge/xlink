@@ -34,7 +34,7 @@ $(SRC_DIR)/stubs.h: $(STBS)
 		echo 'const xlink_file $(NAME)_MODULE = {' >> $@; \
 		echo '  "$s.o",' >> $@; \
 		echo '  $(SIZE), 0,' >> $@; \
-		echo '  (char[]){' >> $@; \
+		echo '  (unsigned char[]){' >> $@; \
 		xxd -i - < $(BIN_DIR)/$s.o >> $@; \
 		echo '  }' >> $@; \
 		echo '};' >> $@; \
