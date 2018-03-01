@@ -2041,8 +2041,6 @@ void xlink_binary_link(xlink_binary *bin) {
   fclose(out);
 }
 
-#define BUF_SIZE (1024)
-
 #define PROB_BITS (8)
 #define PROB_MAX (1 << PROB_BITS)
 #define ANS_BITS (15)
