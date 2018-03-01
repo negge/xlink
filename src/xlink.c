@@ -2201,44 +2201,48 @@ void xlink_encoder_clear(xlink_encoder *enc) {
   xlink_set_clear(&enc->matches);
 }
 
-void xlink_encoder_add_byte(xlink_encoder *enc, unsigned char byte) {
-  unsigned char partial;
-  xlink_match key;
-  int i, j;
-  partial = 0;
-  memcpy(key.buf, enc->buf, sizeof(enc->buf));
-  for (i = 8; i-- > 0; ) {
-    int bit;
-    xlink_counts counts;
-    key.partial = partial;
-    key.bits = 7 - i;
-    bit = !!(byte & (1 << i));
-    for (j = 0; j < 256; j++) {
-      xlink_match *match;
-      key.mask = j;
-      match = xlink_set_get(&enc->matches, &key);
-      if (match == NULL) {
-        memset(key.counts, 0, sizeof(key.counts));
-        match = xlink_set_put(&enc->matches, &key);
+void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
+  int i, j, k;
+  for (k = 0; k < xlink_list_length(bytes); k++) {
+    unsigned char byte;
+    unsigned char partial;
+    xlink_match key;
+    byte = *xlink_list_get_byte(bytes, k);
+    partial = 0;
+    memcpy(key.buf, enc->buf, sizeof(enc->buf));
+    for (i = 8; i-- > 0; ) {
+      int bit;
+      xlink_counts counts;
+      key.partial = partial;
+      key.bits = 7 - i;
+      bit = !!(byte & (1 << i));
+      for (j = 0; j < 256; j++) {
+        xlink_match *match;
+        key.mask = j;
+        match = xlink_set_get(&enc->matches, &key);
+        if (match == NULL) {
+          memset(key.counts, 0, sizeof(key.counts));
+          match = xlink_set_put(&enc->matches, &key);
+        }
+        XLINK_ERROR(match == NULL,
+         ("Null pointer for match, should point to allocated xlink_match"));
+        counts[j][0] = match->counts[0];
+        counts[j][1] = match->counts[1];
+        match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
+        if (match->counts[1 - bit] > 1) {
+          match->counts[1 - bit] >>= 1;
+        }
       }
-      XLINK_ERROR(match == NULL,
-       ("Null pointer for match, should point to allocated xlink_match"));
-      counts[j][0] = match->counts[0];
-      counts[j][1] = match->counts[1];
-      match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
-      if (match->counts[1 - bit] > 1) {
-        match->counts[1 - bit] >>= 1;
-      }
+      xlink_list_add(&enc->counts, &counts);
+      partial <<= 1;
+      partial |= bit;
     }
-    xlink_list_add(&enc->counts, &counts);
-    partial <<= 1;
-    partial |= bit;
+    for (i = 8; i-- > 1; ) {
+      enc->buf[i] = enc->buf[i - 1];
+    }
+    enc->buf[0] = byte;
+    xlink_list_add(&enc->bytes, &byte);
   }
-  for (i = 8; i-- > 1; ) {
-    enc->buf[i] = enc->buf[i - 1];
-  }
-  enc->buf[0] = byte;
-  xlink_list_add(&enc->bytes, &byte);
 }
 
 double xlink_encoder_entropy(xlink_encoder *enc, xlink_list *models) {
@@ -2456,34 +2460,39 @@ int main(int argc, char *argv[]) {
     }
   }
   if (flags & MOD_CHECK) {
+    xlink_list bytes;
     xlink_context ctx;
     xlink_encoder enc;
     xlink_bitstream bs;
     xlink_decoder dec;
     int i;
-    xlink_context_init(&ctx);
-    /* Read and compress bytes */
-    xlink_encoder_init(&enc, &ctx);
+    /* Read bytes from stdin */
+    xlink_list_init(&bytes, sizeof(unsigned char), 0);
     while (!FEOF(stdin)) {
-      xlink_encoder_add_byte(&enc, getc(stdin));
+      xlink_list_add_byte(&bytes, getc(stdin));
     }
+    xlink_context_init(&ctx);
+    /* Encode bytes with the context */
+    xlink_encoder_init(&enc, &ctx);
+    xlink_encoder_write_bytes(&enc, &bytes);
     /* Finalize the bitstream */
     xlink_encoder_finalize(&enc, &bs);
     printf("Compressed %i bytes to %i bytes\n",
-     xlink_list_length(&enc.bytes), xlink_list_length(&bs.bytes));
+     xlink_list_length(&bytes), xlink_list_length(&bs.bytes));
     /* Reset the context */
     xlink_context_reset(&ctx);
     /* Initialize the decoder with the context and bitstream */
     xlink_decoder_init(&dec, &ctx, &bs);
     /* Test that decoded bytes match original input */
-    for (i = 0; i < xlink_list_length(&enc.bytes); i++) {
+    for (i = 0; i < xlink_list_length(&bytes); i++) {
       unsigned char orig;
       unsigned char byte;
-      orig = *xlink_list_get_byte(&enc.bytes, i);
+      orig = *xlink_list_get_byte(&bytes, i);
       byte = xlink_decoder_read_byte(&dec);
       XLINK_ERROR(byte != orig,
        ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
     }
+    xlink_list_clear(&bytes);
     xlink_encoder_clear(&enc);
     xlink_decoder_clear(&dec);
     xlink_context_clear(&ctx);
