@@ -643,7 +643,9 @@ void xlink_set_resize(xlink_set *set, int capacity) {
   int i;
   table = xlink_malloc(capacity*sizeof(int));
   memset(table, 0, capacity*sizeof(int));
-  for (i = 0; i < set->capacity; i++) {
+  i = set->capacity;
+  set->capacity = capacity;
+  while (i-- > 0) {
     int entry_index;
     entry_index = set->table[i];
     while (entry_index != 0) {
@@ -660,7 +662,6 @@ void xlink_set_resize(xlink_set *set, int capacity) {
   }
   free(set->table);
   set->table = table;
-  set->capacity = capacity;
 }
 
 void *xlink_set_add(xlink_set *set, const void *value) {
