@@ -544,7 +544,7 @@ void xlink_list_clear(xlink_list *list) {
   free(list->data);
 }
 
-int xlink_list_length(xlink_list *list) {
+int xlink_list_length(const xlink_list *list) {
   return list->length;
 }
 
@@ -560,7 +560,7 @@ void xlink_list_expand_capacity(xlink_list *list, int capacity) {
   }
 }
 
-void *xlink_list_get(xlink_list *list, int index) {
+void *xlink_list_get(const xlink_list *list, int index) {
   XLINK_ERROR(index < 0 || index >= list->length,
    ("Cannot get element at position %i, length = %i", index, list->length));
   return &list->data[index*list->size];
