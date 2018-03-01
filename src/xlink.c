@@ -2295,6 +2295,62 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   return entropy;
 }
 
+#define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
+
+void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
+  int contains[256];
+  double best;
+  int add_index;
+  int del_index;
+  xlink_list_empty(models);
+  memset(contains, 0, sizeof(contains));
+  best = xlink_list_length(&mod->counts);
+  do {
+    int i;
+    xlink_model model;
+    add_index = del_index = -1;
+    /* Try to add a model to the working set */
+    for (i = 0; i < 256; i++) {
+      if (!contains[i]) {
+        double entropy;
+        xlink_model_init(&model, i);
+        xlink_list_add(models, &model);
+        entropy = xlink_modeler_get_entropy(mod, models);
+        entropy += 8*xlink_list_length(models);
+        xlink_list_remove(models, xlink_list_length(models) - 1);
+        if (entropy < best) {
+          best = entropy;
+          add_index = i;
+        }
+      }
+    }
+    if (add_index != -1) {
+      xlink_model_init(&model, add_index);
+      xlink_list_add(models, &model);
+      contains[add_index] = 1;
+    }
+    /* Try to remove a model from the working set */
+    for (i = 0; i < models->length; i++) {
+      double entropy;
+      xlink_list_swap(models, i, models->length - 1);
+      models->length--;
+      entropy = xlink_modeler_get_entropy(mod, models);
+      entropy += 8*xlink_list_length(models);
+      models->length++;
+      xlink_list_swap(models, models->length - 1, i);
+      if (entropy < best) {
+        best = entropy;
+        del_index = i;
+      }
+    }
+    if (del_index != -1) {
+      contains[xlink_list_get_model(models, del_index)->mask] = 0;
+      xlink_list_remove(models, del_index);
+    }
+  }
+  while (add_index != -1 || del_index != -1);
+}
+
 void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
   enc->ctx = ctx;
   xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
