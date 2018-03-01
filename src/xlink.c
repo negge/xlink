@@ -492,8 +492,7 @@ typedef struct xlink_decoder xlink_decoder;
 
 struct xlink_decoder {
   xlink_context *ctx;
-  const unsigned char *buf;
-  int size;
+  const xlink_list *bytes;
   int pos;
   unsigned int state;
 };
@@ -2344,11 +2343,10 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_context *ctx,
- xlink_bitstream *bs) {
+ const xlink_bitstream *bs) {
   memset(dec, 0, sizeof(xlink_decoder));
   dec->ctx = ctx;
-  dec->buf = xlink_list_get(&bs->bytes, 0);
-  dec->size = xlink_list_length(&bs->bytes);
+  dec->bytes = &bs->bytes;
   dec->state = bs->state;
 }
 
@@ -2374,10 +2372,11 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
       byte++;
     }
     if (dec->state < ANS_BASE) {
-      XLINK_ERROR(dec->pos >= dec->size,
-       ("Underflow reading byte, pos = %i but size = %i", dec->pos, dec->size));
+      XLINK_ERROR(dec->pos >= xlink_list_length(dec->bytes),
+       ("Underflow reading byte, pos = %i but size = %i", dec->pos,
+       xlink_list_length(dec->bytes)));
       dec->state <<= IO_BITS;
-      dec->state |= dec->buf[dec->pos];
+      dec->state |= *xlink_list_get_byte(dec->bytes, dec->pos);
       dec->pos++;
     }
     XLINK_ERROR(dec->state < ANS_BASE,
