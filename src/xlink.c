@@ -579,6 +579,20 @@ int xlink_list_add(xlink_list *list, const void *element) {
   return list->length;
 }
 
+int xlink_list_add_all(xlink_list *list, const void *elements, int length) {
+  xlink_list_expand_capacity(list, list->length + length);
+  memcpy(&list->data[list->length*list->size], elements, length*list->size);
+  list->length += length;
+  return list->length;
+}
+
+int xlink_list_append(xlink_list *list, const xlink_list *elements) {
+  XLINK_ERROR(list->size != elements->size,
+   ("Cannot append elements with different size list = %i elements = %i",
+   list->size, elements->size));
+  return xlink_list_add_all(list, elements->data, elements->length);
+}
+
 void xlink_list_insert(xlink_list *list, int index, const void *element) {
   XLINK_ERROR(index < 0 || index > list->length,
    ("Cannot insert element at position %i, length = %i", index, list->length));
