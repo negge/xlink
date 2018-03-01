@@ -485,7 +485,6 @@ struct xlink_encoder {
   xlink_list bytes;
   xlink_list counts;
   xlink_set matches;
-  unsigned char buf[8];
 };
 
 typedef struct xlink_decoder xlink_decoder;
@@ -2202,14 +2201,16 @@ void xlink_encoder_clear(xlink_encoder *enc) {
 }
 
 void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
+  unsigned char buf[8];
   int i, j, k;
+  memset(buf, 0, sizeof(buf));
   for (k = 0; k < xlink_list_length(bytes); k++) {
     unsigned char byte;
     unsigned char partial;
     xlink_match key;
     byte = *xlink_list_get_byte(bytes, k);
     partial = 0;
-    memcpy(key.buf, enc->buf, sizeof(enc->buf));
+    memcpy(key.buf, buf, sizeof(buf));
     for (i = 8; i-- > 0; ) {
       int bit;
       xlink_counts counts;
@@ -2238,9 +2239,9 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
       partial |= bit;
     }
     for (i = 8; i-- > 1; ) {
-      enc->buf[i] = enc->buf[i - 1];
+      buf[i] = buf[i - 1];
     }
-    enc->buf[0] = byte;
+    buf[0] = byte;
     xlink_list_add(&enc->bytes, &byte);
   }
 }
