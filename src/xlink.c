@@ -2161,19 +2161,18 @@ int match_equals(const void *a, const void *b) {
   return match_comp(a, b) == 0;
 }
 
-void xlink_context_init(xlink_context *ctx) {
-  memset(ctx, 0, sizeof(xlink_context));
+void xlink_context_reset(xlink_context *ctx) {
+  memset(ctx->buf, 0, sizeof(ctx->buf));
   srand(0);
+}
+
+void xlink_context_init(xlink_context *ctx) {
   xlink_list_init(&ctx->models, sizeof(xlink_model), 0);
+  xlink_context_reset(ctx);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
   xlink_list_clear(&ctx->models);
-}
-
-void xlink_context_reset(xlink_context *ctx) {
-  memset(ctx->buf, 0, sizeof(ctx->buf));
-  srand(0);
 }
 
 xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
