@@ -2295,6 +2295,17 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   return entropy;
 }
 
+void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
+  int i;
+  printf("best entropy = %lf\n", xlink_modeler_get_entropy(mod, models));
+  for (i = 0; i < xlink_list_length(models); i++) {
+    xlink_model *model;
+    model = xlink_list_get(models, i);
+    printf("(%02x, %i) ", model->mask, model->weight);
+  }
+  printf("\n");
+}
+
 #define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
 
 void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
@@ -2349,6 +2360,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
     }
   }
   while (add_index != -1 || del_index != -1);
+  xlink_modeler_print(mod, models);
 }
 
 void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
