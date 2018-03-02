@@ -2556,6 +2556,7 @@ int main(int argc, char *argv[]) {
   }
   if (flags & MOD_CHECK) {
     xlink_list bytes;
+    xlink_modeler mod;
     xlink_context ctx;
     xlink_encoder enc;
     xlink_bitstream bs;
@@ -2566,7 +2567,12 @@ int main(int argc, char *argv[]) {
     while (!FEOF(stdin)) {
       xlink_list_add_byte(&bytes, getc(stdin));
     }
+    /* Build a context modeler for bytes */
+    xlink_modeler_init(&mod, xlink_list_length(&bytes));
+    xlink_modeler_load_binary(&mod, &bytes);
+    /* Search for the best context to use for bytes */
     xlink_context_init(&ctx);
+    xlink_modeler_search(&mod, &ctx.models);
     /* Encode bytes with the context */
     xlink_encoder_init(&enc, &ctx);
     xlink_encoder_write_bytes(&enc, &bytes);
@@ -2588,6 +2594,7 @@ int main(int argc, char *argv[]) {
        ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
     }
     xlink_list_clear(&bytes);
+    xlink_modeler_clear(&mod);
     xlink_encoder_clear(&enc);
     xlink_decoder_clear(&dec);
     xlink_context_clear(&ctx);
