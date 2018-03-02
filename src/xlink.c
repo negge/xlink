@@ -651,8 +651,8 @@ void xlink_set_init(xlink_set *set, xlink_hash_code_func hash_code,
   set->load = load;
   set->table = xlink_malloc(set->capacity*sizeof(int));
   set->size = 0;
-  xlink_list_init(&set->entries, sizeof(xlink_entry), 0);
-  xlink_list_init(&set->values, value_size, 0);
+  xlink_list_init(&set->entries, sizeof(xlink_entry), capacity);
+  xlink_list_init(&set->values, value_size, capacity);
 }
 
 void xlink_set_clear(xlink_set *set) {
