@@ -2396,15 +2396,15 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
   xlink_list_append(&enc->bytes, bytes);
 }
 
-#define xlink_add_prob(probs, prob) \
+#define xlink_list_add_prob(list, prob) \
   do { \
     xlink_prob p_; \
     p_ = prob; \
-    xlink_list_add(probs, &p_); \
+    xlink_list_add(list, &p_); \
   } \
   while (0)
 
-#define xlink_get_prob(probs, idx) (*(xlink_prob *)xlink_list_get(probs, idx))
+#define xlink_list_get_prob(list, i) ((xlink_prob *)xlink_list_get(list, i))
 
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   xlink_list probs;
@@ -2418,7 +2418,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     partial = 0;
     /* Build partially seen byte from high bit to low bit to match decoder. */
     for (i = 8; i-- > 0; ) {
-      xlink_add_prob(&probs, xlink_context_get_prob(enc->ctx, partial));
+      xlink_list_add_prob(&probs, xlink_context_get_prob(enc->ctx, partial));
       partial <<= 1;
       partial |= !!(byte & (1 << i));
     }
@@ -2436,7 +2436,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
       int bit;
       xlink_prob prob;
       bit = !!(byte & (1 << i));
-      prob = xlink_get_prob(&probs, j*8 + (7 - i));
+      prob = *xlink_list_get_prob(&probs, j*8 + (7 - i));
       if (bit) {
         prob = PROB_MAX - prob;
       }
