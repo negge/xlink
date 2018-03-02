@@ -642,6 +642,12 @@ void xlink_list_reverse(xlink_list *list) {
   }
 }
 
+void xlink_set_reset(xlink_set *set) {
+  memset(set->table, 0, set->capacity*sizeof(int));
+  set->entries.length = set->values.length = 0;
+  set->size = 0;
+}
+
 void xlink_set_init(xlink_set *set, xlink_hash_code_func hash_code,
  xlink_equals_func equals, size_t value_size, int capacity, float load) {
   set->hash_code = hash_code;
@@ -649,9 +655,9 @@ void xlink_set_init(xlink_set *set, xlink_hash_code_func hash_code,
   set->capacity = XLINK_MAX(4, capacity);
   set->load = load;
   set->table = xlink_malloc(set->capacity*sizeof(int));
-  set->size = 0;
   xlink_list_init(&set->entries, sizeof(xlink_entry), capacity);
   xlink_list_init(&set->values, value_size, capacity);
+  xlink_set_reset(set);
 }
 
 void xlink_set_clear(xlink_set *set) {
