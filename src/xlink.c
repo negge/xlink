@@ -2223,7 +2223,7 @@ void xlink_modeler_init(xlink_modeler *mod, int bytes) {
   xlink_list_init(&mod->bytes, sizeof(unsigned char), bytes);
   xlink_list_init(&mod->counts, sizeof(xlink_counts), 8*bytes);
   xlink_set_init(&mod->matches, match_hash_code, match_equals,
-   sizeof(xlink_match), 8*bytes, 0.75);
+   sizeof(xlink_match), 256*8*bytes, 0.75);
 }
 
 void xlink_modeler_clear(xlink_modeler *mod) {
