@@ -2089,6 +2089,25 @@ void xlink_model_init(xlink_model *model, unsigned char mask) {
   }
 }
 
+int mod_comp(const void *a, const void *b) {
+  const xlink_model *mod_a;
+  const xlink_model *mod_b;
+  int mask_a;
+  int mask_b;
+  int i;
+  mod_a = (xlink_model *)a;
+  mod_b = (xlink_model *)b;
+  /* Use the bit-reversal of the mask as the sort order */
+  mask_a = mask_b = 0;
+  for (i = 0; i < 8; i++) {
+    mask_a <<= 1;
+    mask_b <<= 1;
+    mask_a |= !!(mod_a->mask & (1 << i));
+    mask_b |= !!(mod_b->mask & (1 << i));
+  }
+  return mask_a - mask_b;
+}
+
 int match_comp(const void *a, const void *b) {
   const xlink_match *mat_a;
   const xlink_match *mat_b;
@@ -2360,6 +2379,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
     }
   }
   while (add_index != -1 || del_index != -1);
+  qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
   xlink_modeler_print(mod, models);
 }
 
