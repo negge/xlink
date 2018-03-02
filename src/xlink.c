@@ -2282,17 +2282,15 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
     for (i = 8; i-- > 0; ) {
       int bit;
       xlink_counts *counts;
-      int c0, c1;
+      unsigned int c0, c1;
       bit = !!(byte & (1 << i));
       counts = xlink_list_get(&mod->counts, j*8 + (7 - i));
       c0 = c1 = 2;
       for (k = 0; k < xlink_list_length(models); k++) {
         xlink_model *model;
-        int weight;
         model = xlink_list_get(models, k);
-        weight = model->weight;
-        c0 += (*counts)[model->mask][0] << weight;
-        c1 += (*counts)[model->mask][1] << weight;
+        c0 += ((unsigned int)(*counts)[model->mask][0]) << model->weight;
+        c1 += ((unsigned int)(*counts)[model->mask][1]) << model->weight;
       }
       if (bit) {
         entropy -= M_LOG2E*log(((double)c1)/(c0 + c1));
