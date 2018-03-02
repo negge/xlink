@@ -455,7 +455,6 @@ struct xlink_model {
 typedef struct xlink_match xlink_match;
 
 struct xlink_match {
-  int bits;
   unsigned char partial;
   unsigned char mask;
   unsigned char buf[8];
@@ -2115,21 +2114,18 @@ int match_comp(const void *a, const void *b) {
   mat_b = (xlink_match *)b;
   int i;
   if (mat_a->mask == mat_b->mask) {
-    if (mat_a->bits == mat_b->bits) {
-      if (mat_a->partial == mat_b->partial) {
-        for (i = 0; i < 8; i++) {
-          if (mat_a->mask & (1 << (7 - i))) {
-            if (mat_a->buf[i] == mat_b->buf[i]) {
-              continue;
-            }
-            return mat_a->buf[i] - mat_b->buf[i];
+    if (mat_a->partial == mat_b->partial) {
+      for (i = 0; i < 8; i++) {
+        if (mat_a->mask & (1 << (7 - i))) {
+          if (mat_a->buf[i] == mat_b->buf[i]) {
+            continue;
           }
+          return mat_a->buf[i] - mat_b->buf[i];
         }
-        return 0;
       }
-      return mat_a->partial - mat_b->partial;
+      return 0;
     }
-    return mat_a->bits - mat_b->bits;
+    return mat_a->partial - mat_b->partial;
   }
   return mat_a->mask - mat_b->mask;
 }
@@ -2144,10 +2140,6 @@ unsigned int match_hash_code(const void *m) {
   hash += mat->mask;
   hash *= 0x6f;
   hash ^= mat->mask;
-  /* Combine the bits */
-  hash += mat->bits;
-  hash *= 0x6f;
-  hash ^= mat->bits;
   /* Combine the partial */
   hash += mat->partial;
   hash *= 0x6f;
@@ -2241,13 +2233,12 @@ void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes) {
     unsigned char partial;
     xlink_match key;
     byte = *xlink_list_get_byte(bytes, k);
-    partial = 0;
+    partial = 1;
     memcpy(key.buf, buf, sizeof(buf));
     for (i = 8; i-- > 0; ) {
       int bit;
       xlink_counts counts;
       key.partial = partial;
-      key.bits = 7 - i;
       bit = !!(byte & (1 << i));
       for (j = 0; j < 256; j++) {
         xlink_match *match;
@@ -2417,7 +2408,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     unsigned char byte;
     unsigned char partial;
     byte = *xlink_list_get_byte(&enc->bytes, j);
-    partial = 0;
+    partial = 1;
     /* Build partially seen byte from high bit to low bit to match decoder. */
     for (i = 8; i-- > 0; ) {
       xlink_list_add_prob(&probs, xlink_context_get_prob(enc->ctx, partial));
@@ -2477,7 +2468,7 @@ void xlink_decoder_clear(xlink_decoder *dec) {
 unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   unsigned char byte;
   int i;
-  byte = 0;
+  byte = 1;
   for (i = 8; i-- > 0; ) {
     xlink_prob prob;
     int s, t;
