@@ -2420,6 +2420,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     }
     XLINK_ERROR(partial != byte,
      ("Mismatch between partial %02x and byte %02x", partial, byte));
+    xlink_context_update(enc->ctx, byte);
   }
   /* Encode the bitstream by processing bytes in reverse order. */
   xlink_bitstream_init(bs);
