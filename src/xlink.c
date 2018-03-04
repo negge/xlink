@@ -2596,6 +2596,36 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   return byte;
 }
 
+void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
+ xlink_list *bytes) {
+  xlink_encoder enc;
+  xlink_decoder dec;
+  int i;
+  bs->bytes.length = 0;
+  /* Reset the context */
+  xlink_context_reset(ctx);
+  /* Encode bytes with the context */
+  xlink_encoder_init(&enc, ctx);
+  xlink_encoder_write_bytes(&enc, bytes);
+  /* Finalize the bitstream */
+  xlink_encoder_finalize(&enc, bs);
+  xlink_encoder_clear(&enc);
+  /* Reset the context */
+  xlink_context_reset(ctx);
+  /* Initialize the decoder with the context and bitstream */
+  xlink_decoder_init(&dec, ctx, bs);
+  /* Test that decoded bytes match original input */
+  for (i = 0; i < xlink_list_length(bytes); i++) {
+    unsigned char orig;
+    unsigned char byte;
+    orig = *xlink_list_get_byte(bytes, i);
+    byte = xlink_decoder_read_byte(&dec);
+    XLINK_ERROR(byte != orig,
+     ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
+  }
+  xlink_decoder_clear(&dec);
+}
+
 const char *OPTSTRING = "o:e:smdCh";
 
 const struct option OPTIONS[] = {
@@ -2669,10 +2699,7 @@ int main(int argc, char *argv[]) {
     xlink_list bytes;
     xlink_modeler mod;
     xlink_context ctx;
-    xlink_encoder enc;
     xlink_bitstream bs;
-    xlink_decoder dec;
-    int i;
     /* Read bytes from stdin */
     xlink_list_init(&bytes, sizeof(unsigned char), 0);
     while (!FEOF(stdin)) {
@@ -2684,34 +2711,17 @@ int main(int argc, char *argv[]) {
     /* Search for the best context to use for bytes */
     xlink_context_init(&ctx, 16*1024*1024);
     xlink_modeler_search(&mod, &ctx.models);
-    /* Encode bytes with the context */
-    xlink_encoder_init(&enc, &ctx);
-    xlink_encoder_write_bytes(&enc, &bytes);
     /* Create a bitstream for writing */
     xlink_bitstream_init(&bs);
-    /* Finalize the bitstream */
-    xlink_encoder_finalize(&enc, &bs);
+    /* Encode bytes with the context and perfect hashing */
+    xlink_bitstream_from_context(&bs, &ctx, &bytes);
     printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n",
      xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
      XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
      xlink_list_length(&bytes)));
-    /* Reset the context */
-    xlink_context_reset(&ctx);
-    /* Initialize the decoder with the context and bitstream */
-    xlink_decoder_init(&dec, &ctx, &bs);
-    /* Test that decoded bytes match original input */
-    for (i = 0; i < xlink_list_length(&bytes); i++) {
-      unsigned char orig;
-      unsigned char byte;
-      orig = *xlink_list_get_byte(&bytes, i);
-      byte = xlink_decoder_read_byte(&dec);
-      XLINK_ERROR(byte != orig,
-       ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
-    }
+    /* Clean up */
     xlink_list_clear(&bytes);
     xlink_modeler_clear(&mod);
-    xlink_encoder_clear(&enc);
-    xlink_decoder_clear(&dec);
     xlink_context_clear(&ctx);
     xlink_bitstream_clear(&bs);
     return EXIT_SUCCESS;
