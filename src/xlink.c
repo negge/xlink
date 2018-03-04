@@ -2388,16 +2388,18 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   return entropy;
 }
 
+#define XLINK_RATIO(packed, bytes) (100*(1 - (((double)(packed))/(bytes))))
+
 void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
   int i;
   double entropy;
   int bytes;
-  double compression;
   entropy = xlink_modeler_get_entropy(mod, models);
   bytes = ceil(entropy/8);
-  compression = 1 - ((double)bytes/mod->bytes.length);
-  printf("Best entropy = %lf bits, %i bytes (%2.3lf%% smaller)\n", entropy,
-   bytes, 100*compression);
+  printf("Found context: "
+   "%i model(s), entropy %0.3lf bits (%i bytes), %2.3lf%% smaller\n",
+   xlink_list_length(models), entropy, bytes,
+   XLINK_RATIO(bytes, xlink_list_length(&mod->bytes)));
   for (i = 0; i < xlink_list_length(models); i++) {
     xlink_model *model;
     model = xlink_list_get(models, i);
@@ -2688,8 +2690,10 @@ int main(int argc, char *argv[]) {
     xlink_encoder_write_bytes(&enc, &bytes);
     /* Finalize the bitstream */
     xlink_encoder_finalize(&enc, &bs);
-    printf("Compressed %i bytes to %i bytes\n",
-     xlink_list_length(&bytes), xlink_list_length(&bs.bytes));
+    printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n",
+     xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     xlink_list_length(&bytes)));
     /* Reset the context */
     xlink_context_reset(&ctx);
     /* Initialize the decoder with the context and bitstream */
