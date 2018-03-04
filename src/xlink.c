@@ -2165,6 +2165,33 @@ unsigned int match_hash_code(const void *m) {
   return hash ^ (hash >> 7) ^ (hash >> 4);
 }
 
+unsigned int match_simple_hash_code(const void *m) {
+  const xlink_match *mat;
+  unsigned int hash;
+  unsigned char byte;
+  int i;
+  mat = (xlink_match *)m;
+  /* Combine the mask */
+  hash = mat->mask;
+  /* Combine the partial */
+  byte = (hash & 0x000000ff);
+  hash = (hash & 0xffffff00) | (byte ^ mat->partial);
+  hash *= 0x6f;
+  byte += mat->partial;
+  hash = (hash & 0xffffff00) | byte;
+  /* Combine the history */
+  for (i = 0; i < 8; i++) {
+    if (mat->mask & (1 << (7 - i))) {
+      byte = (hash & 0x000000ff);
+      hash = (hash & 0xffffff00) | (byte ^ mat->buf[i]);
+      hash *= 0x6f;
+      byte += mat->buf[i];
+      hash = (hash & 0xffffff00) | byte;
+    }
+  }
+  return hash;
+}
+
 int match_equals(const void *a, const void *b) {
   return match_comp(a, b) == 0;
 }
