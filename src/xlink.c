@@ -671,29 +671,41 @@ int xlink_set_index(xlink_set *set, unsigned int hash) {
 }
 
 void xlink_set_resize(xlink_set *set, int capacity) {
-  int *table;
-  int i;
-  table = xlink_malloc(capacity*sizeof(int));
-  memset(table, 0, capacity*sizeof(int));
-  i = set->capacity;
-  set->capacity = capacity;
-  while (i-- > 0) {
-    int entry_index;
-    entry_index = set->table[i];
-    while (entry_index != 0) {
-      xlink_entry *entry;
-      int down;
-      int index;
-      entry = xlink_list_get(&set->entries, entry_index - 1);
-      down = entry->down;
-      index = xlink_set_index(set, entry->hash);
-      entry->down = table[index];
-      table[index] = entry_index;
-      entry_index = down;
+  if (set->size == 0) {
+    if (capacity < set->capacity) {
+      set->capacity = capacity;
+    }
+    else {
+      set->table = xlink_realloc(set->table, capacity*sizeof(int));
+      memset(set->table, 0, capacity*sizeof(int));
+      set->capacity = capacity;
     }
   }
-  free(set->table);
-  set->table = table;
+  else {
+    int *table;
+    int i;
+    table = xlink_malloc(capacity*sizeof(int));
+    memset(table, 0, capacity*sizeof(int));
+    i = set->capacity;
+    set->capacity = capacity;
+    while (i-- > 0) {
+      int entry_index;
+      entry_index = set->table[i];
+      while (entry_index != 0) {
+        xlink_entry *entry;
+        int down;
+        int index;
+        entry = xlink_list_get(&set->entries, entry_index - 1);
+        down = entry->down;
+        index = xlink_set_index(set, entry->hash);
+        entry->down = table[index];
+        table[index] = entry_index;
+        entry_index = down;
+      }
+    }
+    free(set->table);
+    set->table = table;
+  }
 }
 
 void *xlink_set_add(xlink_set *set, const void *value) {
