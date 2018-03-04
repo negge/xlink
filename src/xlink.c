@@ -2719,6 +2719,13 @@ int main(int argc, char *argv[]) {
      xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
      XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
      xlink_list_length(&bytes)));
+    /* Encode bytes with the context and replacement hashing */
+    ctx.matches.equals = NULL;
+    xlink_bitstream_from_context(&bs, &ctx, &bytes);
+    printf("Replace hashing: %i bytes, %2.3lf%% smaller\n",
+     xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     xlink_list_length(&bytes)));
     /* Clean up */
     xlink_list_clear(&bytes);
     xlink_modeler_clear(&mod);
