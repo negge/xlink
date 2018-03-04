@@ -2309,6 +2309,8 @@ void xlink_modeler_clear(xlink_modeler *mod) {
 void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes) {
   unsigned char buf[8];
   int i, j, k;
+  printf("Scanning %i bytes for counts... ", xlink_list_length(bytes));
+  fflush(stdout);
   memset(buf, 0, sizeof(buf));
   for (k = 0; k < xlink_list_length(bytes); k++) {
     unsigned char byte;
@@ -2349,6 +2351,7 @@ void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes) {
     buf[0] = byte;
     xlink_list_add(&mod->bytes, &byte);
   }
+  printf("done\n");
 }
 
 double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
@@ -2408,6 +2411,8 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   double best;
   int add_index;
   int del_index;
+  printf("Searching for best context... ");
+  fflush(stdout);
   xlink_list_empty(models);
   memset(contains, 0, sizeof(contains));
   best = xlink_list_length(&mod->counts);
@@ -2455,6 +2460,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
     }
   }
   while (add_index != -1 || del_index != -1);
+  printf("done\n");
   qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
   xlink_modeler_print(mod, models);
 }
