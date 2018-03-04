@@ -2313,8 +2313,13 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
 void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
   int i;
   double entropy;
+  int bytes;
+  double compression;
   entropy = xlink_modeler_get_entropy(mod, models);
-  printf("best entropy = %lf (%i bytes)\n", entropy, (int)ceil(entropy/8));
+  bytes = ceil(entropy/8);
+  compression = 1 - ((double)bytes/mod->bytes.length);
+  printf("Best entropy = %lf bits, %i bytes (%2.3lf%% smaller)\n", entropy,
+   bytes, 100*compression);
   for (i = 0; i < xlink_list_length(models); i++) {
     xlink_model *model;
     model = xlink_list_get(models, i);
