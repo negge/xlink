@@ -472,7 +472,6 @@ struct xlink_context {
 typedef struct xlink_bitstream xlink_bitstream;
 
 struct xlink_bitstream {
-  int state;
   xlink_list bytes;
 };
 
@@ -2493,6 +2492,7 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
 void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   xlink_list probs;
   int i, j;
+  unsigned int state;
   /* ANS requires we precompute all probabilities used to encode bitstream. */
   xlink_list_init(&probs, sizeof(xlink_prob), 8*xlink_list_length(&enc->bytes));
   for (j = 0; j < xlink_list_length(&enc->bytes); j++) {
@@ -2515,8 +2515,11 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
      ("Mismatch between partial %02x and byte %02x", partial, byte));
     xlink_context_update(enc->ctx, byte);
   }
+  /* Reserve space to store the state */
+  xlink_list_expand_capacity(&bs->bytes, 4);
+  bs->bytes.length = 4;
   /* Encode the bitstream by processing bytes in reverse order. */
-  bs->state = ANS_BASE;
+  state = ANS_BASE;
   for (j = xlink_list_length(&enc->bytes); j-- > 0; ) {
     unsigned char byte;
     byte = *xlink_list_get_byte(&enc->bytes, j);
@@ -2529,33 +2532,38 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
       if (bit) {
         prob = PROB_MAX - prob;
       }
-      XLINK_ERROR(bs->state >= ANS_BASE * IO_BASE || bs->state < ANS_BASE,
-       ("Encoder state %x invalid at symbol %i", bs->state, i));
-      if (bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
-        xlink_bitstream_write_byte(bs, bs->state & (IO_BASE - 1));
-        bs->state >>= IO_BITS;
+      XLINK_ERROR(state >= ANS_BASE * IO_BASE || state < ANS_BASE,
+       ("Encoder state %x invalid at symbol %i", state, i));
+      if (state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS))) {
+        xlink_bitstream_write_byte(bs, state & (IO_BASE - 1));
+        state >>= IO_BITS;
       }
-      XLINK_ERROR(bs->state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
-       ("Need to serialize more state %i at symbol %i", bs->state, i));
+      XLINK_ERROR(state >= (prob << (ANS_BITS - PROB_BITS + IO_BITS)),
+       ("Need to serialize more state %i at symbol %i", state, i));
       if (bit) {
-        bs->state = CEIL_DIV((bs->state + 1) << PROB_BITS, prob) - 1;
+        state = CEIL_DIV((state + 1) << PROB_BITS, prob) - 1;
       }
       else {
-        bs->state = FLOOR_DIV(bs->state << PROB_BITS, prob);
+        state = FLOOR_DIV(state << PROB_BITS, prob);
       }
     }
   }
   xlink_list_clear(&probs);
+  *((unsigned int *)bs->bytes.data) = state;
   /* Reverse byte order of the bitstream. */
-  xlink_list_reverse(&bs->bytes, 0, xlink_list_length(&bs->bytes) - 1);
+  xlink_list_reverse(&bs->bytes, 4, xlink_list_length(&bs->bytes) - 1);
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_context *ctx,
  const xlink_bitstream *bs) {
   memset(dec, 0, sizeof(xlink_decoder));
+  XLINK_ERROR(xlink_list_length(&bs->bytes) < 4,
+   ("Bitstream does not include initial 4 byte state, length = %i\n",
+   xlink_list_length(&bs->bytes)));
   dec->ctx = ctx;
   dec->bytes = &bs->bytes;
-  dec->state = bs->state;
+  dec->state = *((unsigned int *)dec->bytes->data);
+  dec->pos = 4;
 }
 
 void xlink_decoder_clear(xlink_decoder *dec) {
