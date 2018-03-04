@@ -2516,7 +2516,6 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     xlink_context_update(enc->ctx, byte);
   }
   /* Encode the bitstream by processing bytes in reverse order. */
-  xlink_bitstream_init(bs);
   bs->state = ANS_BASE;
   for (j = xlink_list_length(&enc->bytes); j-- > 0; ) {
     unsigned char byte;
@@ -2688,6 +2687,8 @@ int main(int argc, char *argv[]) {
     /* Encode bytes with the context */
     xlink_encoder_init(&enc, &ctx);
     xlink_encoder_write_bytes(&enc, &bytes);
+    /* Create a bitstream for writing */
+    xlink_bitstream_init(&bs);
     /* Finalize the bitstream */
     xlink_encoder_finalize(&enc, &bs);
     printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n",
