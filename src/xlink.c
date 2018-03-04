@@ -466,6 +466,7 @@ typedef struct xlink_context xlink_context;
 struct xlink_context {
   unsigned char buf[8];
   xlink_list models;
+  xlink_set matches;
 };
 
 typedef struct xlink_bitstream xlink_bitstream;
@@ -2198,24 +2199,76 @@ int match_equals(const void *a, const void *b) {
 
 void xlink_context_reset(xlink_context *ctx) {
   memset(ctx->buf, 0, sizeof(ctx->buf));
-  srand(0);
+  xlink_set_reset(&ctx->matches);
 }
 
-void xlink_context_init(xlink_context *ctx) {
+void xlink_context_init(xlink_context *ctx, int size) {
   xlink_list_init(&ctx->models, sizeof(xlink_model), 0);
+  xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
+   sizeof(xlink_match), size, 0.75);
   xlink_context_reset(ctx);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
   xlink_list_clear(&ctx->models);
+  xlink_set_clear(&ctx->matches);
 }
 
 xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
-  return (xlink_prob)(rand()%255 + 1);
+  xlink_match key;
+  unsigned int c0;
+  unsigned int c1;
+  xlink_prob prob;
+  int i;
+  memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
+  key.partial = partial;
+  c0 = c1 = 2;
+  for (i = 0; i < xlink_list_length(&ctx->models); i++) {
+    xlink_model *model;
+    xlink_match *match;
+    model = xlink_list_get(&ctx->models, i);
+    key.mask = model->mask;
+    match = xlink_set_get(&ctx->matches, &key);
+    if (match != NULL) {
+      c0 += ((unsigned int)match->counts[0]) << model->weight;
+      c1 += ((unsigned int)match->counts[1]) << model->weight;
+    }
+  }
+  prob = (xlink_prob)(1 + c0*255UL/(c0 + c1));
+  XLINK_ERROR(prob == 0, ("Invalid probability, cannot be zero"));
+  return prob;
 }
 
+#define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
+
 void xlink_context_update(xlink_context *ctx, unsigned char byte) {
-  int i;
+  xlink_match key;
+  unsigned char partial;
+  int i, j;
+  memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
+  partial = 1;
+  for (i = 8; i-- > 0; ) {
+    int bit;
+    bit = !!(byte & (1 << i));
+    key.partial = partial;
+    for (j = 0; j < xlink_list_length(&ctx->models); j++) {
+      xlink_match *match;
+      key.mask = xlink_list_get_model(&ctx->models, j)->mask;
+      match = xlink_set_get(&ctx->matches, &key);
+      if (match == NULL) {
+        memset(key.counts, 0, sizeof(key.counts));
+        match = xlink_set_put(&ctx->matches, &key);
+      }
+      match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
+      if (match->counts[1 - bit] > 1) {
+        match->counts[1 - bit] >>= 1;
+      }
+    }
+    partial <<= 1;
+    partial |= bit;
+  }
+  XLINK_ERROR(partial != byte,
+   ("Mismatch between partial %02x and byte %02x", partial, byte));
   for (i = 8; i-- > 1; ) {
     ctx->buf[i] = ctx->buf[i - 1];
   }
@@ -2354,8 +2407,6 @@ void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
   }
   printf("\n");
 }
-
-#define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
 
 void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   int contains[256];
@@ -2622,7 +2673,7 @@ int main(int argc, char *argv[]) {
     xlink_modeler_init(&mod, xlink_list_length(&bytes));
     xlink_modeler_load_binary(&mod, &bytes);
     /* Search for the best context to use for bytes */
-    xlink_context_init(&ctx);
+    xlink_context_init(&ctx, 16*1024*1024);
     xlink_modeler_search(&mod, &ctx.models);
     /* Encode bytes with the context */
     xlink_encoder_init(&enc, &ctx);
