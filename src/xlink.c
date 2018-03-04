@@ -726,7 +726,8 @@ int xlink_set_remove(xlink_set *set, const void *key) {
     void *value;
     entry = xlink_list_get(&set->entries, *index - 1);
     value = xlink_list_get(&set->values, *index - 1);
-    if (entry->hash == hash && set->equals(key, value)) {
+    if (set->equals == NULL ||
+     (entry->hash == hash && set->equals(key, value))) {
       int old;
       int last;
       /* Move the entry / value from the end into the empty slot and reindex */
@@ -773,7 +774,8 @@ void *xlink_set_get(xlink_set *set, void *key) {
     void *value;
     entry = xlink_list_get(&set->entries, index - 1);
     value = xlink_list_get(&set->values, index - 1);
-    if (entry->hash == hash && set->equals(key, value)) {
+    if (set->equals == NULL ||
+     (entry->hash == hash && set->equals(key, value))) {
       return value;
     }
     index = entry->down;
