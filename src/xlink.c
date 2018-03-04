@@ -2214,15 +2214,13 @@ void xlink_context_clear(xlink_context *ctx) {
   xlink_set_clear(&ctx->matches);
 }
 
-xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
+void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
+ unsigned int counts[2]) {
   xlink_match key;
-  unsigned int c0;
-  unsigned int c1;
-  xlink_prob prob;
   int i;
   memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
   key.partial = partial;
-  c0 = c1 = 2;
+  counts[0] = counts[1] = 2;
   for (i = 0; i < xlink_list_length(&ctx->models); i++) {
     xlink_model *model;
     xlink_match *match;
@@ -2230,13 +2228,10 @@ xlink_prob xlink_context_get_prob(xlink_context *ctx, unsigned char partial) {
     key.mask = model->mask;
     match = xlink_set_get(&ctx->matches, &key);
     if (match != NULL) {
-      c0 += ((unsigned int)match->counts[0]) << model->weight;
-      c1 += ((unsigned int)match->counts[1]) << model->weight;
+      counts[0] += ((unsigned int)match->counts[0]) << model->weight;
+      counts[1] += ((unsigned int)match->counts[1]) << model->weight;
     }
   }
-  prob = (xlink_prob)(1 + c0*255UL/(c0 + c1));
-  XLINK_ERROR(prob == 0, ("Invalid probability, cannot be zero"));
-  return prob;
 }
 
 #define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
@@ -2499,7 +2494,12 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
     partial = 1;
     /* Build partially seen byte from high bit to low bit to match decoder. */
     for (i = 8; i-- > 0; ) {
-      xlink_list_add_prob(&probs, xlink_context_get_prob(enc->ctx, partial));
+      unsigned int counts[2];
+      xlink_prob prob;
+      xlink_context_get_counts(enc->ctx, partial, counts);
+      prob = (xlink_prob)(1 + counts[0]*255UL/(counts[0] + counts[1]));
+      XLINK_ERROR(prob == 0, ("Invalid probability, cannot be zero"));
+      xlink_list_add_prob(&probs, prob);
       partial <<= 1;
       partial |= !!(byte & (1 << i));
     }
@@ -2559,9 +2559,11 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   int i;
   byte = 1;
   for (i = 8; i-- > 0; ) {
+    unsigned int counts[2];
     xlink_prob prob;
     int s, t;
-    prob = xlink_context_get_prob(dec->ctx, byte);
+    xlink_context_get_counts(dec->ctx, byte, counts);
+    prob = (xlink_prob)(1 + counts[0]*255UL/(counts[0] + counts[1]));
     XLINK_ERROR(dec->state >= ANS_BASE * IO_BASE || dec->state < ANS_BASE,
      ("Decoder state %x invalid at position %i", dec->state, dec->pos));
     s = dec->state*(PROB_MAX - prob);
