@@ -636,9 +636,9 @@ void xlink_list_swap(xlink_list *list, int i, int j) {
   }
 }
 
-void xlink_list_reverse(xlink_list *list) {
+void xlink_list_reverse(xlink_list *list, int start, int end) {
   int i, j;
-  for (i = 0, j = list->length - 1; i < j; i++, j--) {
+  for (i = start, j = end; i < j; i++, j--) {
     xlink_list_swap(list, i, j);
   }
 }
@@ -2547,7 +2547,7 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   }
   xlink_list_clear(&probs);
   /* Reverse byte order of the bitstream. */
-  xlink_list_reverse(&bs->bytes);
+  xlink_list_reverse(&bs->bytes, 0, xlink_list_length(&bs->bytes) - 1);
 }
 
 void xlink_decoder_init(xlink_decoder *dec, xlink_context *ctx,
