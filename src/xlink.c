@@ -2415,12 +2415,14 @@ void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
    "%i model(s), entropy %0.3lf bits (%i bytes), %2.3lf%% smaller\n",
    xlink_list_length(models), entropy, bytes,
    XLINK_RATIO(bytes, xlink_list_length(&mod->bytes)));
-  for (i = 0; i < xlink_list_length(models); i++) {
-    xlink_model *model;
-    model = xlink_list_get(models, i);
-    printf("(%02x, %i) ", model->mask, model->weight);
+  if (xlink_list_length(models) > 0) {
+    for (i = 0; i < xlink_list_length(models); i++) {
+      xlink_model *model;
+      model = xlink_list_get(models, i);
+      printf("(%02x, %i) ", model->mask, model->weight);
+    }
+    printf("\n");
   }
-  printf("\n");
 }
 
 void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
