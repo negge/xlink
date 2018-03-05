@@ -2414,22 +2414,24 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
 #define XLINK_RATIO(packed, bytes) (100*(1 - (((double)(packed))/(bytes))))
 
 void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
-  int i;
-  double entropy;
-  int bytes;
-  entropy = xlink_modeler_get_entropy(mod, models);
-  bytes = ceil(entropy/8);
-  printf("Found context: "
-   "%i model(s), entropy %0.3lf bits (%i bytes), %2.3lf%% smaller\n",
-   xlink_list_length(models), entropy, bytes,
-   XLINK_RATIO(bytes, xlink_list_length(&mod->bytes)));
   if (xlink_list_length(models) > 0) {
+    double entropy;
+    int bytes;
+    int i;
+    entropy = xlink_modeler_get_entropy(mod, models);
+    entropy -= 8*(4 + xlink_list_length(models));
+    bytes = ceil(entropy/8);
+    printf("Found context: %i model(s), %0.3lf bits, %i bytes\n",
+     xlink_list_length(models), entropy, bytes);
     for (i = 0; i < xlink_list_length(models); i++) {
       xlink_model *model;
       model = xlink_list_get(models, i);
       printf("(%02x, %i) ", model->mask, model->weight);
     }
     printf("\n");
+  }
+  else {
+    printf("No context found.\n");
   }
 }
 
