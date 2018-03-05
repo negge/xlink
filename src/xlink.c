@@ -485,16 +485,16 @@ struct xlink_modeler {
   xlink_set matches;
 };
 
-typedef struct xlink_encoder xlink_encoder;
+typedef struct xlink_ans_encoder xlink_ans_encoder;
 
-struct xlink_encoder {
+struct xlink_ans_encoder {
   xlink_context *ctx;
   xlink_list bytes;
 };
 
-typedef struct xlink_decoder xlink_decoder;
+typedef struct xlink_ans_decoder xlink_ans_decoder;
 
-struct xlink_decoder {
+struct xlink_ans_decoder {
   xlink_context *ctx;
   const xlink_list *bytes;
   int pos;
@@ -2489,16 +2489,16 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   xlink_modeler_print(mod, models);
 }
 
-void xlink_encoder_init(xlink_encoder *enc, xlink_context *ctx) {
+void xlink_ans_encoder_init(xlink_ans_encoder *enc, xlink_context *ctx) {
   enc->ctx = ctx;
   xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
 }
 
-void xlink_encoder_clear(xlink_encoder *enc) {
+void xlink_ans_encoder_clear(xlink_ans_encoder *enc) {
   xlink_list_clear(&enc->bytes);
 }
 
-void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
+void xlink_ans_encoder_write_bytes(xlink_ans_encoder *enc, xlink_list *bytes) {
   xlink_list_append(&enc->bytes, bytes);
 }
 
@@ -2512,7 +2512,7 @@ void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
 
 #define xlink_list_get_prob(list, i) ((xlink_prob *)xlink_list_get(list, i))
 
-void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
+void xlink_ans_encoder_finalize(xlink_ans_encoder *enc, xlink_bitstream *bs) {
   xlink_list probs;
   int i, j;
   unsigned int state;
@@ -2577,9 +2577,9 @@ void xlink_encoder_finalize(xlink_encoder *enc, xlink_bitstream *bs) {
   xlink_list_reverse(&bs->bytes, 4, xlink_list_length(&bs->bytes) - 1);
 }
 
-void xlink_decoder_init(xlink_decoder *dec, xlink_context *ctx,
+void xlink_ans_decoder_init(xlink_ans_decoder *dec, xlink_context *ctx,
  const xlink_bitstream *bs) {
-  memset(dec, 0, sizeof(xlink_decoder));
+  memset(dec, 0, sizeof(xlink_ans_decoder));
   XLINK_ERROR(xlink_list_length(&bs->bytes) < 4,
    ("Bitstream does not include initial 4 byte state, length = %i\n",
    xlink_list_length(&bs->bytes)));
@@ -2589,10 +2589,10 @@ void xlink_decoder_init(xlink_decoder *dec, xlink_context *ctx,
   dec->pos = 4;
 }
 
-void xlink_decoder_clear(xlink_decoder *dec) {
+void xlink_ans_decoder_clear(xlink_ans_decoder *dec) {
 }
 
-unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
+unsigned char xlink_ans_decoder_read_byte(xlink_ans_decoder *dec) {
   unsigned char byte;
   int i;
   byte = 1;
@@ -2626,6 +2626,16 @@ unsigned char xlink_decoder_read_byte(xlink_decoder *dec) {
   xlink_context_update(dec->ctx, byte);
   return byte;
 }
+
+typedef xlink_ans_encoder xlink_encoder;
+#define xlink_encoder_init xlink_ans_encoder_init
+#define xlink_encoder_clear xlink_ans_encoder_clear
+#define xlink_encoder_write_bytes xlink_ans_encoder_write_bytes
+#define xlink_encoder_finalize xlink_ans_encoder_finalize
+typedef xlink_ans_decoder xlink_decoder;
+#define xlink_decoder_init xlink_ans_decoder_init
+#define xlink_decoder_clear xlink_ans_decoder_clear
+#define xlink_decoder_read_byte xlink_ans_decoder_read_byte
 
 void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
  xlink_list *bytes) {
