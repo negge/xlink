@@ -473,6 +473,7 @@ typedef struct xlink_bitstream xlink_bitstream;
 
 struct xlink_bitstream {
   xlink_list bytes;
+  int bits;
 };
 
 typedef unsigned char xlink_counts[256][2];
@@ -2575,6 +2576,7 @@ void xlink_ans_encoder_finalize(xlink_ans_encoder *enc, xlink_bitstream *bs) {
   *((unsigned int *)bs->bytes.data) = state;
   /* Reverse byte order of the bitstream. */
   xlink_list_reverse(&bs->bytes, 4, xlink_list_length(&bs->bytes) - 1);
+  bs->bits = 8*xlink_list_length(&bs->bytes);
 }
 
 void xlink_ans_decoder_init(xlink_ans_decoder *dec, xlink_context *ctx,
