@@ -2370,37 +2370,44 @@ void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes) {
 }
 
 double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
-  double entropy = 0;
-  int i, j, k;
   XLINK_ERROR(
    xlink_list_length(&mod->counts) != 8*xlink_list_length(&mod->bytes),
    ("Counts model does not match input bytes, counts = %i and bytes = %i",
    xlink_list_length(&mod->counts), xlink_list_length(&mod->bytes)));
-  for (j = 0; j < xlink_list_length(&mod->bytes); j++) {
-    unsigned char byte;
-    byte = *xlink_list_get_byte(&mod->bytes, j);
-    for (i = 8; i-- > 0; ) {
-      int bit;
-      xlink_counts *counts;
-      unsigned int c0, c1;
-      bit = !!(byte & (1 << i));
-      counts = xlink_list_get(&mod->counts, j*8 + (7 - i));
-      c0 = c1 = 2;
-      for (k = 0; k < xlink_list_length(models); k++) {
-        xlink_model *model;
-        model = xlink_list_get(models, k);
-        c0 += ((unsigned int)(*counts)[model->mask][0]) << model->weight;
-        c1 += ((unsigned int)(*counts)[model->mask][1]) << model->weight;
-      }
-      if (bit) {
-        entropy -= M_LOG2E*log(((double)c1)/(c0 + c1));
-      }
-      else {
-        entropy -= M_LOG2E*log(((double)c0)/(c0 + c1));
+  if (xlink_list_length(models) == 0) {
+    return 8*xlink_list_length(&mod->bytes);
+  }
+  else {
+    double entropy;
+    int i, j, k;
+    /* Include 4 bytes for the weights + 1 byte for each model */
+    entropy = 8*(4 + xlink_list_length(models));
+    for (j = 0; j < xlink_list_length(&mod->bytes); j++) {
+      unsigned char byte;
+      byte = *xlink_list_get_byte(&mod->bytes, j);
+      for (i = 8; i-- > 0; ) {
+        int bit;
+        xlink_counts *counts;
+        unsigned int c0, c1;
+        bit = !!(byte & (1 << i));
+        counts = xlink_list_get(&mod->counts, j*8 + (7 - i));
+        c0 = c1 = 2;
+        for (k = 0; k < xlink_list_length(models); k++) {
+          xlink_model *model;
+          model = xlink_list_get(models, k);
+          c0 += ((unsigned int)(*counts)[model->mask][0]) << model->weight;
+          c1 += ((unsigned int)(*counts)[model->mask][1]) << model->weight;
+        }
+        if (bit) {
+          entropy -= M_LOG2E*log(((double)c1)/(c0 + c1));
+        }
+        else {
+          entropy -= M_LOG2E*log(((double)c0)/(c0 + c1));
+        }
       }
     }
+    return entropy;
   }
-  return entropy;
 }
 
 #define XLINK_RATIO(packed, bytes) (100*(1 - (((double)(packed))/(bytes))))
@@ -2446,7 +2453,6 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
         xlink_model_init(&model, i);
         xlink_list_add(models, &model);
         entropy = xlink_modeler_get_entropy(mod, models);
-        entropy += 8*xlink_list_length(models);
         xlink_list_remove(models, xlink_list_length(models) - 1);
         if (entropy < best) {
           best = entropy;
@@ -2465,7 +2471,6 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
       xlink_list_swap(models, i, models->length - 1);
       models->length--;
       entropy = xlink_modeler_get_entropy(mod, models);
-      entropy += 8*xlink_list_length(models);
       models->length++;
       xlink_list_swap(models, models->length - 1, i);
       if (entropy < best) {
@@ -2747,13 +2752,13 @@ int main(int argc, char *argv[]) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = xlink_list_length(&bs.bytes) + xlink_list_length(&models);
+      size = xlink_list_length(&bs.bytes) + 4 + xlink_list_length(&models);
       printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       /* Encode bytes with the context and replacement hashing */
       ctx.matches.equals = NULL;
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = xlink_list_length(&bs.bytes) + xlink_list_length(&models);
+      size = xlink_list_length(&bs.bytes) + 4 + xlink_list_length(&models);
       printf("Replace hashing: %i bytes, %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       xlink_context_clear(&ctx);
