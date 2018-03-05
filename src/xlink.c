@@ -2213,16 +2213,21 @@ void xlink_context_reset(xlink_context *ctx) {
   xlink_set_reset(&ctx->matches);
 }
 
-void xlink_context_init(xlink_context *ctx, int size) {
+void xlink_context_init(xlink_context *ctx) {
   xlink_list_init(&ctx->models, sizeof(xlink_model), 0);
   xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
-   sizeof(xlink_match), size, 0.75);
+   sizeof(xlink_match), 0, 0.75);
   xlink_context_reset(ctx);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
   xlink_list_clear(&ctx->models);
   xlink_set_clear(&ctx->matches);
+}
+
+void xlink_context_set_capacity(xlink_context *ctx, int capacity) {
+  xlink_set_reset(&ctx->matches);
+  xlink_set_resize(&ctx->matches, capacity);
 }
 
 void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
@@ -2729,7 +2734,8 @@ int main(int argc, char *argv[]) {
     xlink_modeler_init(&mod, xlink_list_length(&bytes));
     xlink_modeler_load_binary(&mod, &bytes);
     /* Search for the best context to use for bytes */
-    xlink_context_init(&ctx, 16*1024*1024);
+    xlink_context_init(&ctx);
+    xlink_context_set_capacity(&ctx, 16*1024*1024);
     xlink_modeler_search(&mod, &ctx.models);
     /* Create a bitstream for writing */
     xlink_bitstream_init(&bs);
