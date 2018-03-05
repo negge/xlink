@@ -465,7 +465,7 @@ typedef struct xlink_context xlink_context;
 
 struct xlink_context {
   unsigned char buf[8];
-  xlink_list models;
+  xlink_list *models;
   xlink_set matches;
 };
 
@@ -2213,15 +2213,14 @@ void xlink_context_reset(xlink_context *ctx) {
   xlink_set_reset(&ctx->matches);
 }
 
-void xlink_context_init(xlink_context *ctx) {
-  xlink_list_init(&ctx->models, sizeof(xlink_model), 0);
+void xlink_context_init(xlink_context *ctx, xlink_list *models) {
+  ctx->models = models;
   xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
    sizeof(xlink_match), 0, 0.75);
   xlink_context_reset(ctx);
 }
 
 void xlink_context_clear(xlink_context *ctx) {
-  xlink_list_clear(&ctx->models);
   xlink_set_clear(&ctx->matches);
 }
 
@@ -2237,10 +2236,10 @@ void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
   memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
   key.partial = partial;
   counts[0] = counts[1] = 2;
-  for (i = 0; i < xlink_list_length(&ctx->models); i++) {
+  for (i = 0; i < xlink_list_length(ctx->models); i++) {
     xlink_model *model;
     xlink_match *match;
-    model = xlink_list_get(&ctx->models, i);
+    model = xlink_list_get(ctx->models, i);
     key.mask = model->mask;
     match = xlink_set_get(&ctx->matches, &key);
     if (match != NULL) {
@@ -2262,9 +2261,9 @@ void xlink_context_update(xlink_context *ctx, unsigned char byte) {
     int bit;
     bit = !!(byte & (1 << i));
     key.partial = partial;
-    for (j = 0; j < xlink_list_length(&ctx->models); j++) {
+    for (j = 0; j < xlink_list_length(ctx->models); j++) {
       xlink_match *match;
-      key.mask = xlink_list_get_model(&ctx->models, j)->mask;
+      key.mask = xlink_list_get_model(ctx->models, j)->mask;
       match = xlink_set_get(&ctx->matches, &key);
       if (match == NULL) {
         memset(key.counts, 0, sizeof(key.counts));
@@ -2723,6 +2722,7 @@ int main(int argc, char *argv[]) {
   if (flags & MOD_CHECK) {
     xlink_list bytes;
     xlink_modeler mod;
+    xlink_list models;
     xlink_context ctx;
     xlink_bitstream bs;
     /* Read bytes from stdin */
@@ -2734,28 +2734,31 @@ int main(int argc, char *argv[]) {
     xlink_modeler_init(&mod, xlink_list_length(&bytes));
     xlink_modeler_load_binary(&mod, &bytes);
     /* Search for the best context to use for bytes */
-    xlink_context_init(&ctx);
+    xlink_list_init(&models, sizeof(xlink_model), 0);
+    xlink_modeler_search(&mod, &models);
+    /* Create a context from models */
+    xlink_context_init(&ctx, &models);
     xlink_context_set_capacity(&ctx, 16*1024*1024);
-    xlink_modeler_search(&mod, &ctx.models);
     /* Create a bitstream for writing */
     xlink_bitstream_init(&bs);
     /* Encode bytes with the context and perfect hashing */
     xlink_bitstream_from_context(&bs, &ctx, &bytes);
     printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n",
-     xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
-     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     xlink_list_length(&bs.bytes) + xlink_list_length(&models),
+     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&models),
      xlink_list_length(&bytes)));
     /* Encode bytes with the context and replacement hashing */
     ctx.matches.equals = NULL;
     xlink_bitstream_from_context(&bs, &ctx, &bytes);
     printf("Replace hashing: %i bytes, %2.3lf%% smaller\n",
-     xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
-     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&ctx.models),
+     xlink_list_length(&bs.bytes) + xlink_list_length(&models),
+     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&models),
      xlink_list_length(&bytes)));
     /* Clean up */
     xlink_list_clear(&bytes);
     xlink_modeler_clear(&mod);
     xlink_context_clear(&ctx);
+    xlink_list_clear(&models);
     xlink_bitstream_clear(&bs);
     return EXIT_SUCCESS;
   }
