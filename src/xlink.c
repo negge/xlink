@@ -2759,6 +2759,9 @@ int main(int argc, char *argv[]) {
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
+      /* Segment header has 4 weight bytes + n model bytes */
+      printf("Required header: 4 weight bytes + %i model byte(s)\n",
+       xlink_list_length(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
       xlink_context_set_capacity(&ctx, 16*1024*1024);
@@ -2766,14 +2769,16 @@ int main(int argc, char *argv[]) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = xlink_list_length(&bs.bytes) + 4 + xlink_list_length(&models);
-      printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n", size,
+      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       /* Encode bytes with the context and replacement hashing */
       ctx.matches.equals = NULL;
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = xlink_list_length(&bs.bytes) + 4 + xlink_list_length(&models);
-      printf("Replace hashing: %i bytes, %2.3lf%% smaller\n", size,
+      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       xlink_context_clear(&ctx);
       xlink_bitstream_clear(&bs);
