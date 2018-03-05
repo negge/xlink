@@ -2723,8 +2723,6 @@ int main(int argc, char *argv[]) {
     xlink_list bytes;
     xlink_modeler mod;
     xlink_list models;
-    xlink_context ctx;
-    xlink_bitstream bs;
     /* Read bytes from stdin */
     xlink_list_init(&bytes, sizeof(unsigned char), 0);
     while (!FEOF(stdin)) {
@@ -2736,30 +2734,33 @@ int main(int argc, char *argv[]) {
     /* Search for the best context to use for bytes */
     xlink_list_init(&models, sizeof(xlink_model), 0);
     xlink_modeler_search(&mod, &models);
-    /* Create a context from models */
-    xlink_context_init(&ctx, &models);
-    xlink_context_set_capacity(&ctx, 16*1024*1024);
-    /* Create a bitstream for writing */
-    xlink_bitstream_init(&bs);
-    /* Encode bytes with the context and perfect hashing */
-    xlink_bitstream_from_context(&bs, &ctx, &bytes);
-    printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n",
-     xlink_list_length(&bs.bytes) + xlink_list_length(&models),
-     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&models),
-     xlink_list_length(&bytes)));
-    /* Encode bytes with the context and replacement hashing */
-    ctx.matches.equals = NULL;
-    xlink_bitstream_from_context(&bs, &ctx, &bytes);
-    printf("Replace hashing: %i bytes, %2.3lf%% smaller\n",
-     xlink_list_length(&bs.bytes) + xlink_list_length(&models),
-     XLINK_RATIO(xlink_list_length(&bs.bytes) + xlink_list_length(&models),
-     xlink_list_length(&bytes)));
+    if (xlink_list_length(&models) > 0) {
+      xlink_context ctx;
+      xlink_bitstream bs;
+      int size;
+      /* Create a context from models */
+      xlink_context_init(&ctx, &models);
+      xlink_context_set_capacity(&ctx, 16*1024*1024);
+      /* Create a bitstream for writing */
+      xlink_bitstream_init(&bs);
+      /* Encode bytes with the context and perfect hashing */
+      xlink_bitstream_from_context(&bs, &ctx, &bytes);
+      size = xlink_list_length(&bs.bytes) + xlink_list_length(&models);
+      printf("Perfect hashing: %i bytes, %2.3lf%% smaller\n", size,
+       XLINK_RATIO(size, xlink_list_length(&bytes)));
+      /* Encode bytes with the context and replacement hashing */
+      ctx.matches.equals = NULL;
+      xlink_bitstream_from_context(&bs, &ctx, &bytes);
+      size = xlink_list_length(&bs.bytes) + xlink_list_length(&models);
+      printf("Replace hashing: %i bytes, %2.3lf%% smaller\n", size,
+       XLINK_RATIO(size, xlink_list_length(&bytes)));
+      xlink_context_clear(&ctx);
+      xlink_bitstream_clear(&bs);
+    }
     /* Clean up */
     xlink_list_clear(&bytes);
     xlink_modeler_clear(&mod);
-    xlink_context_clear(&ctx);
     xlink_list_clear(&models);
-    xlink_bitstream_clear(&bs);
     return EXIT_SUCCESS;
   }
   if (optind == argc) {
