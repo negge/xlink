@@ -486,22 +486,6 @@ struct xlink_modeler {
   xlink_set matches;
 };
 
-typedef struct xlink_ans_encoder xlink_ans_encoder;
-
-struct xlink_ans_encoder {
-  xlink_context *ctx;
-  xlink_list bytes;
-};
-
-typedef struct xlink_ans_decoder xlink_ans_decoder;
-
-struct xlink_ans_decoder {
-  xlink_context *ctx;
-  const xlink_list *bytes;
-  int pos;
-  unsigned int state;
-};
-
 void xlink_log(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -2089,16 +2073,6 @@ void xlink_binary_link(xlink_binary *bin) {
   fclose(out);
 }
 
-#define PROB_BITS (8)
-#define PROB_MAX (1 << PROB_BITS)
-#define ANS_BITS (15)
-#define ANS_BASE (1 << ANS_BITS)
-#define IO_BITS (8)
-#define IO_BASE (1 << IO_BITS)
-
-#define FLOOR_DIV(x, y) ((x)/(y))
-#define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
-
 void xlink_model_init(xlink_model *model, unsigned char mask) {
   int i;
   model->mask = mask;
@@ -2491,6 +2465,32 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
   xlink_modeler_print(mod, models);
 }
+
+typedef struct xlink_ans_encoder xlink_ans_encoder;
+
+struct xlink_ans_encoder {
+  xlink_context *ctx;
+  xlink_list bytes;
+};
+
+typedef struct xlink_ans_decoder xlink_ans_decoder;
+
+struct xlink_ans_decoder {
+  xlink_context *ctx;
+  const xlink_list *bytes;
+  int pos;
+  unsigned int state;
+};
+
+#define PROB_BITS (8)
+#define PROB_MAX (1 << PROB_BITS)
+#define ANS_BITS (15)
+#define ANS_BASE (1 << ANS_BITS)
+#define IO_BITS (8)
+#define IO_BASE (1 << IO_BITS)
+
+#define FLOOR_DIV(x, y) ((x)/(y))
+#define CEIL_DIV(x, y) ((x)/(y) + ((x) % (y) != 0))
 
 void xlink_ans_encoder_init(xlink_ans_encoder *enc, xlink_context *ctx) {
   enc->ctx = ctx;
