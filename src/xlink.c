@@ -3023,12 +3023,12 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
   }
   if (optind == argc) {
-    printf("No <modules> specified!\n\n");
+    fprintf(stderr, "No <modules> specified!\n\n");
     usage(argv[0]);
     return EXIT_FAILURE;
   }
   if (!(flags & MOD_DUMP) && bin.output == NULL) {
-    printf("Output -o <program> is required!\n\n");
+    fprintf(stderr, "Output -o <program> is required!\n\n");
     usage(argv[0]);
     return EXIT_FAILURE;
   }
