@@ -45,10 +45,12 @@ putc:
 ; (E)SI = pointer string to print
 print_string:
   pusha
+  push ds
+  push cs
+  pop ds
 
 .L1:
-  mov al, [cs:esi]
-  inc esi
+  lodsb
   cmp al, '$'
   je .L2
 
@@ -58,6 +60,7 @@ print_string:
 
   jmp .L1
 .L2:
+  pop ds
   popa
   ret
 
