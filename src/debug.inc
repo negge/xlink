@@ -32,16 +32,6 @@
 
 SEGMENT _TEXT USE32 CLASS=CODE
 
-; DL = character to print
-putc:
-  push eax
-
-  mov ah,2
-  int 0x21
-
-  pop eax
-  ret
-
 ; (E)SI = pointer string to print
 print_string:
   pusha
