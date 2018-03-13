@@ -51,10 +51,8 @@ dpmi_ok:
   ASSERT {}, NC, 'Failed to enter DPMI protected mode.'
 
   ; BX = 0xffff
-  push bx
-  push bx
-  pop cx
-  pop dx
+  mov cx, bx
+  mov dx, bx
 
   ; ES = selector to program's PSP with a 100H byte limit
   mov bx, es
