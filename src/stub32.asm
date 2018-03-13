@@ -73,8 +73,8 @@ dpmi_ok:
   push es
   pop ds
 
-  ; AH = 0
-  mov al, 0x9
+  ; AX = 0008
+  inc ax
 
   ; CS = 16-bit selector with base of real mode CS and a 64KB limit
   mov bx, cs
