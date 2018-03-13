@@ -79,11 +79,11 @@ dpmi_ok:
   ; CS = 16-bit selector with base of real mode CS and a 64KB limit
   mov bx, cs
 
-  ; CX = 0xffff
-  inc cx
-  mov cl, bl
-  shl cl, 5
-  or cx, 0xC09A
+  ; Load access rights into CH
+  lar cx, bx
+  ; Set page granular (10000000) and 32-bit (01000000) extended access rights
+  mov cl, 0xc0
+  xchg ch, cl
 
   ; Set the CS segment to allow 32-bit code
   ;  AX = 0009h
