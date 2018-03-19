@@ -2805,6 +2805,10 @@ void xlink_range_encoder_init(xlink_range_encoder *enc, xlink_context *ctx) {
   enc->range = EC_BASE;
   enc->zero = 0;
   enc->ones = 0;
+  /* Start by writing a 1 bit, this is necessary for decoder implementation */
+  xlink_range_encoder_write_bit(enc, 1, 1, 1);
+  /* Update the context with 1 bit */
+  xlink_context_update_bit(enc->ctx, 0, 1);
 }
 
 void xlink_range_encoder_clear(xlink_range_encoder *enc) {
@@ -2863,6 +2867,11 @@ void xlink_range_decoder_init(xlink_range_decoder *dec, xlink_context *ctx,
   dec->low = 0;
   dec->range = 1;
   dec->value = 0;
+  /* Discard first bit */
+  XLINK_ERROR(xlink_range_decoder_read_bit(dec, 1, 1) == 0,
+   ("Expected first decoded bit to be 1"));
+  /* Update the context with 1 bit */
+  xlink_context_update_bit(dec->ctx, 0, 1);
 }
 
 void xlink_range_decoder_clear(xlink_range_decoder *dec) {
