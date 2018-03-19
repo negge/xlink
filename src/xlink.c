@@ -237,7 +237,7 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
 typedef struct xlink_list xlink_list;
 
 struct xlink_list {
-  char *data;
+  unsigned char *data;
   size_t size;
   int length;
   int capacity;
