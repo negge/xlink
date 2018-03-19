@@ -2682,20 +2682,6 @@ struct xlink_range_decoder {
 #define EC_HALF (EC_BASE >> 1)
 #define EC_MASK (EC_BASE + (EC_BASE - 1))
 
-void xlink_range_encoder_init(xlink_range_encoder *enc, xlink_context *ctx) {
-  enc->ctx = ctx;
-  xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
-  enc->bits = 0;
-  enc->low = 0;
-  enc->range = EC_BASE;
-  enc->zero = 0;
-  enc->ones = 0;
-}
-
-void xlink_range_encoder_clear(xlink_range_encoder *enc) {
-  xlink_list_clear(&enc->bytes);
-}
-
 #define xlink_range_encoder_store(enc, bit) \
   do { \
     xlink_list_expand_capacity(&enc->bytes, (enc->bits & ~7) + 1); \
@@ -2811,17 +2797,18 @@ void xlink_range_encoder_finalize(xlink_range_encoder *enc,
   xlink_list_append(&bs->bytes, &enc->bytes);
 }
 
-void xlink_range_decoder_init(xlink_range_decoder *dec, xlink_context *ctx,
- xlink_bitstream *bs) {
-  dec->ctx = ctx;
-  dec->bytes = &bs->bytes;
-  dec->bits = 1;
-  dec->low = 0;
-  dec->range = 1;
-  dec->value = 0;
+void xlink_range_encoder_init(xlink_range_encoder *enc, xlink_context *ctx) {
+  enc->ctx = ctx;
+  xlink_list_init(&enc->bytes, sizeof(unsigned char), 0);
+  enc->bits = 0;
+  enc->low = 0;
+  enc->range = EC_BASE;
+  enc->zero = 0;
+  enc->ones = 0;
 }
 
-void xlink_range_decoder_clear(xlink_range_decoder *dec) {
+void xlink_range_encoder_clear(xlink_range_encoder *enc) {
+  xlink_list_clear(&enc->bytes);
 }
 
 int xlink_range_decoder_read_bit(xlink_range_decoder *dec, unsigned int c0,
@@ -2866,6 +2853,19 @@ unsigned char xlink_range_decoder_read_byte(xlink_range_decoder *dec) {
   }
   xlink_context_update(dec->ctx, byte);
   return byte;
+}
+
+void xlink_range_decoder_init(xlink_range_decoder *dec, xlink_context *ctx,
+ xlink_bitstream *bs) {
+  dec->ctx = ctx;
+  dec->bytes = &bs->bytes;
+  dec->bits = 1;
+  dec->low = 0;
+  dec->range = 1;
+  dec->value = 0;
+}
+
+void xlink_range_decoder_clear(xlink_range_decoder *dec) {
 }
 
 typedef xlink_range_encoder xlink_encoder;
