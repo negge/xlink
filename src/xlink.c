@@ -2226,29 +2226,35 @@ void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
 
 #define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
 
-void xlink_context_update(xlink_context *ctx, unsigned char byte) {
+void xlink_context_update_bit(xlink_context *ctx, unsigned char partial,
+ int bit) {
   xlink_match key;
-  unsigned char partial;
-  int i, j;
+  int i;
+  key.partial = partial;
   memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
+  for (i = 0; i < xlink_list_length(ctx->models); i++) {
+    xlink_match *match;
+    key.mask = xlink_list_get_model(ctx->models, i)->mask;
+    match = xlink_set_get(&ctx->matches, &key);
+    if (match == NULL) {
+      memset(key.counts, 0, sizeof(key.counts));
+      match = xlink_set_put(&ctx->matches, &key);
+    }
+    match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
+    if (match->counts[1 - bit] > 1) {
+      match->counts[1 - bit] >>= 1;
+    }
+  }
+}
+
+void xlink_context_update(xlink_context *ctx, unsigned char byte) {
+  unsigned char partial;
+  int i;
   partial = 1;
   for (i = 8; i-- > 0; ) {
     int bit;
     bit = !!(byte & (1 << i));
-    key.partial = partial;
-    for (j = 0; j < xlink_list_length(ctx->models); j++) {
-      xlink_match *match;
-      key.mask = xlink_list_get_model(ctx->models, j)->mask;
-      match = xlink_set_get(&ctx->matches, &key);
-      if (match == NULL) {
-        memset(key.counts, 0, sizeof(key.counts));
-        match = xlink_set_put(&ctx->matches, &key);
-      }
-      match->counts[bit] = XLINK_MIN(255, match->counts[bit] + 1);
-      if (match->counts[1 - bit] > 1) {
-        match->counts[1 - bit] >>= 1;
-      }
-    }
+    xlink_context_update_bit(ctx, partial, bit);
     partial <<= 1;
     partial |= bit;
   }
