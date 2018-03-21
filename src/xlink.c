@@ -2720,9 +2720,9 @@ void xlink_range_encoder_write_bit(xlink_range_encoder *enc, xlink_word c0,
   xlink_word s;
   XLINK_ERROR(c0 == 0 || c1 == 0 || (c0 > EC_MASK - c1),
    ("Error invalid counts, c0 = %i and c1 = %i", c0, c1));
-  s = ((xlink_dword)enc->range)*c0/(c0 + c1);
-  enc->range = bit ? enc->range - s : s;
-  if (bit) {
+  s = ((xlink_dword)enc->range)*c1/(c0 + c1);
+  enc->range = bit ? s : enc->range - s;
+  if (!bit) {
     /* Handle carry */
     if (s > EC_MASK - enc->low) {
       xlink_range_encoder_emit(enc, 1);
@@ -2829,10 +2829,10 @@ int xlink_range_decoder_read_bit(xlink_range_decoder *dec, unsigned int c0,
     dec->value |= XLINK_GET_BIT(dec->bytes->data, dec->bits);
     dec->bits++;
   }
-  s = ((xlink_dword)dec->range)*c0/(c0 + c1);
+  s = ((xlink_dword)dec->range)*c1/(c0 + c1);
   XLINK_ERROR(s == 0 || s >= dec->range, ("Invalid scale value s = %02x", s));
-  bit = dec->value >= s;
-  if (bit) {
+  bit = dec->value < s;
+  if (!bit) {
     dec->low += s;
     dec->range -= s;
     dec->value -= s;
