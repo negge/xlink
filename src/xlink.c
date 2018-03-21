@@ -456,6 +456,8 @@ struct xlink_model {
 typedef struct xlink_match xlink_match;
 
 struct xlink_match {
+  /* Used in the match_simple_hash_code() function */
+  unsigned int salt;
   unsigned char partial;
   unsigned char mask;
   unsigned char buf[8];
@@ -2163,22 +2165,26 @@ unsigned int match_simple_hash_code(const void *m) {
   unsigned char byte;
   int i;
   mat = (xlink_match *)m;
+  /* Use current weight state to salt the hash */
+  hash = mat->salt;
   /* Combine the mask */
-  hash = mat->mask;
+  hash = (hash & 0xffffff00) | mat->mask;
   /* Combine the partial */
   byte = (hash & 0x000000ff);
   hash = (hash & 0xffffff00) | (byte ^ mat->partial);
-  hash *= 0x6f;
-  byte += mat->partial;
-  hash = (hash & 0xffffff00) | byte;
+  hash = ((int)hash)*0x6f;
+  byte = (hash & 0x000000ff);
+  hash = (hash & 0xffffff00) | (byte + mat->partial);
+  hash--;
   /* Combine the history */
   for (i = 0; i < 8; i++) {
     if (mat->mask & (1 << (7 - i))) {
       byte = (hash & 0x000000ff);
       hash = (hash & 0xffffff00) | (byte ^ mat->buf[i]);
-      hash *= 0x6f;
-      byte += mat->buf[i];
-      hash = (hash & 0xffffff00) | byte;
+      hash = ((int)hash)*0x6f;
+      byte = (hash & 0x000000ff);
+      hash = (hash & 0xffffff00) | (byte + mat->buf[i]);
+      hash--;
     }
   }
   return hash;
@@ -2221,6 +2227,7 @@ void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
     xlink_match *match;
     model = xlink_list_get(ctx->models, i);
     key.mask = model->mask;
+    key.salt = model->state;
     match = xlink_set_get(&ctx->matches, &key);
     if (match != NULL) {
       counts[0] += ((unsigned int)match->counts[0]) << model->weight;
@@ -2238,8 +2245,11 @@ void xlink_context_update_bit(xlink_context *ctx, unsigned char partial,
   key.partial = partial;
   memcpy(key.buf, ctx->buf, sizeof(ctx->buf));
   for (i = 0; i < xlink_list_length(ctx->models); i++) {
+    xlink_model *model;
     xlink_match *match;
-    key.mask = xlink_list_get_model(ctx->models, i)->mask;
+    model = xlink_list_get(ctx->models, i);
+    key.mask = model->mask;
+    key.salt = model->state;
     match = xlink_set_get(&ctx->matches, &key);
     if (match == NULL) {
       memset(key.counts, 0, sizeof(key.counts));
