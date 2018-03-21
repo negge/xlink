@@ -2395,6 +2395,24 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   }
 }
 
+unsigned int xlink_compute_packed_weights(xlink_list *models) {
+  unsigned int packed;
+  int i, j;
+  int last;
+  packed = 0xffffffffu;
+  i = 0;
+  last = 0;
+  for (j = 0; j < xlink_list_length(models); j++, i++) {
+    xlink_model *model;
+    model = xlink_list_get(models, j);
+    i += model->weight - last;
+    XLINK_ERROR(i > 31, ("Invalid list of models, i = %i", i));
+    packed &= ~(1 << (31 - i));
+    last = model->weight;
+  }
+  return packed;
+}
+
 #define XLINK_RATIO(packed, bytes) (100*(1 - (((double)(packed))/(bytes))))
 
 void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
@@ -2413,6 +2431,7 @@ void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
       printf("(%02x, %i) ", model->mask, model->weight);
     }
     printf("\n");
+    printf("Packed weights = %08x\n", xlink_compute_packed_weights(models));
   }
   else {
     printf("No context found.\n");
