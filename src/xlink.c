@@ -2091,7 +2091,7 @@ int mod_comp(const void *a, const void *b) {
   int i;
   mod_a = (xlink_model *)a;
   mod_b = (xlink_model *)b;
-  /* Use the bit-reversal of the mask as the sort order */
+  /* Compute the bit-reversal of the mask */
   mask_a = mask_b = 0;
   for (i = 0; i < 8; i++) {
     mask_a <<= 1;
@@ -2099,7 +2099,11 @@ int mod_comp(const void *a, const void *b) {
     mask_a |= !!(mod_a->mask & (1 << i));
     mask_b |= !!(mod_b->mask & (1 << i));
   }
-  return mask_a - mask_b;
+  /* Sort on weights ascending, then bit-reversed mask */
+  if (mod_a->weight == mod_b->weight) {
+    return mask_a - mask_b;
+  }
+  return mod_a->weight - mod_b->weight;
 }
 
 int match_comp(const void *a, const void *b) {
