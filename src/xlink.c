@@ -450,6 +450,7 @@ typedef struct xlink_model xlink_model;
 struct xlink_model {
   unsigned char mask;
   int weight;
+  unsigned int state;
 };
 
 typedef struct xlink_match xlink_match;
@@ -2492,6 +2493,31 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   while (add_index != -1 || del_index != -1);
   printf("done\n");
   qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
+  /* Compute the weight state for each model in order */
+  {
+    unsigned int state;
+    int weight;
+    int i;
+    state = xlink_compute_packed_weights(models);
+    weight = 0;
+    for (i = 0; state != 0; i++) {
+      int test;
+      xlink_model *model;
+      weight--;
+      do {
+        weight++;
+        test = state >= 0x80000000u;
+        state += state;
+      }
+      while (test);
+      if (state == 0) break;
+      model = xlink_list_get(models, i);
+      XLINK_ERROR(model->weight != weight,
+       ("Mismatch when decoding model %02x weight: got %i expected %i",
+       model->mask, weight, model->weight));
+      model->state = state;
+    }
+  }
   xlink_modeler_print(mod, models);
 }
 
