@@ -2731,6 +2731,7 @@ struct xlink_range_decoder {
   xlink_context *ctx;
   const xlink_list *bytes;
   int bits;
+  int pos;
   xlink_word low;
   xlink_word range;
   xlink_word value;
@@ -2885,8 +2886,9 @@ int xlink_range_decoder_read_bit(xlink_range_decoder *dec, unsigned int c0,
     dec->low <<= 1;
     dec->range <<= 1;
     dec->value <<= 1;
-    dec->value |= XLINK_GET_BIT(dec->bytes->data, dec->bits);
-    dec->bits++;
+    dec->value |=
+     dec->pos >= dec->bits ? 0 : XLINK_GET_BIT(dec->bytes->data, dec->pos);
+    dec->pos++;
   }
   s = ((xlink_dword)dec->range)*c1/(c0 + c1);
   XLINK_ERROR(s == 0 || s >= dec->range, ("Invalid scale value s = %02x", s));
@@ -2922,7 +2924,8 @@ void xlink_range_decoder_init(xlink_range_decoder *dec, xlink_context *ctx,
  xlink_bitstream *bs) {
   dec->ctx = ctx;
   dec->bytes = &bs->bytes;
-  dec->bits = 1;
+  dec->bits = bs->bits;
+  dec->pos = 1;
   dec->low = 0;
   dec->range = 1;
   dec->value = 0;
