@@ -432,6 +432,7 @@ struct xlink_library {
 struct xlink_binary {
   char *output;
   char *entry;
+  char *init;
   char *map;
   xlink_module **modules;
   int nmodules;
@@ -1994,7 +1995,13 @@ void xlink_binary_link(xlink_binary *bin) {
   if (start->attrib.proc == OMF_SEGMENT_USE32) {
     xlink_file file;
     xlink_module *mod;
-    file = STUB32_MODULE;
+    /* If there is a 16-bit initialization function, use STUB32I */
+    if (bin->init) {
+      file = STUB32I_MODULE;
+    }
+    else {
+      file = STUB32_MODULE;
+    }
     mod = xlink_file_load_module(&file, 0);
     /* The stub code is always in segment _MAIN */
     start = xlink_module_find_segment(mod, "_MAIN");
@@ -2003,6 +2010,10 @@ void xlink_binary_link(xlink_binary *bin) {
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
     /* The stub code calls an external main_ function, find and rewrite it */
     strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
+    /* If there is an external init_ function, find and rewrite it */
+    if (bin->init) {
+      strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
+    }
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
   /* Link the starting segment recursively by walking its externs, resolving
@@ -2019,13 +2030,16 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
-  for (i = 1; i <= bin->nsegments; i++) {
-    xlink_segment *seg;
-    seg = xlink_binary_get_segment(bin, i);
-    XLINK_ERROR(start->attrib.proc != seg->attrib.proc,
-     ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
-     OMF_SEGDEF_USE[start->attrib.proc], xlink_segment_get_name(seg),
-     OMF_SEGDEF_USE[seg->attrib.proc]));
+  if (bin->init == NULL) {
+    /* Test that all segments are the same mode, 16-bit or 32-bit. */
+    for (i = 1; i <= bin->nsegments; i++) {
+      xlink_segment *seg;
+      seg = xlink_binary_get_segment(bin, i);
+      XLINK_ERROR(start->attrib.proc != seg->attrib.proc,
+       ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
+       OMF_SEGDEF_USE[start->attrib.proc], xlink_segment_get_name(seg),
+       OMF_SEGDEF_USE[seg->attrib.proc]));
+    }
   }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS), with start first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
@@ -2990,11 +3004,12 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
-const char *OPTSTRING = "o:e:smdCh";
+const char *OPTSTRING = "o:e:i:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
+  { "init", required_argument,   NULL, 'i' },
   { "split", no_argument,        NULL, 's' },
   { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
@@ -3008,6 +3023,7 @@ static void usage(const char *argv0) {
    "Options: \n\n"
    "  -o --output <program>           Output file name for linked program.\n"
    "  -e --entry <function>           Entry point for binary (default: main).\n"
+   "  -i --init <function>            Optional 16-bit initialization routine.\n"
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -s --split                      Split segments into linkable pieces.\n"
@@ -3034,6 +3050,10 @@ int main(int argc, char *argv[]) {
       }
       case 'e' : {
         bin.entry = optarg;
+        break;
+      }
+      case 'i' : {
+        bin.init = optarg;
         break;
       }
       case 'd' : {
