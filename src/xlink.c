@@ -2030,17 +2030,6 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     xlink_binary_process_segment(bin, ext->public->segment);
   }
-  if (bin->init == NULL) {
-    /* Test that all segments are the same mode, 16-bit or 32-bit. */
-    for (i = 1; i <= bin->nsegments; i++) {
-      xlink_segment *seg;
-      seg = xlink_binary_get_segment(bin, i);
-      XLINK_ERROR(start->attrib.proc != seg->attrib.proc,
-       ("Entry point %s is %s, but linked segment %s is %s", bin->entry,
-       OMF_SEGDEF_USE[start->attrib.proc], xlink_segment_get_name(seg),
-       OMF_SEGDEF_USE[seg->attrib.proc]));
-    }
-  }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS), with start first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
   if (bin->segments[0] != start) {
