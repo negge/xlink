@@ -2043,6 +2043,12 @@ void xlink_binary_link(xlink_binary *bin) {
   for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
     seg = xlink_binary_get_segment(bin, i);
+    /* If this is a 32-bit program, move all 32-bit BSS above the first 64k */
+    if (start->attrib.proc == OMF_SEGMENT_USE32 &&
+     seg->attrib.proc == OMF_SEGMENT_USE32 &&
+     xlink_segment_get_class(seg) == OMF_SEGMENT_BSS && offset < 0x10000) {
+      offset = 0x10000;
+    }
     offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
     seg->start = offset;
     offset += seg->length;
