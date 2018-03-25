@@ -1969,10 +1969,13 @@ int seg_comp(const void *a, const void *b) {
   seg_a = *(xlink_segment **)a;
   seg_b = *(xlink_segment **)b;
   if (xlink_segment_get_class(seg_a) == xlink_segment_get_class(seg_b)) {
-    if (seg_a->module == seg_b->module) {
-      return seg_a->index - seg_b->index;
+    if (seg_a->attrib.proc == seg_b->attrib.proc) {
+      if (seg_a->module == seg_b->module) {
+        return seg_a->index - seg_b->index;
+      }
+      return seg_a->module->index - seg_b->module->index;
     }
-    return seg_a->module->index - seg_b->module->index;
+    return seg_a->attrib.proc - seg_b->attrib.proc;
   }
   return xlink_segment_get_class(seg_a) - xlink_segment_get_class(seg_b);
 }
