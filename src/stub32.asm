@@ -40,7 +40,7 @@ dpmi_ok:
   ; SI = number of paragraphs required for DPMI host private data area
   ; Rather than allocate memory, set ES = CS + 0x200 (8kB past the load address)
   push cs
-  add byte [di+bx], 2
+  add byte [di+bx], 4 ; TODO: Make xlink set this past the end of 16-bit BSS
   pop es
 
   ; Call the real-to-protected mode entry point with the following paramters:
