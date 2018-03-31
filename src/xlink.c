@@ -1131,7 +1131,7 @@ void xlink_binary_process_segment(xlink_binary *bin, xlink_segment *segment) {
 }
 
 void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
-  int i;
+  int i, j;
   fprintf(out, "Segment layout:\n");
   for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
@@ -1141,6 +1141,16 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
      OMF_SEGDEF_ALIGN[seg->attrib.align], OMF_SEGDEF_USE[seg->attrib.proc],
      OMF_SEGDEF_COMBINE[seg->attrib.combine], xlink_segment_get_class_name(seg),
      seg->length, seg->attrib.big ? ", big" : "");
+    for (j = 1; j <= seg->npublics; j++) {
+      xlink_public *pub;
+      int size;
+      pub = xlink_segment_get_public(seg, j);
+      size = seg->length - pub->offset;
+      if (j < seg->npublics) {
+        size = xlink_segment_get_public(seg, j)->offset - pub->offset;
+      }
+      fprintf(out, " %4x (%08x bytes) %8s\n", pub->offset, size, pub->name);
+    }
   }
 }
 
