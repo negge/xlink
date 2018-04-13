@@ -2009,6 +2009,25 @@ void xlink_binary_link_root_segment(xlink_binary *bin, xlink_segment *root) {
   }
 }
 
+/* Sort segments by class (CODE, DATA, BSS) */
+void xlink_sort_segments(xlink_segment **segments, int nsegments, int *data_idx,
+ int *bss_idx) {
+  int i;
+  qsort(segments, nsegments, sizeof(xlink_segment *), seg_comp);
+  if (data_idx != NULL) {
+    for (i = 0; i < nsegments; i++) {
+      if (xlink_segment_get_class(segments[i]) == OMF_SEGMENT_DATA) break;
+    }
+    *data_idx = i;
+  }
+  if (bss_idx != NULL) {
+    for (i = 0; i < nsegments; i++) {
+      if (xlink_segment_get_class(segments[i]) == OMF_SEGMENT_BSS) break;
+    }
+    *bss_idx = i;
+  }
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
@@ -2045,8 +2064,8 @@ void xlink_binary_link(xlink_binary *bin) {
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
   xlink_binary_link_root_segment(bin, start);
-  /* Stage 2: Sort segments by class (CODE, DATA, BSS), with start first */
-  qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
+  /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
+  xlink_sort_segments(bin->segments, bin->nsegments, NULL, NULL);
   if (bin->segments[0] != start) {
     for (i = 1; i < bin->nsegments; i++) {
       if (bin->segments[i] == start) {
