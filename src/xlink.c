@@ -1613,6 +1613,7 @@ int rel_comp(const void *a, const void *b) {
 #define MOD_MAP   (0x2)
 #define MOD_SPLIT (0x4)
 #define MOD_CHECK (0x8)
+#define MOD_PACK  (0x10)
 
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
@@ -3039,12 +3040,13 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
-const char *OPTSTRING = "o:e:i:smdCh";
+const char *OPTSTRING = "o:e:i:psmdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
   { "init", required_argument,   NULL, 'i' },
+  { "pack", no_argument,         NULL, 'p' },
   { "split", no_argument,        NULL, 's' },
   { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
@@ -3059,6 +3061,7 @@ static void usage(const char *argv0) {
    "  -o --output <program>           Output file name for linked program.\n"
    "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -i --init <function>            Optional 16-bit initialization routine.\n"
+   "  -p --pack                       Create a compressed binary.\n"
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -s --split                      Split segments into linkable pieces.\n"
@@ -3089,6 +3092,10 @@ int main(int argc, char *argv[]) {
       }
       case 'i' : {
         bin.init = optarg;
+        break;
+      }
+      case 'p' : {
+        flags |= MOD_PACK;
         break;
       }
       case 'd' : {
