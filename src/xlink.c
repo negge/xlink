@@ -442,6 +442,10 @@ struct xlink_binary {
   int nsegments;
   xlink_extern **externs;
   int nexterns;
+  /* Segment that contains 16-bit COM entry point */
+  xlink_segment *start;
+  /* Segment that contains 32-bit _MAIN entry point (only set for 32-bit COM) */
+  xlink_segment *main;
 };
 
 typedef unsigned int xlink_prob;
@@ -2041,29 +2045,29 @@ void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
   FILE *out;
-  xlink_segment *start;
-  /* Stage 1: Resolve all symbol references, starting from bin->entry */
-  start = xlink_binary_find_public(bin, bin->entry)->segment;
-  XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
+  /* Stage 0: Find the entry point segment */
+  bin->main = xlink_binary_find_public(bin, bin->entry)->segment;
+  XLINK_ERROR(xlink_segment_get_class(bin->main) != OMF_SEGMENT_CODE,
    ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
-   xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
-  /* If this is a 32-bit program, add the protected mode stub */
-  if (start->attrib.proc == OMF_SEGMENT_USE32) {
+   xlink_segment_get_name(bin->main), xlink_segment_get_class_name(bin->main)));
+  /* Stage 0a: Set the 16-bit starting segment */
+  if (bin->main->attrib.proc == OMF_SEGMENT_USE16) {
+    bin->start = bin->main;
+    XLINK_ERROR(bin->init != NULL,
+     ("Cannot set 16-bit initializer function when linking 16-bit COM file"));
+  }
+  else {
     xlink_file file;
     xlink_module *mod;
     /* If there is a 16-bit initialization function, use STUB32I */
-    if (bin->init) {
-      file = STUB32I_MODULE;
-    }
-    else {
-      file = STUB32_MODULE;
-    }
+    file = bin->init ? STUB32I_MODULE : STUB32_MODULE;
     mod = xlink_file_load_module(&file, 0);
     /* The stub code is always in segment _MAIN */
-    start = xlink_module_find_segment(mod, "_MAIN");
-    XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
+    bin->start = xlink_module_find_segment(mod, "_MAIN");
+    XLINK_ERROR(xlink_segment_get_class(bin->start) != OMF_SEGMENT_CODE,
      ("Stub segment %s with class %s not 'CODE'",
-     xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+     xlink_segment_get_name(bin->start),
+     xlink_segment_get_class_name(bin->start)));
     /* The stub code calls an external main_ function, find and rewrite it */
     strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
     /* If there is an external init_ function, find and rewrite it */
@@ -2072,18 +2076,19 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
-  xlink_binary_link_root_segment(bin, start);
+  /* Stage 1: Resolve all symbol references, starting from bin->start */
+  xlink_binary_link_root_segment(bin, bin->start);
   /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
   xlink_sort_segments(bin->segments, bin->nsegments, NULL, NULL);
   /* Stage 2a: Set _MAIN as the first CODE segment */
-  xlink_set_first_segment(&bin->segments[0], start);
+  xlink_set_first_segment(&bin->segments[0], bin->start);
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
   offset = 0x100;
   for (i = 1; i <= bin->nsegments; i++) {
     xlink_segment *seg;
     seg = xlink_binary_get_segment(bin, i);
     /* If this is a 32-bit program, move all 32-bit BSS above the first 64k */
-    if (start->attrib.proc == OMF_SEGMENT_USE32 &&
+    if (bin->main->attrib.proc == OMF_SEGMENT_USE32 &&
      seg->attrib.proc == OMF_SEGMENT_USE32 &&
      xlink_segment_get_class(seg) == OMF_SEGMENT_BSS && offset < 0x10000) {
       offset = 0x10000;
@@ -2092,7 +2097,7 @@ void xlink_binary_link(xlink_binary *bin) {
     seg->start = offset;
     offset += seg->length;
   }
-  XLINK_ERROR(start->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
+  XLINK_ERROR(bin->main->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
    ("Address space exceeds 65536 bytes, %i", offset));
   /* Optionally write the map file. */
   if (bin->map != NULL) {
