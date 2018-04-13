@@ -2028,6 +2028,15 @@ void xlink_sort_segments(xlink_segment **segments, int nsegments, int *data_idx,
   }
 }
 
+void xlink_set_first_segment(xlink_segment **segments, xlink_segment *first) {
+  int i;
+  if (segments[0] != first) {
+    for (i = 1; segments[i] != first; i++);
+    segments[i] = segments[0];
+    segments[0] = first;
+  }
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
@@ -2066,15 +2075,8 @@ void xlink_binary_link(xlink_binary *bin) {
   xlink_binary_link_root_segment(bin, start);
   /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
   xlink_sort_segments(bin->segments, bin->nsegments, NULL, NULL);
-  if (bin->segments[0] != start) {
-    for (i = 1; i < bin->nsegments; i++) {
-      if (bin->segments[i] == start) {
-        bin->segments[i] = bin->segments[0];
-        bin->segments[0] = start;
-        break;
-      }
-    }
-  }
+  /* Stage 2a: Set _MAIN as the first CODE segment */
+  xlink_set_first_segment(&bin->segments[0], start);
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
   offset = 0x100;
   for (i = 1; i <= bin->nsegments; i++) {
