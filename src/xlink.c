@@ -1991,6 +1991,24 @@ int seg_comp(const void *a, const void *b) {
   return xlink_segment_get_class(seg_a) - xlink_segment_get_class(seg_b);
 }
 
+/* Link the root segment recursively by walking its externs, resolving each
+    to a public symbol, and linking in that public symbol's segment */
+void xlink_binary_link_root_segment(xlink_binary *bin, xlink_segment *root) {
+  int i;
+  xlink_binary_process_segment(bin, root);
+  for (i = 1; i <= bin->nexterns; i++) {
+    xlink_extern *ext;
+    ext = xlink_binary_get_extern(bin, i);
+    if (ext->is_local) {
+      ext->public = xlink_module_find_public(ext->module, ext->name);
+    }
+    else {
+      ext->public = xlink_binary_find_public(bin, ext->name);
+    }
+    xlink_binary_process_segment(bin, ext->public->segment);
+  }
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
@@ -2026,20 +2044,7 @@ void xlink_binary_link(xlink_binary *bin) {
     }
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
-  /* Link the starting segment recursively by walking its externs, resolving
-      each to a public symbol, and linking in that public symbol's segment */
-  xlink_binary_process_segment(bin, start);
-  for (i = 1; i <= bin->nexterns; i++) {
-    xlink_extern *ext;
-    ext = xlink_binary_get_extern(bin, i);
-    if (ext->is_local) {
-      ext->public = xlink_module_find_public(ext->module, ext->name);
-    }
-    else {
-      ext->public = xlink_binary_find_public(bin, ext->name);
-    }
-    xlink_binary_process_segment(bin, ext->public->segment);
-  }
+  xlink_binary_link_root_segment(bin, start);
   /* Stage 2: Sort segments by class (CODE, DATA, BSS), with start first */
   qsort(bin->segments, bin->nsegments, sizeof(xlink_segment *), seg_comp);
   if (bin->segments[0] != start) {
