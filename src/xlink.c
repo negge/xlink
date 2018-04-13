@@ -2041,6 +2041,26 @@ void xlink_set_first_segment(xlink_segment **segments, xlink_segment *first) {
   }
 }
 
+/* Layout segments in memory with proper alignment starting at offset */
+void xlink_binary_layout_segments(xlink_binary *bin, int index, int offset) {
+  int i;
+  for (i = index + 1; i <= bin->nsegments; i++) {
+    xlink_segment *seg;
+    seg = xlink_binary_get_segment(bin, i);
+    /* If this is a 32-bit program, move all 32-bit BSS above the first 64k */
+    if (bin->main->attrib.proc == OMF_SEGMENT_USE32 &&
+     seg->attrib.proc == OMF_SEGMENT_USE32 &&
+     xlink_segment_get_class(seg) == OMF_SEGMENT_BSS && offset < 0x10000) {
+      offset = 0x10000;
+    }
+    offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
+    seg->start = offset;
+    offset += seg->length;
+  }
+  XLINK_ERROR(bin->main->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
+   ("Address space exceeds 65536 bytes, %i", offset));
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
@@ -2083,22 +2103,7 @@ void xlink_binary_link(xlink_binary *bin) {
   /* Stage 2a: Set _MAIN as the first CODE segment */
   xlink_set_first_segment(&bin->segments[0], bin->start);
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
-  offset = 0x100;
-  for (i = 1; i <= bin->nsegments; i++) {
-    xlink_segment *seg;
-    seg = xlink_binary_get_segment(bin, i);
-    /* If this is a 32-bit program, move all 32-bit BSS above the first 64k */
-    if (bin->main->attrib.proc == OMF_SEGMENT_USE32 &&
-     seg->attrib.proc == OMF_SEGMENT_USE32 &&
-     xlink_segment_get_class(seg) == OMF_SEGMENT_BSS && offset < 0x10000) {
-      offset = 0x10000;
-    }
-    offset = ALIGN2(offset, xlink_segment_get_alignment(seg));
-    seg->start = offset;
-    offset += seg->length;
-  }
-  XLINK_ERROR(bin->main->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
-   ("Address space exceeds 65536 bytes, %i", offset));
+  xlink_binary_layout_segments(bin, 0, 0x100);
   /* Optionally write the map file. */
   if (bin->map != NULL) {
     out = fopen(bin->map, "w");
