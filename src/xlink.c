@@ -2083,6 +2083,27 @@ void xlink_apply_relocations(xlink_segment **segments, int nsegments) {
   }
 }
 
+int xlink_binary_extract_class(xlink_binary *bin, int index, int offset,
+ xlink_segment_class class, xlink_list *bytes) {
+  int i;
+  for (i = index + 1; i <= bin->nsegments; i++) {
+    xlink_segment *seg;
+    seg = xlink_binary_get_segment(bin, i);
+    if (xlink_segment_get_class(seg) != class) break;
+    XLINK_ERROR(seg->info & SEG_HAS_DATA == 0,
+     ("Error segment %s has no data", xlink_segment_get_name(seg)));
+    if (offset != seg->start) {
+      unsigned char buf[4096];
+      memset(buf, 0, 4096);
+      xlink_list_add_all(bytes, buf, seg->start - offset);
+      offset = seg->start;
+    }
+    xlink_list_add_all(bytes, seg->data, seg->length);
+    offset += seg->length;
+  }
+  return offset;
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
