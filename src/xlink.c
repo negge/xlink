@@ -963,6 +963,15 @@ void xlink_module_clear(xlink_module *mod) {
   memset(mod, 0, sizeof(xlink_module));
 }
 
+void xlink_library_clear(xlink_library *lib) {
+  int i;
+  for (i = 0; i < lib->nmodules; i++) {
+    xlink_module_clear(lib->modules[i]);
+    free(lib->modules[i]);
+  }
+  free(lib->modules);
+}
+
 void xlink_binary_init(xlink_binary *bin) {
   memset(bin, 0, sizeof(xlink_binary));
   bin->entry = "main_";
@@ -974,7 +983,12 @@ void xlink_binary_clear(xlink_binary *bin) {
     xlink_module_clear(bin->modules[i]);
     free(bin->modules[i]);
   }
+  for (i = 0; i < bin->nlibrarys; i++) {
+    xlink_library_clear(bin->librarys[i]);
+    free(bin->librarys[i]);
+  }
   free(bin->modules);
+  free(bin->librarys);
   free(bin->segments);
   free(bin->externs);
   memset(bin, 0, sizeof(xlink_binary));
