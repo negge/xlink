@@ -2076,6 +2076,13 @@ void xlink_binary_layout_segments(xlink_binary *bin, int index, int offset) {
    ("Address space exceeds 65536 bytes, %i", offset));
 }
 
+void xlink_apply_relocations(xlink_segment **segments, int nsegments) {
+  int i;
+  for (i = 0; i < nsegments; i++) {
+    xlink_segment_apply_relocations(segments[i]);
+  }
+}
+
 void xlink_binary_link(xlink_binary *bin) {
   int i;
   int offset;
