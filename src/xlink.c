@@ -443,10 +443,8 @@ struct xlink_binary {
   int nsegments;
   xlink_extern **externs;
   int nexterns;
-  /* Segment that contains 16-bit COM entry point */
-  xlink_segment *start;
-  /* Segment that contains 32-bit _MAIN entry point (only set for 32-bit COM) */
-  xlink_segment *main;
+  /* Flag indicating that the main program is 32-bit */
+  int is_32bit;
 };
 
 typedef unsigned int xlink_prob;
@@ -1039,7 +1037,8 @@ xlink_public *xlink_module_find_public(xlink_module *mod, const char *symb) {
   for (i = 1; i <= mod->npublics; i++) {
     xlink_public *pub;
     pub = xlink_module_get_public(mod, i);
-    if (pub->is_local && strcmp(symb, pub->name) == 0) {
+    /* TODO: Why was this check added? */
+    if (/*pub->is_local &&*/ strcmp(symb, pub->name) == 0) {
       XLINK_ERROR(ret != NULL,
        ("Duplicate local public definition found for symbol %s in %s", symb,
        mod->filename));
@@ -2064,8 +2063,7 @@ void xlink_binary_layout_segments(xlink_binary *bin, int index, int offset) {
     xlink_segment *seg;
     seg = xlink_binary_get_segment(bin, i);
     /* If this is a 32-bit program, move all 32-bit BSS above the first 64k */
-    if (bin->main->attrib.proc == OMF_SEGMENT_USE32 &&
-     seg->attrib.proc == OMF_SEGMENT_USE32 &&
+    if (bin->is_32bit && seg->attrib.proc == OMF_SEGMENT_USE32 &&
      xlink_segment_get_class(seg) == OMF_SEGMENT_BSS && offset < 0x10000) {
       offset = 0x10000;
     }
@@ -2073,7 +2071,7 @@ void xlink_binary_layout_segments(xlink_binary *bin, int index, int offset) {
     seg->start = offset;
     offset += seg->length;
   }
-  XLINK_ERROR(bin->main->attrib.proc == OMF_SEGMENT_USE16 && offset > 65536,
+  XLINK_ERROR(!bin->is_32bit && offset > 65536,
    ("Address space exceeds 65536 bytes, %i", offset));
 }
 
@@ -2103,79 +2101,6 @@ int xlink_binary_extract_class(xlink_binary *bin, int index, int offset,
     offset += seg->length;
   }
   return offset;
-}
-
-void xlink_binary_link(xlink_binary *bin) {
-  int i;
-  int offset;
-  FILE *out;
-  /* Stage 0: Find the entry point segment */
-  bin->main = xlink_binary_find_public(bin, bin->entry)->segment;
-  XLINK_ERROR(xlink_segment_get_class(bin->main) != OMF_SEGMENT_CODE,
-   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
-   xlink_segment_get_name(bin->main), xlink_segment_get_class_name(bin->main)));
-  /* Stage 0a: Set the 16-bit starting segment */
-  if (bin->main->attrib.proc == OMF_SEGMENT_USE16) {
-    bin->start = bin->main;
-    XLINK_ERROR(bin->init != NULL,
-     ("Cannot set 16-bit initializer function when linking 16-bit COM file"));
-  }
-  else {
-    xlink_file file;
-    xlink_module *mod;
-    /* If there is a 16-bit initialization function, use STUB32I */
-    file = bin->init ? STUB32I_MODULE : STUB32_MODULE;
-    mod = xlink_file_load_module(&file, 0);
-    /* The stub code is always in segment _MAIN */
-    bin->start = xlink_module_find_segment(mod, "_MAIN");
-    XLINK_ERROR(xlink_segment_get_class(bin->start) != OMF_SEGMENT_CODE,
-     ("Stub segment %s with class %s not 'CODE'",
-     xlink_segment_get_name(bin->start),
-     xlink_segment_get_class_name(bin->start)));
-    /* The stub code calls an external main_ function, find and rewrite it */
-    strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
-    /* If there is an external init_ function, find and rewrite it */
-    if (bin->init) {
-      strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
-    }
-    XLINK_LIST_ADD(binary, module, bin, mod);
-  }
-  /* Stage 1: Resolve all symbol references, starting from bin->start */
-  xlink_binary_link_root_segment(bin, bin->start);
-  /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
-  xlink_sort_segments(bin->segments, bin->nsegments, NULL, NULL);
-  /* Stage 2a: Set _MAIN as the first CODE segment */
-  xlink_set_first_segment(&bin->segments[0], bin->start);
-  /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
-  xlink_binary_layout_segments(bin, 0, 0x100);
-  /* Optionally write the map file. */
-  if (bin->map != NULL) {
-    out = fopen(bin->map, "w");
-    xlink_binary_print_map(bin, out);
-    fclose(out);
-  }
-  /* Stage 4: Apply relocations to each segment based on memory location */
-  for (i = 1; i <= bin->nsegments; i++) {
-    xlink_segment_apply_relocations(xlink_binary_get_segment(bin, i));
-  }
-  /* Stage 5: Write the COM file to disk a segment at a time */
-  out = fopen(bin->output, "wb");
-  XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
-  for (offset = 0x100, i = 1; i <= bin->nsegments; i++) {
-    xlink_segment *seg;
-    seg = xlink_binary_get_segment(bin, i);
-    if (seg->info & SEG_HAS_DATA) {
-      if (offset != seg->start) {
-        unsigned char buf[4096];
-        memset(buf, 0, 4096);
-        fwrite(buf, 1, seg->start - offset, out);
-        offset = seg->start;
-      }
-      fwrite(seg->data, 1, seg->length, out);
-      offset += seg->length;
-    }
-  }
-  fclose(out);
 }
 
 void xlink_model_init(xlink_model *model, unsigned char mask) {
@@ -3093,6 +3018,180 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
+void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
+  int bss_idx;
+  xlink_segment *start;
+  xlink_segment *main;
+  xlink_segment *prog;
+  xlink_public *ec_bits;
+  int s;
+  int i;
+  int offset;
+  FILE *out;
+  /* Stage 0: Find the entry point segment */
+  main = xlink_binary_find_public(bin, bin->entry)->segment;
+  XLINK_ERROR(xlink_segment_get_class(main) != OMF_SEGMENT_CODE,
+   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
+   xlink_segment_get_name(main), xlink_segment_get_class_name(main)));
+  bin->is_32bit = main->attrib.proc == OMF_SEGMENT_USE32;
+  /* Stage 0a: Set the 16-bit starting segment */
+  if (!bin->is_32bit) {
+    start = main;
+    XLINK_ERROR(bin->init != NULL,
+     ("Cannot set 16-bit initializer function when linking 16-bit COM file"));
+    /* TODO: Support packing 16-bit programs */
+    XLINK_ERROR(flags & MOD_PACK,
+     ("Only 32-bit programs can be packed, %s is 16-bit", bin->entry));
+  }
+  else {
+    xlink_file file;
+    xlink_module *mod;
+    if (flags & MOD_PACK) {
+      XLINK_ERROR(1, ("Packing executables not yet supported"));
+    }
+    else {
+      /* If there is a 16-bit initialization function, use STUB32I */
+      file = bin->init ? STUB32I_MODULE : STUB32_MODULE;
+    }
+    mod = xlink_file_load_module(&file, 0);
+    /* The stub code is always in segment _MAIN */
+    start = xlink_module_find_segment(mod, "_MAIN");
+    XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
+     ("Stub segment %s with class %s not 'CODE'",
+     xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+    /* The stub code calls an external main_ function, find and rewrite it */
+    strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
+    /* If there is an external init_ function, find and rewrite it */
+    if (bin->init) {
+      strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
+    }
+    if (flags & MOD_PACK) {
+      /* The packed binary data goes in BSS segment _PROG */
+      prog = xlink_module_find_segment(mod, "_PROG");
+      XLINK_ERROR(xlink_segment_get_class(prog) != OMF_SEGMENT_BSS,
+       ("Stub segment %s with class %s not 'BSS'",
+       xlink_segment_get_name(prog), xlink_segment_get_class_name(prog)));
+      ec_bits = xlink_module_find_public(mod, "ec_bits");
+      XLINK_ERROR(ec_bits == NULL || ec_bits->segment != prog,
+       ("Public ec_bits not found in _PROG segment"));
+    }
+    XLINK_LIST_ADD(binary, module, bin, mod);
+  }
+  /* Stage 1: Resolve all symbol references, starting from start */
+  xlink_binary_link_root_segment(bin, start);
+  /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
+  xlink_sort_segments(bin->segments, bin->nsegments, NULL, &bss_idx);
+  /* Stage 2a: Set _MAIN as the first CODE segment */
+  xlink_set_first_segment(&bin->segments[0], start);
+  if (flags & MOD_PACK) {
+    XLINK_ERROR(bss_idx == bin->nsegments,
+     ("Error no BSS segment contained in stub32c"));
+    /* Stage 2b: Set _PROG as the first BSS segment */
+    xlink_set_first_segment(&bin->segments[bss_idx], prog);
+  }
+  /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
+  xlink_binary_layout_segments(bin, 0, 0x100);
+  s = bin->nsegments;
+  if (flags & MOD_PACK) {
+    int data_idx;
+    xlink_list code_bytes;
+    xlink_list data_bytes;
+    xlink_modeler mod;
+    xlink_list models;
+    /* Stage 4: Resolve all symbol references, starting from 32-bit entry */
+    xlink_binary_link_root_segment(bin, main);
+    /* Stage 5: Sort segments by class (CODE, DATA, BSS) */
+    xlink_sort_segments(bin->segments + s, bin->nsegments - s, &data_idx, NULL);
+    /* Stage 5a: Set main as the first CODE segment */
+    xlink_set_first_segment(&bin->segments[s], main);
+    /* Stage 6: Lay segments in memory with alignment starting at 10008h */
+    xlink_binary_layout_segments(bin, s, 0x10008);
+    /* Stage 7: Apply relocations to the payload program segments */
+    xlink_apply_relocations(bin->segments + s, bin->nsegments - s);
+    /* Stage 8: Extract the CODE and DATA segments */
+    xlink_list_init(&code_bytes, sizeof(unsigned char), 0);
+    offset = xlink_binary_extract_class(bin, s + 0, 0x10008, OMF_SEGMENT_CODE,
+     &code_bytes);
+    xlink_list_init(&data_bytes, sizeof(unsigned char), 0);
+    offset = xlink_binary_extract_class(bin, s + data_idx, offset,
+     OMF_SEGMENT_DATA, &data_bytes);
+    /* Stage 9: Build a context modeler for CODE segment bytes */
+    xlink_modeler_init(&mod, xlink_list_length(&code_bytes));
+    xlink_modeler_load_binary(&mod, &code_bytes);
+    /* Stage 10: Search for the best context to use for CODE segment bytes */
+    xlink_list_init(&models, sizeof(xlink_model), 0);
+    xlink_modeler_search(&mod, &models);
+    /* Stage 10: Compress the CODE and DATA segments independently */
+    printf("code bytes = %i\n", xlink_list_length(&code_bytes));
+    printf("data bytes = %i\n", xlink_list_length(&data_bytes));
+    if (xlink_list_length(&models) > 0) {
+      xlink_context ctx;
+      xlink_bitstream bs;
+      int size;
+      /* Create a context from models */
+      xlink_context_init(&ctx, &models);
+      xlink_context_set_capacity(&ctx, 16*1024*1024);
+      /* Create a bitstream for writing */
+      xlink_bitstream_init(&bs);
+      /* Encode bytes with the context and perfect hashing */
+      xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
+      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
+       XLINK_RATIO(size, xlink_list_length(&code_bytes)));
+      /* Encode bytes with the context and replacement hashing */
+      ctx.matches.equals = NULL;
+      xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
+      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
+       XLINK_RATIO(size, xlink_list_length(&code_bytes)));
+      xlink_context_clear(&ctx);
+      xlink_bitstream_clear(&bs);
+      /* Write payload into the prog segment data */
+      {
+        /* Need to allocate space for the ec_segs header and ec_bits data */
+        ec_bits->offset = 8 + xlink_list_length(&models);
+        prog->length = 8 + xlink_list_length(&models) + ec_bits->offset + (bs.bits + 7)/8;
+        printf("prog->length = %i\n", prog->length);
+        prog->data = xlink_malloc(prog->length);
+        prog->info |= SEG_HAS_DATA;
+        printf("ec_bits->offset = %i\n", ec_bits->offset);
+      }
+    }
+    xlink_list_clear(&code_bytes);
+    xlink_list_clear(&data_bytes);
+    xlink_modeler_clear(&mod);
+    xlink_list_clear(&models);
+  }
+  /* Stage 4: Apply relocations to the program segments */
+  xlink_apply_relocations(bin->segments, s);
+  /* Optionally write the map file. */
+  if (bin->map != NULL) {
+    out = fopen(bin->map, "w");
+    xlink_binary_print_map(bin, out);
+    fclose(out);
+  }
+  /* Stage 5: Write the COM file to disk a segment at a time */
+  out = fopen(bin->output, "wb");
+  XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
+  for (offset = 0x100, i = 1; i <= s; i++) {
+    xlink_segment *seg;
+    seg = xlink_binary_get_segment(bin, i);
+    if (seg->info & SEG_HAS_DATA) {
+      if (offset != seg->start) {
+        unsigned char buf[4096];
+        memset(buf, 0, 4096);
+        fwrite(buf, 1, seg->start - offset, out);
+        offset = seg->start;
+      }
+      fwrite(seg->data, 1, seg->length, out);
+      offset += seg->length;
+    }
+  }
+  fclose(out);
+}
+
 const char *OPTSTRING = "o:e:i:psmdCh";
 
 const struct option OPTIONS[] = {
@@ -3271,7 +3370,7 @@ int main(int argc, char *argv[]) {
     free(buf);
   }
   if (!(flags & MOD_DUMP)) {
-    xlink_binary_link(&bin);
+    xlink_binary_link(&bin, flags);
   }
   xlink_binary_clear(&bin);
 }
