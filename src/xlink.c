@@ -1165,7 +1165,7 @@ void xlink_binary_print_map(xlink_binary *bin, FILE *out) {
       pub = xlink_segment_get_public(seg, j);
       size = seg->length - pub->offset;
       if (j < seg->npublics) {
-        size = xlink_segment_get_public(seg, j)->offset - pub->offset;
+        size = xlink_segment_get_public(seg, j + 1)->offset - pub->offset;
       }
       fprintf(out, " %12x (%08x bytes) %8s\n", pub->offset, size, pub->name);
     }
