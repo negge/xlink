@@ -5,6 +5,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <math.h>
+#include <float.h>
 
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
@@ -2472,7 +2473,7 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
    ("Counts model does not match input bytes, counts = %i and bytes = %i",
    xlink_list_length(&mod->counts), xlink_list_length(&mod->bytes)));
   if (xlink_list_length(models) == 0) {
-    return 8*xlink_list_length(&mod->bytes);
+    return DBL_MAX;
   }
   else {
     double entropy;
@@ -2559,7 +2560,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   fflush(stdout);
   xlink_list_empty(models);
   memset(contains, 0, sizeof(contains));
-  best = xlink_list_length(&mod->counts);
+  best = DBL_MAX;
   do {
     int i;
     xlink_model model;
