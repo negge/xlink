@@ -2406,6 +2406,16 @@ void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
 
 #define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
 
+int xlink_bitstream_copy_bits(xlink_bitstream *bs, unsigned char *dst,
+ int pos) {
+  int i;
+  /* Intentionally skip the first bit */
+  for (i = 1; i < bs->bits; i++, pos++) {
+    XLINK_SET_BIT(dst, pos, XLINK_GET_BIT(bs->bytes.data, i));
+  }
+  return pos;
+}
+
 void xlink_modeler_init(xlink_modeler *mod, int bytes) {
   xlink_list_init(&mod->bytes, sizeof(unsigned char), bytes);
   xlink_list_init(&mod->counts, sizeof(xlink_counts), 8*bytes);
