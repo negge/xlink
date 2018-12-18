@@ -1249,8 +1249,12 @@ static void xlink_omf_record_reset(xlink_omf_record *rec) {
   rec->idx = 3;
 }
 
+static int xlink_omf_record_data_left(xlink_omf_record *rec) {
+  return 3 + rec->size - 1 - rec->idx;
+}
+
 static int xlink_omf_record_has_data(xlink_omf_record *rec) {
-  return rec->idx < 3 + rec->size - 1;
+  return xlink_omf_record_data_left(rec) > 0;
 }
 
 static uint8_t xlink_omf_record_read_byte(xlink_omf_record *rec) {
