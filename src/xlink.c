@@ -1664,6 +1664,42 @@ int rel_comp(const void *a, const void *b) {
   return rel_a->offset - rel_b->offset;
 }
 
+int xlink_omf_record_load_iterated(xlink_omf_record *rec, unsigned char *data,
+ int length) {
+  unsigned char *block;
+  unsigned int repeat_count;
+  unsigned int block_count;
+  unsigned int size;
+  int i;
+  block = data;
+  repeat_count = xlink_omf_record_read_numeric(rec);
+  block_count = xlink_omf_record_read_word(rec);
+  if (block_count) {
+    size = 0;
+    for (i = 0; i < block_count; i++) {
+      int block_size;
+      block_size = xlink_omf_record_load_iterated(rec, block, length);
+      block += block_size;
+      length -= block_size;
+      size += block_size;
+    }
+  }
+  else {
+    size = xlink_omf_record_read_byte(rec);
+    XLINK_ERROR(size > length,
+     ("LIDATA wrote past end of segment, size = %i but length = %i", size,
+     length));
+    memcpy(block, &rec->buf[rec->idx], size);
+    block += size;
+    rec->idx += size;
+  }
+  for (i = 1; i < repeat_count; i++) {
+    memcpy(block, data, size);
+    block += size;
+  }
+  return repeat_count*size;
+}
+
 #define MOD_DUMP  (0x1)
 #define MOD_MAP   (0x2)
 #define MOD_SPLIT (0x4)
@@ -1824,8 +1860,15 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
           }
         }
         else {
-          XLINK_ERROR(dat->is_iterated,
-           ("Loading LIDATA records not yet supported"));
+          int size;
+          size = xlink_omf_record_load_iterated(&rec, &seg->data[dat->offset],
+           seg->length - dat->offset);
+          for (i = 0; i < size; i++) {
+            XLINK_ERROR(XLINK_GET_BIT(seg->mask, dat->offset + i),
+             ("LIDATA overwrote existing data in segment %s, offset = %i",
+             xlink_segment_get_name(seg), dat->offset + i));
+            XLINK_SET_BIT(seg->mask, dat->offset + i, 1);
+          }
         }
         XLINK_LIST_ADD(module, data, mod, dat);
         xlink_segment_add_data(dat->segment, dat);
