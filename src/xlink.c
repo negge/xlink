@@ -1688,15 +1688,12 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
   xlink_omf omf;
   xlink_data *dat;
-  xlink_segment *seg;
-  int offset;
   int done;
   int i, j;
   mod = xlink_malloc(sizeof(xlink_module));
   mod->filename = file->name;
   xlink_omf_init(&omf);
   dat = NULL;
-  seg = NULL;
   done = 0;
   while (file->size > 0 && !done) {
     xlink_omf_record rec;
@@ -1815,9 +1812,9 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
       }
       case OMF_LEDATA : {
         dat = xlink_malloc(sizeof(xlink_data));
-        seg = dat->segment =
+        dat->segment =
          xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
-        offset = dat->offset = xlink_omf_record_read_numeric(&rec);
+        dat->offset = xlink_omf_record_read_numeric(&rec);
         dat->segment->info |= SEG_HAS_DATA;
         dat->is_iterated = 0;
         dat->length = xlink_omf_record_data_left(&rec);
@@ -1825,7 +1822,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         dat->mask = xlink_malloc(CEIL2(dat->length, 3));
         memcpy(dat->data, &rec.buf[rec.idx], dat->length);
         xlink_data_reset_mask(dat);
-        xlink_segment_load_data(seg, dat);
+        xlink_segment_load_data(dat->segment, dat);
         XLINK_LIST_ADD(module, data, mod, dat);
         xlink_segment_add_data(dat->segment, dat);
         break;
@@ -1835,17 +1832,19 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
           unsigned char byte;
           byte = xlink_omf_record_read_byte(&rec);
           if (byte & 0x80) {
+            xlink_segment *seg;
             xlink_reloc *rel;
             xlink_omf_fixup_locat locat;
             xlink_omf_fixup_fixdata fixdata;
             const unsigned char *data;
-            XLINK_ERROR(seg == NULL, ("Got FIXUP before LxDATA record"));
+            XLINK_ERROR(dat == NULL, ("Got FIXUP before LxDATA record"));
+            seg = dat->segment;
             rel = xlink_malloc(sizeof(xlink_reloc));
             rel->segment = seg;
             locat.b0 = byte;
             locat.b1 = xlink_omf_record_read_byte(&rec);
             XLINK_ERROR(locat.high != 1, ("Expecting FIXUP subrecord"));
-            rel->offset = locat.offset + offset;
+            rel->offset = dat->offset + locat.offset;
             rel->mode = locat.mode;
             rel->location = locat.location;
             XLINK_ERROR(
@@ -1959,6 +1958,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   }
   XLINK_ERROR(!done, ("Got EOF before reading MODEND in %s", file->name));
   for (i = 1; i <= mod->nsegments; i++) {
+    xlink_segment *seg;
     seg = xlink_module_get_segment(mod, i);
     /* Check that all segments are either fully populated or uninitialized */
     if (seg->info & SEG_HAS_DATA) {
