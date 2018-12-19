@@ -301,6 +301,7 @@ struct xlink_name {
 
 typedef struct xlink_group xlink_group;
 typedef struct xlink_public xlink_public;
+typedef struct xlink_data xlink_data;
 typedef struct xlink_reloc xlink_reloc;
 
 #define SEG_HAS_DATA 0x1
@@ -322,6 +323,8 @@ struct xlink_segment {
   xlink_group *group;
   xlink_public **publics;
   int npublics;
+  xlink_data **datas;
+  int ndatas;
   xlink_reloc **relocs;
   int nrelocs;
   int start;
@@ -364,6 +367,17 @@ struct xlink_extern {
   int type_idx;
   int is_local;
   xlink_public *public;
+};
+
+struct xlink_data {
+  int index;
+  xlink_module *module;
+  xlink_segment *segment;
+  unsigned int offset;
+  int is_iterated;
+  int length;
+  unsigned char *data;
+  unsigned char *mask;
 };
 
 typedef struct xlink_addend xlink_addend;
@@ -417,6 +431,8 @@ struct xlink_module {
   int npublics;
   xlink_extern **externs;
   int nexterns;
+  xlink_data **datas;
+  int ndatas;
   xlink_reloc **relocs;
   int nrelocs;
 };
@@ -831,12 +847,14 @@ int xlink_##parent##_has_##child(xlink_##parent *p, xlink_##child *c) {       \
   xlink_##parent##_add_##child(p, c);
 
 XLINK_LIST_FUNCS(segment, public);
+XLINK_LIST_FUNCS(segment, data);
 XLINK_LIST_FUNCS(segment, reloc);
 
 void xlink_segment_clear(xlink_segment *segment) {
   free(segment->data);
   free(segment->mask);
   free(segment->publics);
+  free(segment->datas);
   free(segment->relocs);
   memset(segment, 0, sizeof(xlink_segment));
 }
@@ -898,6 +916,11 @@ const char *xlink_extern_get_name(xlink_extern *ext) {
   return name;
 }
 
+void xlink_data_clear(xlink_data *dat) {
+  free(dat->data);
+  free(dat->mask);
+}
+
 const char *xlink_reloc_get_addend(xlink_reloc *rel) {
   static char str[256];
   switch (rel->location) {
@@ -955,6 +978,11 @@ void xlink_module_clear(xlink_module *mod) {
     free(mod->externs[i]);
   }
   free(mod->externs);
+  for (i = 0; i < mod->ndatas; i++) {
+    xlink_data_clear(mod->datas[i]);
+    free(mod->datas[i]);
+  }
+  free(mod->datas);
   for (i = 0; i < mod->nrelocs; i++) {
     free(mod->relocs[i]);
   }
@@ -1008,6 +1036,7 @@ XLINK_LIST_FUNCS(module, name);
 XLINK_LIST_FUNCS(module, segment);
 XLINK_LIST_FUNCS(module, group);
 XLINK_LIST_FUNCS(module, public);
+XLINK_LIST_FUNCS(module, data);
 XLINK_LIST_FUNCS(module, extern);
 XLINK_LIST_FUNCS(module, reloc);
 
@@ -1636,6 +1665,7 @@ int rel_comp(const void *a, const void *b) {
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
   xlink_omf omf;
+  xlink_data *dat;
   xlink_segment *seg;
   int offset;
   int done;
@@ -1643,6 +1673,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   mod = xlink_malloc(sizeof(xlink_module));
   mod->filename = file->name;
   xlink_omf_init(&omf);
+  dat = NULL;
   seg = NULL;
   done = 0;
   while (file->size > 0 && !done) {
@@ -1761,9 +1792,17 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         break;
       }
       case OMF_LEDATA : {
-        seg = xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
-        offset = xlink_omf_record_read_numeric(&rec);
-        seg->info |= SEG_HAS_DATA;
+        dat = xlink_malloc(sizeof(xlink_data));
+        seg = dat->segment =
+         xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
+        offset = dat->offset = xlink_omf_record_read_numeric(&rec);
+        dat->segment->info |= SEG_HAS_DATA;
+        dat->is_iterated = 0;
+        dat->length = xlink_omf_record_data_left(&rec);
+        dat->data = xlink_malloc(dat->length);
+        dat->mask = xlink_malloc(CEIL2(dat->length, 3));
+        memcpy(dat->data, &rec.buf[rec.idx], dat->length);
+        memset(dat->mask, 0, CEIL2(dat->length, 3));
         for (i = offset; xlink_omf_record_has_data(&rec); i++) {
           XLINK_ERROR(i >= seg->length,
            ("LEDATA wrote past end of segment, offset = %i but length = %i",
@@ -1774,6 +1813,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
           seg->data[i] = xlink_omf_record_read_byte(&rec);
           XLINK_SET_BIT(seg->mask, i, 1);
         }
+        XLINK_LIST_ADD(module, data, mod, dat);
+        xlink_segment_add_data(dat->segment, dat);
         break;
       }
       case OMF_FIXUPP : {
