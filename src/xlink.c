@@ -925,6 +925,10 @@ void xlink_data_clear(xlink_data *dat) {
   free(dat->mask);
 }
 
+void xlink_data_reset_mask(xlink_data *dat) {
+  memset(dat->mask, 0, CEIL2(dat->length, 3));
+}
+
 const char *xlink_reloc_get_addend(xlink_reloc *rel) {
   static char str[256];
   switch (rel->location) {
@@ -1806,7 +1810,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         dat->data = xlink_malloc(dat->length);
         dat->mask = xlink_malloc(CEIL2(dat->length, 3));
         memcpy(dat->data, &rec.buf[rec.idx], dat->length);
-        memset(dat->mask, 0, CEIL2(dat->length, 3));
+        xlink_data_reset_mask(dat);
         for (i = offset; xlink_omf_record_has_data(&rec); i++) {
           XLINK_ERROR(i >= seg->length,
            ("LEDATA wrote past end of segment, offset = %i but length = %i",
