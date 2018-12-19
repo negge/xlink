@@ -899,6 +899,7 @@ int xlink_segment_get_alignment(xlink_segment *seg) {
 
 void xlink_segment_load_data(xlink_segment *seg, xlink_data *dat) {
   int i;
+  XLINK_ERROR(dat->is_iterated, ("Loading LIDATA records not yet supported"));
   XLINK_ERROR(dat->offset + dat->length > seg->length,
    ("LEDATA wrote past end of segment %s, offset = %i but length = %i",
    xlink_segment_get_name(seg), dat->offset + dat->length, seg->length));
@@ -1810,13 +1811,14 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         }
         break;
       }
-      case OMF_LEDATA : {
+      case OMF_LEDATA :
+      case OMF_LIDATA : {
         dat = xlink_malloc(sizeof(xlink_data));
         dat->segment =
          xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
         dat->offset = xlink_omf_record_read_numeric(&rec);
         dat->segment->info |= SEG_HAS_DATA;
-        dat->is_iterated = 0;
+        dat->is_iterated = rec.type & 0x2;
         dat->length = xlink_omf_record_data_left(&rec);
         dat->data = xlink_malloc(dat->length);
         dat->mask = xlink_malloc(CEIL2(dat->length, 3));
@@ -1838,6 +1840,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
             xlink_omf_fixup_fixdata fixdata;
             const unsigned char *data;
             XLINK_ERROR(dat == NULL, ("Got FIXUP before LxDATA record"));
+            XLINK_ERROR(dat->is_iterated,
+             ("FIXUP records for LIDATA not yet supported"));
             seg = dat->segment;
             rel = xlink_malloc(sizeof(xlink_reloc));
             rel->segment = seg;
