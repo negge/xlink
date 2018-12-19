@@ -897,6 +897,20 @@ int xlink_segment_get_alignment(xlink_segment *seg) {
   }
 }
 
+void xlink_segment_load_data(xlink_segment *seg, xlink_data *dat) {
+  int i;
+  XLINK_ERROR(dat->offset + dat->length > seg->length,
+   ("LEDATA wrote past end of segment %s, offset = %i but length = %i",
+   xlink_segment_get_name(seg), dat->offset + dat->length, seg->length));
+  memcpy(&seg->data[dat->offset], dat->data, dat->length);
+  for (i = 0; i < dat->length; i++) {
+    XLINK_ERROR(XLINK_GET_BIT(seg->mask, dat->offset + i),
+     ("LEDATA overwrote existing data in segment %s, offset = %i",
+     xlink_segment_get_name(seg), dat->offset + i));
+    XLINK_SET_BIT(seg->mask, dat->offset + i, 1);
+  }
+}
+
 void xlink_segment_reset_mask(xlink_segment *seg) {
   memset(seg->mask, 0, CEIL2(seg->length, 3));
 }
@@ -1811,16 +1825,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         dat->mask = xlink_malloc(CEIL2(dat->length, 3));
         memcpy(dat->data, &rec.buf[rec.idx], dat->length);
         xlink_data_reset_mask(dat);
-        for (i = offset; xlink_omf_record_has_data(&rec); i++) {
-          XLINK_ERROR(i >= seg->length,
-           ("LEDATA wrote past end of segment, offset = %i but length = %i",
-           i, seg->length));
-          XLINK_ERROR(XLINK_GET_BIT(seg->mask, i),
-           ("LEDATA overwrote existing data in segment %s, offset = %i",
-           xlink_segment_get_name(seg), i));
-          seg->data[i] = xlink_omf_record_read_byte(&rec);
-          XLINK_SET_BIT(seg->mask, i, 1);
-        }
+        xlink_segment_load_data(seg, dat);
         XLINK_LIST_ADD(module, data, mod, dat);
         xlink_segment_add_data(dat->segment, dat);
         break;
