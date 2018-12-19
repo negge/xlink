@@ -897,6 +897,10 @@ int xlink_segment_get_alignment(xlink_segment *seg) {
   }
 }
 
+void xlink_segment_reset_mask(xlink_segment *seg) {
+  memset(seg->mask, 0, CEIL2(seg->length, 3));
+}
+
 XLINK_LIST_FUNCS(group, segment);
 
 void xlink_group_clear(xlink_group *grp) {
@@ -1724,7 +1728,7 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
         seg->info = 0;
         seg->data = xlink_malloc(seg->length);
         seg->mask = xlink_malloc(CEIL2(seg->length, 3));
-        memset(seg->mask, 0, CEIL2(seg->length, 3));
+        xlink_segment_reset_mask(seg);
         XLINK_LIST_ADD(module, segment, mod, seg);
         break;
       }
