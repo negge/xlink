@@ -897,21 +897,6 @@ int xlink_segment_get_alignment(xlink_segment *seg) {
   }
 }
 
-void xlink_segment_load_data(xlink_segment *seg, xlink_data *dat) {
-  int i;
-  XLINK_ERROR(dat->is_iterated, ("Loading LIDATA records not yet supported"));
-  XLINK_ERROR(dat->offset + dat->length > seg->length,
-   ("LEDATA wrote past end of segment %s, offset = %i but length = %i",
-   xlink_segment_get_name(seg), dat->offset + dat->length, seg->length));
-  memcpy(&seg->data[dat->offset], dat->data, dat->length);
-  for (i = 0; i < dat->length; i++) {
-    XLINK_ERROR(XLINK_GET_BIT(seg->mask, dat->offset + i),
-     ("LEDATA overwrote existing data in segment %s, offset = %i",
-     xlink_segment_get_name(seg), dat->offset + i));
-    XLINK_SET_BIT(seg->mask, dat->offset + i, 1);
-  }
-}
-
 void xlink_segment_reset_mask(xlink_segment *seg) {
   memset(seg->mask, 0, CEIL2(seg->length, 3));
 }
@@ -1813,18 +1798,35 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
       }
       case OMF_LEDATA :
       case OMF_LIDATA : {
+        xlink_segment *seg;
+        seg = xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
+        seg->info |= SEG_HAS_DATA;
         dat = xlink_malloc(sizeof(xlink_data));
-        dat->segment =
-         xlink_module_get_segment(mod, xlink_omf_record_read_index(&rec));
+        dat->segment = seg;
         dat->offset = xlink_omf_record_read_numeric(&rec);
-        dat->segment->info |= SEG_HAS_DATA;
         dat->is_iterated = rec.type & 0x2;
         dat->length = xlink_omf_record_data_left(&rec);
         dat->data = xlink_malloc(dat->length);
         dat->mask = xlink_malloc(CEIL2(dat->length, 3));
         memcpy(dat->data, &rec.buf[rec.idx], dat->length);
         xlink_data_reset_mask(dat);
-        xlink_segment_load_data(dat->segment, dat);
+        if (!dat->is_iterated) {
+          XLINK_ERROR(dat->offset + dat->length > seg->length,
+           ("LEDATA wrote past end of segment %s, offset = %i but length = %i",
+           xlink_segment_get_name(seg), dat->offset + dat->length,
+           seg->length));
+          memcpy(&seg->data[dat->offset], &rec.buf[rec.idx], dat->length);
+          for (i = 0; i < dat->length; i++) {
+            XLINK_ERROR(XLINK_GET_BIT(seg->mask, dat->offset + i),
+             ("LEDATA overwrote existing data in segment %s, offset = %i",
+             xlink_segment_get_name(seg), dat->offset + i));
+            XLINK_SET_BIT(seg->mask, dat->offset + i, 1);
+          }
+        }
+        else {
+          XLINK_ERROR(dat->is_iterated,
+           ("Loading LIDATA records not yet supported"));
+        }
         XLINK_LIST_ADD(module, data, mod, dat);
         xlink_segment_add_data(dat->segment, dat);
         break;
