@@ -1223,7 +1223,10 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
       case OMF_TARGET_EXT : {
         xlink_public *pub;
         pub = xlink_module_get_extern(segment->module, rel->target_idx)->public;
-        target = pub->segment->start + pub->offset;
+        target = pub->offset;
+        if (pub->segment != NULL) {
+          target += pub->segment->start;
+        }
         break;
       }
       case OMF_TARGET_SEG : {
@@ -2131,7 +2134,9 @@ void xlink_binary_link_root_segment(xlink_binary *bin, xlink_segment *root) {
     else {
       ext->public = xlink_binary_find_public(bin, ext->name);
     }
-    xlink_binary_process_segment(bin, ext->public->segment);
+    if (ext->public->segment != NULL) {
+      xlink_binary_process_segment(bin, ext->public->segment);
+    }
   }
 }
 
