@@ -3233,6 +3233,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* Stage 10: Search for the best context to use for CODE segment bytes */
     xlink_list_init(&models, sizeof(xlink_model), 0);
     xlink_modeler_search(&mod, &models);
+    XLINK_ERROR(xlink_list_length(&models) == 0,
+     ("Error no context models found for CODE segment"));
     /* Stage 10: Compress the CODE and DATA segments independently */
     printf("code bytes = %i\n", xlink_list_length(&code_bytes));
     printf("data bytes = %i\n", xlink_list_length(&data_bytes));
