@@ -3247,14 +3247,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
       /* Encode bytes with the context and replacement hashing */
       ctx.matches.equals = NULL;
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
@@ -3414,14 +3414,14 @@ int main(int argc, char *argv[]) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       /* Encode bytes with the context and replacement hashing */
       ctx.matches.equals = NULL;
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
-      size = 4 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
