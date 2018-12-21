@@ -1,9 +1,9 @@
 ;%define DEBUG
 %include 'debug.inc'
 
-SEGMENT _MAIN USE32 CLASS=CODE
-
 EXTERN main_
+
+SEGMENT _MAIN USE32 CLASS=CODE
 
   ; Start with 16-bit code
   bits 16
