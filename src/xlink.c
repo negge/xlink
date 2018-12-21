@@ -3259,7 +3259,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
       xlink_context_clear(&ctx);
-      xlink_bitstream_clear(&bs);
       /* Write payload into the prog segment data */
       {
         ec_bits->offset = 8 + xlink_list_length(&models);
@@ -3270,6 +3269,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         prog->info |= SEG_HAS_DATA;
         printf("ec_bits->offset = %i\n", ec_bits->offset);
       }
+      xlink_bitstream_clear(&bs);
     }
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
