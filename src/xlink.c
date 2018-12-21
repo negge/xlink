@@ -3227,6 +3227,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list_init(&data_bytes, sizeof(unsigned char), 0);
     offset = xlink_binary_extract_class(bin, s + data_idx, offset,
      OMF_SEGMENT_DATA, &data_bytes);
+    printf("code bytes = %i\n", xlink_list_length(&code_bytes));
+    printf("data bytes = %i\n", xlink_list_length(&data_bytes));
     /* Stage 9: Build a context modeler for CODE segment bytes */
     xlink_modeler_init(&mod, xlink_list_length(&code_bytes));
     xlink_modeler_load_binary(&mod, &code_bytes);
@@ -3236,8 +3238,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     XLINK_ERROR(xlink_list_length(&models) == 0,
      ("Error no context models found for CODE segment"));
     /* Stage 10: Compress the CODE and DATA segments independently */
-    printf("code bytes = %i\n", xlink_list_length(&code_bytes));
-    printf("data bytes = %i\n", xlink_list_length(&data_bytes));
     if (xlink_list_length(&models) > 0) {
       xlink_context ctx;
       xlink_bitstream bs;
