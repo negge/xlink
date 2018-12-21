@@ -3242,7 +3242,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       int size;
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, 16*1024*1024);
+      xlink_context_set_capacity(&ctx, 12*1024*1024);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3409,7 +3409,7 @@ int main(int argc, char *argv[]) {
        xlink_list_length(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, 16*1024*1024);
+      xlink_context_set_capacity(&ctx, 12*1024*1024);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
