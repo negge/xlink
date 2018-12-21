@@ -3216,13 +3216,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_sort_segments(bin->segments + s, bin->nsegments - s, &data_idx, NULL);
     /* Stage 5a: Set main as the first CODE segment */
     xlink_set_first_segment(&bin->segments[s], main);
-    /* Stage 6: Lay segments in memory with alignment starting at 10008h */
-    xlink_binary_layout_segments(bin, s, 0x10008);
+    /* Stage 6: Lay segments in memory with alignment starting at 10010h */
+    xlink_binary_layout_segments(bin, s, 0x10010);
     /* Stage 7: Apply relocations to the payload program segments */
     xlink_apply_relocations(bin->segments + s, bin->nsegments - s);
     /* Stage 8: Extract the CODE and DATA segments */
     xlink_list_init(&code_bytes, sizeof(unsigned char), 0);
-    offset = xlink_binary_extract_class(bin, s + 0, 0x10008, OMF_SEGMENT_CODE,
+    offset = xlink_binary_extract_class(bin, s + 0, 0x10010, OMF_SEGMENT_CODE,
      &code_bytes);
     xlink_list_init(&data_bytes, sizeof(unsigned char), 0);
     offset = xlink_binary_extract_class(bin, s + data_idx, offset,
