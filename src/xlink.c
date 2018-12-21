@@ -3267,6 +3267,17 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
         prog->info |= SEG_HAS_DATA;
+        ((unsigned int *)prog->data)[0] =
+         0xFFFEFFF0 - xlink_list_length(&code_bytes);
+        /* TODO: check parity of byte at ec_segs - ec_bits->length
+                 flip the test in the code, and toggle the parity here */
+        ((unsigned int *)prog->data)[1] = xlink_compute_packed_weights(&models);
+        for (i = 0; i < xlink_list_length(&models); i++) {
+          xlink_model *model;
+          model = xlink_list_get(&models, i);
+          prog->data[8 + i] = model->mask;
+        }
+        xlink_bitstream_copy_bits(&bs, &prog->data[ec_bits->offset], 0);
         printf("ec_bits->offset = %i\n", ec_bits->offset);
       }
       xlink_bitstream_clear(&bs);
