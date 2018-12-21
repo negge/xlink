@@ -1,6 +1,8 @@
 ;%define DEBUG
 %include 'debug.inc'
 
+CPU 386
+
 EXTERN main_
 
 SEGMENT _MAIN USE32 CLASS=CODE
