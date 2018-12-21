@@ -3262,9 +3262,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream_clear(&bs);
       /* Write payload into the prog segment data */
       {
-        /* Need to allocate space for the ec_segs header and ec_bits data */
         ec_bits->offset = 8 + xlink_list_length(&models);
-        prog->length = 8 + xlink_list_length(&models) + ec_bits->offset + (bs.bits + 7)/8;
+        /* Need to allocate space for the ec_segs header and ec_bits data */
+        prog->length = ec_bits->offset + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
         prog->info |= SEG_HAS_DATA;
