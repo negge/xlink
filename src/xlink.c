@@ -3159,7 +3159,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_file file;
     xlink_module *mod;
     if (flags & MOD_PACK) {
-      XLINK_ERROR(1, ("Packing executables not yet supported"));
+      XLINK_ERROR(bin->init,
+       ("Packed executables with 16-bit initializers not supported yet"));
+      file = STUB32C_MODULE;
     }
     else {
       /* If there is a 16-bit initialization function, use STUB32I */
