@@ -13,7 +13,15 @@ endstruc
 ;%define DEBUG
 %include 'debug.inc'
 
+%ifndef XLINK_STUB_INIT
+%define XLINK_STUB_INIT 0
+%endif
+
 CPU 386
+
+%if XLINK_STUB_INIT
+EXTERN init_
+%endif
 
 EXTERN main_
 
@@ -23,6 +31,10 @@ SEGMENT _MAIN USE32 CLASS=CODE
   bits 16
 
 stub32:
+%if XLINK_STUB_INIT
+  call init_
+%endif
+
   ; AX = 0x1687 get DPMI real mode to protected mode entry point
   mov ax,0x1687
   int 0x2f
