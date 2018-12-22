@@ -13,6 +13,10 @@ endstruc
 ;%define DEBUG
 %include 'debug.inc'
 
+%ifndef XLINK_STUB_NAME
+%define XLINK_STUB_NAME stub32_
+%endif
+
 %ifndef XLINK_STUB_INIT
 %define XLINK_STUB_INIT 0
 %endif
@@ -29,6 +33,8 @@ endstruc
 
 CPU 386
 
+GLOBAL XLINK_STUB_NAME
+
 %if XLINK_STUB_INIT
 EXTERN init_
 %endif
@@ -42,7 +48,8 @@ SEGMENT _MAIN USE32 CLASS=CODE
   ; Start with 16-bit code
   bits 16
 
-stub32:
+XLINK_STUB_NAME:
+
 %if XLINK_STUB_INIT
   call init_
 %endif
