@@ -9,6 +9,19 @@ EXTERN print_string
 
 %macro LOG 1
 %ifdef DEBUG
+%if __BITS__ == 16
+  pusha
+
+  mov ah, 9
+  mov dx, %%tmp
+  int 0x21
+  jmp %%ok
+
+%%tmp: db %1, '$'
+
+%%ok:
+  popa
+%else
   push esi
 
   mov esi, %%tmp
@@ -19,6 +32,7 @@ EXTERN print_string
 
 %%ok:
   pop esi
+%endif
 %endif
 %endmacro
 
