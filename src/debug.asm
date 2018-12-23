@@ -33,7 +33,7 @@ print_string:
   popa
   ret
 
-SEGMENT _TEXT0 USE32 CLASS=CODE
+SEGMENT _TEXT0 USE16 CLASS=CODE
 
 ; Print a 4-bit hexadecimal number
 ;  AL = number
@@ -51,7 +51,7 @@ print_hex4:
   popa
   ret
 
-SEGMENT _TEXT1 USE32 CLASS=CODE
+SEGMENT _TEXT1 USE16 CLASS=CODE
 
 ; Print an 8-bit hexadecimal number
 ;  AL = number
@@ -63,7 +63,7 @@ print_hex8:
   call print_hex4
   ret
 
-SEGMENT _TEXT2 USE32 CLASS=CODE
+SEGMENT _TEXT2 USE16 CLASS=CODE
 
 ; Print a 16-bit hexadecimal number
 ;  AX = number
@@ -75,7 +75,7 @@ print_hex16:
   call print_hex8
   ret
 
-SEGMENT _TEXT3 USE32 CLASS=CODE
+SEGMENT _TEXT3 USE16 CLASS=CODE
 
 ; Print a 32-bit hexadecimal number
 ;  EAX = number
