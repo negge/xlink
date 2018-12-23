@@ -1,15 +1,3 @@
-struc stack
-  .edi: resd 1
-  .esi: resd 1
-  .ebp: resd 1
-  .esp: resd 1
-  .ebx: resd 1
-  .edx: resd 1
-  .ecx: resd 1
-  .eax: resd 1
-  .size:
-endstruc
-
 ;%define DEBUG
 %include 'debug.inc'
 
@@ -30,6 +18,18 @@ endstruc
 %define HASH_TABLE_SEGS (HASH_TABLE_SIZE/65536)
 %define HASH_TABLE_WORDS (HASH_TABLE_SIZE/2)
 %endif
+
+struc stack
+  .edi: resd 1
+  .esi: resd 1
+  .ebp: resd 1
+  .esp: resd 1
+  .ebx: resd 1
+  .edx: resd 1
+  .ecx: resd 1
+  .eax: resd 1
+  .size:
+endstruc
 
 CPU 386
 
