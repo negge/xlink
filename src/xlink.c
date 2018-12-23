@@ -3159,6 +3159,11 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_file file;
     xlink_module *mod;
     if (flags & MOD_PACK) {
+      /* Load common data for all packed executables */
+      file = COMMON_MODULE;
+      mod = xlink_file_load_module(&file, 0);
+      XLINK_LIST_ADD(binary, module, bin, mod);
+      /* Load the 32-bit unpacking stub */
       XLINK_ERROR(bin->init,
        ("Packed executables with 16-bit initializers not supported yet"));
       file = STUB32C_MODULE;
@@ -3178,14 +3183,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
     }
     if (flags & MOD_PACK) {
-      /* The packed binary data goes in BSS segment _PROG */
-      prog = xlink_module_find_segment(mod, "_PROG");
+      /* The packed binary data goes in the ec_bits placeholder BSS variable */
+      ec_bits = xlink_binary_find_public(bin, "ec_bits");
+      XLINK_ERROR(ec_bits == NULL, ("Public ec_bits not found"));
+      prog = ec_bits->segment;
       XLINK_ERROR(xlink_segment_get_class(prog) != OMF_SEGMENT_BSS,
        ("Stub segment %s with class %s not 'BSS'",
        xlink_segment_get_name(prog), xlink_segment_get_class_name(prog)));
-      ec_bits = xlink_module_find_public(mod, "ec_bits");
-      XLINK_ERROR(ec_bits == NULL || ec_bits->segment != prog,
-       ("Public ec_bits not found in _PROG segment"));
     }
     else {
       /* The stub code calls an external main_ function, find and rewrite it */

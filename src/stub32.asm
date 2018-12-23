@@ -39,7 +39,10 @@ GLOBAL XLINK_STUB_NAME
 EXTERN init_
 %endif
 
-%if !XLINK_STUB_PACK
+%if XLINK_STUB_PACK
+EXTERN ec_segs
+EXTERN ec_bits
+%else
 EXTERN main_
 %endif
 
@@ -460,11 +463,4 @@ hash_table_instr:
 
 stub32_end:
 
-SEGMENT _PROG USE16 CLASS=BSS
-
-GLOBAL ec_segs
-GLOBAL ec_bits
-
-ec_segs: resb 9
-ec_bits:
 %endif
