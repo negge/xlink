@@ -7,8 +7,7 @@ EXTERN print_hex16
 EXTERN print_hex32
 EXTERN print_string
 
-%macro LOG 1
-%ifdef DEBUG
+%macro PRINT 1
 %if __BITS__ == 16
   pusha
 
@@ -33,6 +32,11 @@ EXTERN print_string
 %%ok:
   pop esi
 %endif
+%endmacro
+
+%macro LOG 1
+%ifdef DEBUG
+  PRINT %1
 %endif
 %endmacro
 
@@ -41,7 +45,7 @@ EXTERN print_string
   %1
   j%+2 %%ok
 
-  LOG %3
+  PRINT %3
 
   mov ah, 0x4c
   int 0x21
