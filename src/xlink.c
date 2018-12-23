@@ -3171,8 +3171,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
      ("Stub segment %s with class %s not 'CODE'",
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
-    /* The stub code calls an external main_ function, find and rewrite it */
-    strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
     /* If there is an external init_ function, find and rewrite it */
     if (bin->init) {
       strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
@@ -3186,6 +3184,10 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       ec_bits = xlink_module_find_public(mod, "ec_bits");
       XLINK_ERROR(ec_bits == NULL || ec_bits->segment != prog,
        ("Public ec_bits not found in _PROG segment"));
+    }
+    else {
+      /* The stub code calls an external main_ function, find and rewrite it */
+      strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
     }
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
