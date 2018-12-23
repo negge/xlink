@@ -3158,6 +3158,10 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   else {
     xlink_file file;
     xlink_module *mod;
+    /* Load the debug routines */
+    file = DEBUG_MODULE;
+    mod = xlink_file_load_module(&file, 0);
+    XLINK_LIST_ADD(binary, module, bin, mod);
     if (flags & MOD_PACK) {
       /* Load common data for all packed executables */
       file = COMMON_MODULE;
