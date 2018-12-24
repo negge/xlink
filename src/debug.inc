@@ -1,12 +1,15 @@
 %ifndef DEBUG_INC
 %define DEBUG_INC
 
-EXTERN print_hex4
-EXTERN print_hex8
-EXTERN print_hex16
-EXTERN print_hex32
 EXTERN print_string_16bit
 EXTERN print_string_32bit
+EXTERN print_hex4
+EXTERN print_hex8_16bit
+EXTERN print_hex16_16bit
+EXTERN print_hex32_16bit
+EXTERN print_hex8_32bit
+EXTERN print_hex16_32bit
+EXTERN print_hex32_32bit
 
 %macro PRINT 1
   pusha
@@ -47,28 +50,49 @@ EXTERN print_string_32bit
 
 %macro PRINT8 1
 %ifdef DEBUG
+%if __BITS__ == 16
+  push ax
+  mov al, %1
+  call print_hex8_16bit
+  pop ax
+%else
   push eax
   mov al, %1
-  call print_hex8
+  call print_hex8_32bit
   pop eax
+%endif
 %endif
 %endmacro
 
 %macro PRINT16 1
 %ifdef DEBUG
+%if __BITS__ == 16
+  push ax
+  mov ax, %1
+  call print_hex16_16bit
+  pop ax
+%else
   push eax
   mov ax, %1
-  call print_hex16
+  call print_hex16_32bit
   pop eax
+%endif
 %endif
 %endmacro
 
 %macro PRINT32 1
 %ifdef DEBUG
+%if __BITS__ == 16
   push eax
   mov eax, %1
-  call print_hex32
+  call print_hex32_16bit
   pop eax
+%else
+  push eax
+  mov eax, %1
+  call print_hex32_32bit
+  pop eax
+%endif
 %endif
 %endmacro
 
