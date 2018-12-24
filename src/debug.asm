@@ -6,13 +6,29 @@ GLOBAL print_hex4
 GLOBAL print_hex8
 GLOBAL print_hex16
 GLOBAL print_hex32
-GLOBAL print_string
+GLOBAL print_string_16bit
+GLOBAL print_string_32bit
+
+SEGMENT _TEXT5 USE16 CLASS=CODE
+
+print_string_16bit:
+  pusha
+  push ds
+  push cs
+  pop ds
+
+  mov ah, 9
+  int 0x21
+
+  pop ds
+  popa
+  ret
 
 SEGMENT _TEXT4 USE16 CLASS=CODE
 
 ; Print a $ terminated string
 ;  (E)SI = pointer string to print
-print_string:
+print_string_32bit:
   pusha
   push ds
   push cs

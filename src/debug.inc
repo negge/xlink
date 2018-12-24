@@ -5,33 +5,24 @@ EXTERN print_hex4
 EXTERN print_hex8
 EXTERN print_hex16
 EXTERN print_hex32
-EXTERN print_string
+EXTERN print_string_16bit
+EXTERN print_string_32bit
 
 %macro PRINT 1
-%if __BITS__ == 16
   pusha
-
-  mov ah, 9
+%if __BITS__ == 16
   mov dx, %%tmp
-  int 0x21
+  call print_string_16bit
+%else
+  mov esi, %%tmp
+  call print_string_32bit
+%endif
   jmp %%ok
 
 %%tmp: db %1, '$'
 
 %%ok:
   popa
-%else
-  push esi
-
-  mov esi, %%tmp
-  call print_string
-  jmp %%ok
-
-%%tmp: db %1, '$'
-
-%%ok:
-  pop esi
-%endif
 %endmacro
 
 %macro LOG 1
