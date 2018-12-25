@@ -3259,6 +3259,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream bs;
       int size;
       /* Create a context from models */
+      printf("Using hash table size = %i\n", bin->hash_table_memory);
       xlink_context_init(&ctx, &models);
       xlink_context_set_capacity(&ctx, bin->hash_table_memory);
       /* Create a bitstream for writing */
@@ -3333,13 +3334,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   fclose(out);
 }
 
-const char *OPTSTRING = "o:e:i:psmdCh";
+const char *OPTSTRING = "o:e:i:pM:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
   { "init", required_argument,   NULL, 'i' },
   { "pack", no_argument,         NULL, 'p' },
+  { "memory", required_argument, NULL, 'M' },
   { "split", no_argument,        NULL, 's' },
   { "map", no_argument,          NULL, 'm' },
   { "dump", no_argument,         NULL, 'd' },
@@ -3355,6 +3357,7 @@ static void usage(const char *argv0) {
    "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -i --init <function>            Optional 16-bit initialization routine.\n"
    "  -p --pack                       Create a compressed binary.\n"
+   "  -M --memory <size>              Hash table memory size (default: 12MB).\n"
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -s --split                      Split segments into linkable pieces.\n"
@@ -3391,6 +3394,10 @@ int main(int argc, char *argv[]) {
         flags |= MOD_PACK;
         break;
       }
+      case 'M' : {
+        bin.hash_table_memory = atoi(optarg);
+        break;
+      }
       case 'd' : {
         flags |= MOD_DUMP;
         break;
@@ -3414,6 +3421,8 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  XLINK_ERROR(bin.hash_table_memory & 1,
+   ("Specified -M --memory size %i must be even", bin.hash_table_memory));
   if (flags & MOD_CHECK) {
     xlink_list bytes;
     xlink_modeler mod;
