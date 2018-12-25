@@ -3132,6 +3132,17 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
+void xlink_binary_load_stub_modules(xlink_binary *bin) {
+  int i;
+  for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
+    xlink_file file;
+    xlink_module *mod;
+    file = XLINK_STUB_MODULES[i];
+    mod = xlink_file_load_module(&file, 0);
+    XLINK_LIST_ADD(binary, module, bin, mod);
+  }
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
@@ -3142,6 +3153,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int i;
   int offset;
   FILE *out;
+  /* Stage -1: Load all modules */
+  xlink_binary_load_stub_modules(bin);
   /* Stage 0: Find the entry point segment */
   main = xlink_binary_find_public(bin, bin->entry)->segment;
   XLINK_ERROR(xlink_segment_get_class(main) != OMF_SEGMENT_CODE,
@@ -3158,35 +3171,25 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
      ("Only 32-bit programs can be packed, %s is 16-bit", bin->entry));
   }
   else {
-    xlink_file file;
-    xlink_module *mod;
-    /* Load the debug routines */
-    file = DEBUG_MODULE;
-    mod = xlink_file_load_module(&file, 0);
-    XLINK_LIST_ADD(binary, module, bin, mod);
+    char *stub;
     if (flags & MOD_PACK) {
-      /* Load common data for all packed executables */
-      file = COMMON_MODULE;
-      mod = xlink_file_load_module(&file, 0);
-      XLINK_LIST_ADD(binary, module, bin, mod);
       /* Load the 32-bit unpacking stub */
       XLINK_ERROR(bin->init,
        ("Packed executables with 16-bit initializers not supported yet"));
-      file = STUB32C_MODULE;
+      stub = "stub32c_";
     }
     else {
       /* If there is a 16-bit initialization function, use STUB32I */
-      file = bin->init ? STUB32I_MODULE : STUB32_MODULE;
+      stub = bin->init ? "stub32i_" : "stub32_";
     }
-    mod = xlink_file_load_module(&file, 0);
-    /* The stub code is always in segment _MAIN */
-    start = xlink_module_find_segment(mod, "_MAIN");
+    /* Find the stub segment */
+    start = xlink_binary_find_public(bin, stub)->segment;
     XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
      ("Stub segment %s with class %s not 'CODE'",
      xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
     /* If there is an external init_ function, find and rewrite it */
     if (bin->init) {
-      strcpy(xlink_module_find_extern(mod, "init_")->name, bin->init);
+      strcpy(xlink_module_find_extern(start->module, "init_")->name, bin->init);
     }
     if (flags & MOD_PACK) {
       /* The packed binary data goes in the ec_bits placeholder BSS variable */
@@ -3199,9 +3202,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     }
     else {
       /* The stub code calls an external main_ function, find and rewrite it */
-      strcpy(xlink_module_find_extern(mod, "main_")->name, bin->entry);
+      strcpy(xlink_module_find_extern(start->module, "main_")->name, bin->entry);
     }
-    XLINK_LIST_ADD(binary, module, bin, mod);
   }
   /* Stage 1: Resolve all symbol references, starting from start */
   xlink_binary_link_root_segment(bin, start);
