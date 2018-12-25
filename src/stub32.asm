@@ -211,7 +211,11 @@ dpmi_ok:
 
   ; Compute and store the hashtable address relative to ES
   sub eax, ebx
+%if 0
   mov [esi + hash_table_instr + 1 - stub32_end + 0x9], eax
+%else
+  mov [hash_table_instr + 1], eax
+%endif
 
   ; Start by clearing the memory
   ;  edi = 0x10008
