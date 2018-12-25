@@ -11,6 +11,9 @@ EXTERN print_hex8_32bit
 EXTERN print_hex16_32bit
 EXTERN print_hex32_32bit
 
+%define quot '
+%define stringify(x) quot %+ x %+ quot
+
 %macro PRINT 1
   pusha
 %if __BITS__ == 16
@@ -45,6 +48,30 @@ EXTERN print_hex32_32bit
   int 0x21
 
 %%ok:
+%endif
+%endmacro
+
+%macro REG8 1
+%ifdef DEBUG
+  PRINT {stringify(%1), ' = '}
+  PRINT8 %1
+  PRINT {13, 10}
+%endif
+%endmacro
+
+%macro REG16 1
+%ifdef DEBUG
+  PRINT {stringify(%1), ' = '}
+  PRINT16 %1
+  PRINT {13, 10}
+%endif
+%endmacro
+
+%macro REG32 1
+%ifdef DEBUG
+  PRINT {stringify(%1), ' = '}
+  PRINT32 %1
+  PRINT {13, 10}
 %endif
 %endmacro
 
