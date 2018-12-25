@@ -450,6 +450,7 @@ struct xlink_binary {
   char *output;
   char *entry;
   char *init;
+  int hash_table_memory;
   char *map;
   xlink_module **modules;
   int nmodules;
@@ -1010,6 +1011,7 @@ void xlink_library_clear(xlink_library *lib) {
 void xlink_binary_init(xlink_binary *bin) {
   memset(bin, 0, sizeof(xlink_binary));
   bin->entry = "main_";
+  bin->hash_table_memory = 12*1024*1024;
 }
 
 void xlink_binary_clear(xlink_binary *bin) {
@@ -3256,7 +3258,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       int size;
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, 12*1024*1024);
+      xlink_context_set_capacity(&ctx, bin->hash_table_memory);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3434,7 +3436,7 @@ int main(int argc, char *argv[]) {
        xlink_list_length(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, 12*1024*1024);
+      xlink_context_set_capacity(&ctx, bin.hash_table_memory);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
