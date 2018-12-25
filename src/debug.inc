@@ -49,7 +49,6 @@ EXTERN print_hex32_32bit
 %endmacro
 
 %macro PRINT8 1
-%ifdef DEBUG
 %if __BITS__ == 16
   push ax
   mov al, %1
@@ -61,11 +60,9 @@ EXTERN print_hex32_32bit
   call print_hex8_32bit
   pop eax
 %endif
-%endif
 %endmacro
 
 %macro PRINT16 1
-%ifdef DEBUG
 %if __BITS__ == 16
   push ax
   mov ax, %1
@@ -77,11 +74,9 @@ EXTERN print_hex32_32bit
   call print_hex16_32bit
   pop eax
 %endif
-%endif
 %endmacro
 
 %macro PRINT32 1
-%ifdef DEBUG
 %if __BITS__ == 16
   push eax
   mov eax, %1
@@ -92,7 +87,6 @@ EXTERN print_hex32_32bit
   mov eax, %1
   call print_hex32_32bit
   pop eax
-%endif
 %endif
 %endmacro
 
