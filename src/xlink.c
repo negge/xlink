@@ -3149,6 +3149,13 @@ xlink_segment *xlink_binary_find_segment_by_public(xlink_binary *bin,
   return seg;
 }
 
+void xlink_binary_write_map(xlink_binary *bin) {
+  FILE *out;
+  out = fopen(bin->map, "w");
+  xlink_binary_print_map(bin, out);
+  fclose(out);
+}
+
 void xlink_binary_write_com(xlink_binary *bin, int nsegments) {
   FILE *out;
   int i;
@@ -3180,7 +3187,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int s;
   int i;
   int offset;
-  FILE *out;
   /* Stage -1: Load all modules */
   xlink_binary_load_stub_modules(bin);
   /* Stage 0: Find the entry point segment */
@@ -3336,9 +3342,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_apply_relocations(bin->segments, s);
   /* Optionally write the map file. */
   if (bin->map != NULL) {
-    out = fopen(bin->map, "w");
-    xlink_binary_print_map(bin, out);
-    fclose(out);
+    xlink_binary_write_map(bin);
   }
   /* Stage 5: Write the COM file to disk a segment at a time */
   xlink_binary_write_com(bin, s);
