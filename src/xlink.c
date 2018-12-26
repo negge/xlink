@@ -3162,10 +3162,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   /* Stage -1: Load all modules */
   xlink_binary_load_stub_modules(bin);
   /* Stage 0: Find the entry point segment */
-  main = xlink_binary_find_public(bin, bin->entry)->segment;
-  XLINK_ERROR(xlink_segment_get_class(main) != OMF_SEGMENT_CODE,
-   ("Entry point %s found in segment %s with class %s not 'CODE'", bin->entry,
-   xlink_segment_get_name(main), xlink_segment_get_class_name(main)));
+  main = xlink_binary_find_segment_by_public(bin, bin->entry, OMF_SEGMENT_CODE);
   bin->is_32bit = main->attrib.proc == OMF_SEGMENT_USE32;
   /* Stage 0a: Set the 16-bit starting segment */
   if (!bin->is_32bit) {
@@ -3189,22 +3186,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       stub = bin->init ? "stub32i_" : "stub32_";
     }
     /* Find the stub segment */
-    start = xlink_binary_find_public(bin, stub)->segment;
-    XLINK_ERROR(xlink_segment_get_class(start) != OMF_SEGMENT_CODE,
-     ("Stub segment %s with class %s not 'CODE'",
-     xlink_segment_get_name(start), xlink_segment_get_class_name(start)));
+    start = xlink_binary_find_segment_by_public(bin, stub, OMF_SEGMENT_CODE);
     /* If there is an external init_ function, find and rewrite it */
     if (bin->init) {
       strcpy(xlink_module_find_extern(start->module, "init_")->name, bin->init);
     }
     if (flags & MOD_PACK) {
-      /* The packed binary data goes in the ec_bits placeholder BSS variable */
-      ec_bits = xlink_binary_find_public(bin, "ec_bits");
-      XLINK_ERROR(ec_bits == NULL, ("Public ec_bits not found"));
-      prog = ec_bits->segment;
-      XLINK_ERROR(xlink_segment_get_class(prog) != OMF_SEGMENT_BSS,
-       ("Stub segment %s with class %s not 'BSS'",
-       xlink_segment_get_name(prog), xlink_segment_get_class_name(prog)));
+      prog =
+       xlink_binary_find_segment_by_public(bin, "ec_bits", OMF_SEGMENT_BSS);
     }
     else {
       /* The stub code calls an external main_ function, find and rewrite it */
@@ -3288,6 +3277,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_context_clear(&ctx);
       /* Write payload into the prog segment data */
       {
+        /* The packed binary data goes in the ec_bits placeholder BSS variable */
+        ec_bits = xlink_binary_find_public(bin, "ec_bits");
         ec_bits->offset = 8 + xlink_list_length(&models);
         /* Need to allocate space for the ec_segs header and ec_bits data */
         prog->length = ec_bits->offset + (bs.bits + 7)/8;
