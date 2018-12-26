@@ -2315,7 +2315,7 @@ unsigned int match_simple_hash_code(const void *m) {
   hash = (hash & 0xffffff00) | (byte ^ mat->partial);
   hash = ((int)hash)*0x6f;
   byte = (hash & 0x000000ff);
-  hash = (hash & 0xffffff00) | (byte + mat->partial);
+  hash = (hash & 0xffffff00) | ((byte + mat->partial) & 0x000000ff);
   hash--;
   /* Combine the history */
   for (i = 0; i < 8; i++) {
@@ -2324,7 +2324,7 @@ unsigned int match_simple_hash_code(const void *m) {
       hash = (hash & 0xffffff00) | (byte ^ mat->buf[i]);
       hash = ((int)hash)*0x6f;
       byte = (hash & 0x000000ff);
-      hash = (hash & 0xffffff00) | (byte + mat->buf[i]);
+      hash = (hash & 0xffffff00) | ((byte + mat->buf[i]) & 0x000000ff);
       hash--;
     }
   }
