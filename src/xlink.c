@@ -3185,8 +3185,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_segment *main;
   xlink_segment *prog;
   int s;
-  int i;
-  int offset;
   /* Stage -1: Load all modules */
   xlink_binary_load_stub_modules(bin);
   /* Stage 0: Find the entry point segment */
@@ -3245,6 +3243,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   s = bin->nsegments;
   if (flags & MOD_PACK) {
     int data_idx;
+    int offset;
     xlink_list code_bytes;
     xlink_list data_bytes;
     xlink_modeler mod;
@@ -3305,6 +3304,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_context_clear(&ctx);
       /* Write payload into the prog segment data */
       {
+        int i;
         xlink_public *ec_bits;
         /* The packed binary data goes in the ec_bits placeholder BSS variable */
         ec_bits = xlink_binary_find_public(bin, "ec_bits");
