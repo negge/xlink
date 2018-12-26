@@ -3278,7 +3278,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     XLINK_ERROR(xlink_list_length(&models) == 0,
      ("Error no context models found for CODE segment"));
     /* Stage 10: Compress the CODE and DATA segments independently */
-    if (xlink_list_length(&models) > 0) {
+    {
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
