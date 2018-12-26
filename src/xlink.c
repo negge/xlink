@@ -3248,9 +3248,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream bs;
       int size;
       /* Create a context from models */
-      printf("Using hash table size = %i\n", bin->hash_table_memory);
+      printf("Using hash table size = %i\n", bin->hash_table_memory/2);
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, bin->hash_table_memory);
+      xlink_context_set_capacity(&ctx, bin->hash_table_memory/2);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
