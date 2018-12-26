@@ -32,6 +32,7 @@ endstruc
 CPU 386
 
 GLOBAL XLINK_STUB_NAME
+GLOBAL _XLINK_heap
 
 %if XLINK_STUB_INIT
 EXTERN init_
@@ -195,6 +196,14 @@ dpmi_ok:
   int 0x21
 %endif
 
+GLOBAL XLINK_heap_base
+
+XLINK_heap_base EQU 0
+
+SEGMENT _DATA USE32 CLASS=DATA
+
+_XLINK_heap: dd XLINK_heap_base
+
 %else
   ; Set ESI to the start of the EC header (minus models in first EC segment)
   mov esi, ec_segs - 0x9
@@ -215,9 +224,9 @@ dpmi_ok:
   ; Compute and store the hashtable address relative to ES
   sub eax, ebx
 %if 0
-  mov [esi + hash_table_instr + 1 - stub32_end + 0x9], eax
+  mov [esi + _XLINK_heap - stub32_end + 0x9], eax
 %else
-  mov [hash_table_instr + 1], eax
+  mov [_XLINK_heap], eax
 %endif
 
   ; Start by clearing the memory
@@ -400,8 +409,9 @@ dpmi_ok:
 
 @clear_hash_table:
 
-hash_table_instr:
-  mov edi, 0
+  ;mov edi, 0
+  db 0xbf
+_XLINK_heap: dd 0
   mov ecx, hash_table_words
   jnc @index_hash
 
