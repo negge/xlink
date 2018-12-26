@@ -3387,19 +3387,22 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       }
       xlink_bitstream_clear(&bs);
     }
-    xlink_list_clear(&code_bytes);
-    xlink_list_clear(&data_bytes);
-    xlink_modeler_clear(&mod);
-    xlink_list_clear(&models);
     /* Fix up the compressing stub */
     {
       xlink_public *segs;
       xlink_public *words;
+      xlink_reloc *ec_segs;
       segs = xlink_binary_find_public(bin, "hash_table_segs");
       words = xlink_binary_find_public(bin, "hash_table_words");
+      ec_segs = xlink_segment_find_reloc(start, "ec_segs");
+      ec_segs->addend.offset = -(8 + xlink_list_length(&models));
       segs->offset = (bin->hash_table_memory + 65535)/65536;
       words->offset = bin->hash_table_memory/2;
     }
+    xlink_list_clear(&code_bytes);
+    xlink_list_clear(&data_bytes);
+    xlink_modeler_clear(&mod);
+    xlink_list_clear(&models);
   }
   /* Stage 4: Apply relocations to the program segments */
   xlink_apply_relocations(bin->segments, s);
