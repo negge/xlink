@@ -3201,6 +3201,29 @@ void xlink_binary_write_com(xlink_binary *bin, int nsegments) {
   fclose(out);
 }
 
+xlink_reloc *xlink_segment_find_reloc(xlink_segment *seg, const char *name) {
+  xlink_reloc *ret;
+  int i;
+  ret = NULL;
+  for (i = 1; i <= seg->nrelocs; i++) {
+    xlink_reloc *rel;
+    rel = xlink_segment_get_reloc(seg, i);
+    if (rel->target == OMF_TARGET_EXT) {
+      xlink_extern *ext;
+      ext = xlink_module_get_extern(seg->module, rel->target_idx);
+      if (strcmp(ext->name, name) == 0) {
+        XLINK_ERROR(ret != NULL,
+         ("Duplicate relocation definition found for name %s in %s", name,
+         seg->module->filename));
+        ret = rel;
+        break;
+      }
+    }
+  }
+  XLINK_ERROR(ret == NULL, ("No relocation found for extern name %s", name));
+  return ret;
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
