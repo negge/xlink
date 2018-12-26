@@ -3128,15 +3128,36 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
-void xlink_binary_load_stub_modules(xlink_binary *bin) {
+void xlink_binary_load_modules(xlink_binary *bin) {
   int i;
   for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
     xlink_file file;
-    xlink_module *mod;
     file = XLINK_STUB_MODULES[i];
-    mod = xlink_file_load_module(&file, 0);
-    XLINK_LIST_ADD(binary, module, bin, mod);
+    if (strstr(file.name, "stub") == NULL) {
+      xlink_module *mod;
+      mod = xlink_file_load_module(&file, 0);
+      XLINK_LIST_ADD(binary, module, bin, mod);
+    }
   }
+}
+
+void xlink_binary_load_stub(xlink_binary *bin, const char *stub) {
+  char buf[1024];
+  xlink_module *mod;
+  int i;
+  strcpy(buf, stub);
+  sprintf(&buf[strlen(stub) - 1], ".o");
+  mod = NULL;
+  for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
+    xlink_file file;
+    file = XLINK_STUB_MODULES[i];
+    if (strcmp(file.name, buf) == 0) {
+      mod = xlink_file_load_module(&file, 0);
+      XLINK_LIST_ADD(binary, module, bin, mod);
+      break;
+    }
+  }
+  XLINK_ERROR(mod == NULL, ("Stub %s not found", stub));
 }
 
 xlink_segment *xlink_binary_find_segment_by_public(xlink_binary *bin,
@@ -3187,7 +3208,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_segment *prog;
   int s;
   /* Stage -1: Load all modules */
-  xlink_binary_load_stub_modules(bin);
+  xlink_binary_load_modules(bin);
   /* Stage 0: Find the entry point segment */
   main = xlink_binary_find_segment_by_public(bin, bin->entry, OMF_SEGMENT_CODE);
   bin->is_32bit = main->attrib.proc == OMF_SEGMENT_USE32;
@@ -3217,6 +3238,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         stub = bin->init ? "stub32i_" : "stub32_";
       }
     }
+    /* Load the stub segment */
+    xlink_binary_load_stub(bin, stub);
     /* Find the stub segment */
     start = xlink_binary_find_segment_by_public(bin, stub, OMF_SEGMENT_CODE);
     /* If there is an external init_ function, find and rewrite it */
