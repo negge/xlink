@@ -2403,25 +2403,6 @@ void xlink_context_update_bit(xlink_context *ctx, unsigned char partial,
   }
 }
 
-void xlink_context_update(xlink_context *ctx, unsigned char byte) {
-  unsigned char partial;
-  int i;
-  partial = 1;
-  for (i = 8; i-- > 0; ) {
-    int bit;
-    bit = !!(byte & (1 << i));
-    xlink_context_update_bit(ctx, partial, bit);
-    partial <<= 1;
-    partial |= bit;
-  }
-  XLINK_ERROR(partial != byte,
-   ("Mismatch between partial %02x and byte %02x", partial, byte));
-  for (i = 8; i-- > 1; ) {
-    ctx->buf[i] = ctx->buf[i - 1];
-  }
-  ctx->buf[0] = byte;
-}
-
 void xlink_bitstream_init(xlink_bitstream *bs) {
   memset(bs, 0, sizeof(xlink_bitstream));
   xlink_list_init(&bs->bytes, sizeof(unsigned char), 0);
@@ -2968,12 +2949,16 @@ void xlink_range_encoder_write_bytes(xlink_range_encoder *enc,
       xlink_context_get_counts(enc->ctx, partial, counts);
       bit = !!(byte & (1 << i));
       xlink_range_encoder_write_bit(enc, counts[0], counts[1], bit);
+      xlink_context_update_bit(enc->ctx, partial, bit);
       partial <<= 1;
       partial |= bit;
     }
     XLINK_ERROR(partial != byte,
      ("Mismatch between partial %02x and byte %02x", partial, byte));
-    xlink_context_update(enc->ctx, byte);
+    for (i = 8; i-- > 1; ) {
+      enc->ctx->buf[i] = enc->ctx->buf[i - 1];
+    }
+    enc->ctx->buf[0] = byte;
   }
 }
 
@@ -3064,10 +3049,14 @@ unsigned char xlink_range_decoder_read_byte(xlink_range_decoder *dec) {
     int bit;
     xlink_context_get_counts(dec->ctx, byte, counts);
     bit = xlink_range_decoder_read_bit(dec, counts[0], counts[1]);
+    xlink_context_update_bit(dec->ctx, byte, bit);
     byte <<= 1;
     byte |= bit;
   }
-  xlink_context_update(dec->ctx, byte);
+  for (i = 8; i-- > 1; ) {
+    dec->ctx->buf[i] = dec->ctx->buf[i - 1];
+  }
+  dec->ctx->buf[0] = byte;
   return byte;
 }
 
