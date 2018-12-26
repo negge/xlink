@@ -93,6 +93,12 @@ typedef enum {
   OMF_SEGMENT_USE32
 } xlink_segment_use;
 
+static const char *XLINK_SEGMENT_CLASS_NAME[] = {
+  "CODE",
+  "DATA",
+  "BSS",
+};
+
 typedef union xlink_omf_attribute xlink_omf_attribute;
 
 union xlink_omf_attribute {
@@ -3130,6 +3136,17 @@ void xlink_binary_load_stub_modules(xlink_binary *bin) {
     mod = xlink_file_load_module(&file, 0);
     XLINK_LIST_ADD(binary, module, bin, mod);
   }
+}
+
+xlink_segment *xlink_binary_find_segment_by_public(xlink_binary *bin,
+ const char *public, xlink_segment_class class) {
+  xlink_segment *seg;
+  seg = xlink_binary_find_public(bin, public)->segment;
+  XLINK_ERROR(xlink_segment_get_class(seg) != class,
+   ("Public %s found in segment %s, but class %s not '%s'", public,
+   xlink_segment_get_name(seg), xlink_segment_get_class_name(seg),
+   XLINK_SEGMENT_CLASS_NAME[class]));
+  return seg;
 }
 
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
