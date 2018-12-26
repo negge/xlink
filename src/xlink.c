@@ -3154,7 +3154,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_segment *start;
   xlink_segment *main;
   xlink_segment *prog;
-  xlink_public *ec_bits;
   int s;
   int i;
   int offset;
@@ -3277,6 +3276,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_context_clear(&ctx);
       /* Write payload into the prog segment data */
       {
+        xlink_public *ec_bits;
         /* The packed binary data goes in the ec_bits placeholder BSS variable */
         ec_bits = xlink_binary_find_public(bin, "ec_bits");
         ec_bits->offset = 8 + xlink_list_length(&models);
