@@ -3149,6 +3149,29 @@ xlink_segment *xlink_binary_find_segment_by_public(xlink_binary *bin,
   return seg;
 }
 
+void xlink_binary_write_com(xlink_binary *bin, int nsegments) {
+  FILE *out;
+  int i;
+  int offset;
+  out = fopen(bin->output, "wb");
+  XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
+  for (offset = 0x100, i = 1; i <= nsegments; i++) {
+    xlink_segment *seg;
+    seg = xlink_binary_get_segment(bin, i);
+    if (seg->info & SEG_HAS_DATA) {
+      if (offset != seg->start) {
+        unsigned char buf[4096];
+        memset(buf, 0, 4096);
+        fwrite(buf, 1, seg->start - offset, out);
+        offset = seg->start;
+      }
+      fwrite(seg->data, 1, seg->length, out);
+      offset += seg->length;
+    }
+  }
+  fclose(out);
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
@@ -3318,23 +3341,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     fclose(out);
   }
   /* Stage 5: Write the COM file to disk a segment at a time */
-  out = fopen(bin->output, "wb");
-  XLINK_ERROR(out == NULL, ("Unable to open output file '%s'", bin->output));
-  for (offset = 0x100, i = 1; i <= s; i++) {
-    xlink_segment *seg;
-    seg = xlink_binary_get_segment(bin, i);
-    if (seg->info & SEG_HAS_DATA) {
-      if (offset != seg->start) {
-        unsigned char buf[4096];
-        memset(buf, 0, 4096);
-        fwrite(buf, 1, seg->start - offset, out);
-        offset = seg->start;
-      }
-      fwrite(seg->data, 1, seg->length, out);
-      offset += seg->length;
-    }
-  }
-  fclose(out);
+  xlink_binary_write_com(bin, s);
 }
 
 const char *OPTSTRING = "o:e:i:pM:smdCh";
