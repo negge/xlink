@@ -39,6 +39,8 @@ EXTERN init_
 %endif
 
 %if XLINK_STUB_PACK
+GLOBAL XLINK_header_size;
+
 EXTERN hash_table_segs
 EXTERN hash_table_words
 
@@ -421,7 +423,9 @@ _XLINK_heap: dd 0
   popad
 
   ;TODO need to hardcode this value 8 bytes + n model bytes
-  lea esi, [esi + 0x9]
+  ;lea esi, [esi + 0x9]
+  db 0x8D, 0x76
+XLINK_header_size: db 0x9
   ;TODO we can flip this (and all of the weight dwords) if ec_seg - XXX is odd
   jpo @next_bit
 

@@ -3393,6 +3393,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_public *words;
       int header_size;
       xlink_reloc *ec_segs;
+      xlink_public *header;
       segs = xlink_binary_find_public(bin, "hash_table_segs");
       words = xlink_binary_find_public(bin, "hash_table_words");
       segs->offset = (bin->hash_table_memory + 65535)/65536;
@@ -3400,6 +3401,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       header_size = 8 + xlink_list_length(&models);
       ec_segs = xlink_segment_find_reloc(start, "ec_segs");
       ec_segs->addend.offset = -header_size;
+      header = xlink_binary_find_public(bin, "XLINK_header_size");
+      start->data[header->offset] = header_size;
     }
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
