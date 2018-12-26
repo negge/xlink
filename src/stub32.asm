@@ -13,6 +13,10 @@
 %define XLINK_STUB_PACK 0
 %endif
 
+%ifndef XLINK_STUB_EXIT
+%define XLINK_STUB_EXIT 0
+%endif
+
 struc stack
   .edi: resd 1
   .esi: resd 1
@@ -184,10 +188,12 @@ dpmi_ok:
 
 %if !XLINK_STUB_PACK
 
+%if !XLINK_STUB_EXIT
   call main_
 
   mov ah, 0x4c
   int 0x21
+%endif
 
 %else
   ; Set ESI to the start of the EC header (minus models in first EC segment)

@@ -1716,6 +1716,7 @@ int xlink_omf_record_load_iterated(xlink_omf_record *rec, unsigned char *data,
 #define MOD_SPLIT (0x4)
 #define MOD_CHECK (0x8)
 #define MOD_PACK  (0x10)
+#define MOD_EXIT  (0x20)
 
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
@@ -3208,8 +3209,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       stub = "stub32c_";
     }
     else {
-      /* If there is a 16-bit initialization function, use STUB32I */
-      stub = bin->init ? "stub32i_" : "stub32_";
+      if (flags & MOD_EXIT) {
+        stub = bin->init ? "stub32ei_" : "stub32e_";
+      }
+      else {
+        /* If there is a 16-bit initialization function, use STUB32I */
+        stub = bin->init ? "stub32i_" : "stub32_";
+      }
     }
     /* Find the stub segment */
     start = xlink_binary_find_segment_by_public(bin, stub, OMF_SEGMENT_CODE);
@@ -3228,10 +3234,18 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   }
   /* Stage 1: Resolve all symbol references, starting from start */
   xlink_binary_link_root_segment(bin, start);
+  /* Stage 1a: Link main segment when MOD_EXIT, as start missing main_ extern */
+  if (flags & MOD_EXIT) {
+    xlink_binary_link_root_segment(bin, main);
+  }
   /* Stage 2: Sort segments by class (CODE, DATA, BSS) */
   xlink_sort_segments(bin->segments, bin->nsegments, NULL, &bss_idx);
   /* Stage 2a: Set _MAIN as the first CODE segment */
   xlink_set_first_segment(&bin->segments[0], start);
+  /* Stage 2b: Set main as the second CODE segment when MOD_EXIT */
+  if (flags & MOD_EXIT) {
+    xlink_set_first_segment(&bin->segments[1], main);
+  }
   if (flags & MOD_PACK) {
     XLINK_ERROR(bss_idx == bin->nsegments,
      ("Error no BSS segment contained in stub32c"));
@@ -3348,7 +3362,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_binary_write_com(bin, s);
 }
 
-const char *OPTSTRING = "o:e:i:pM:smdCh";
+const char *OPTSTRING = "o:e:i:pEM:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
@@ -3371,6 +3385,7 @@ static void usage(const char *argv0) {
    "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -i --init <function>            Optional 16-bit initialization routine.\n"
    "  -p --pack                       Create a compressed binary.\n"
+   "  -E --exit                       Program will explicitly call exit().\n"
    "  -M --memory <size>              Hash table memory size (default: 12MB).\n"
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
@@ -3408,6 +3423,10 @@ int main(int argc, char *argv[]) {
         flags |= MOD_PACK;
         break;
       }
+      case 'E' : {
+        flags |= MOD_EXIT;
+        break;
+      }
       case 'M' : {
         bin.hash_table_memory = atoi(optarg);
         break;
@@ -3435,6 +3454,8 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  XLINK_ERROR(flags & MOD_PACK && flags & MOD_EXIT,
+   ("Specified -E --exit with -p --pack but only valid for unpacked binaries"));
   XLINK_ERROR(bin.hash_table_memory & 1,
    ("Specified -M --memory size %i must be even", bin.hash_table_memory));
   if (flags & MOD_CHECK) {
