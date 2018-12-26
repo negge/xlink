@@ -13,12 +13,6 @@
 %define XLINK_STUB_PACK 0
 %endif
 
-%if XLINK_STUB_PACK
-%define HASH_TABLE_SIZE (6*1024*1024)
-%define HASH_TABLE_SEGS (HASH_TABLE_SIZE/65536)
-%define HASH_TABLE_WORDS (HASH_TABLE_SIZE/2)
-%endif
-
 struc stack
   .edi: resd 1
   .esi: resd 1
@@ -40,6 +34,9 @@ EXTERN init_
 %endif
 
 %if XLINK_STUB_PACK
+EXTERN hash_table_segs
+EXTERN hash_table_words
+
 EXTERN ec_segs
 EXTERN ec_bits
 %else
@@ -111,7 +108,7 @@ dpmi_ok:
 
   ; AL = 1
   mov ah, 5
-  mov bx, HASH_TABLE_SEGS
+  mov bx, hash_table_segs
 
   ; Call allocate memory block
   ;  AX = 0501h
@@ -399,7 +396,7 @@ dpmi_ok:
 
 hash_table_instr:
   mov edi, 0
-  mov ecx, HASH_TABLE_WORDS
+  mov ecx, hash_table_words
   jnc @index_hash
 
   rep stosw

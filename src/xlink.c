@@ -3215,6 +3215,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list data_bytes;
     xlink_modeler mod;
     xlink_list models;
+    xlink_public *segs;
+    xlink_public *words;
     /* Stage 4: Resolve all symbol references, starting from 32-bit entry */
     xlink_binary_link_root_segment(bin, main);
     /* Stage 5: Sort segments by class (CODE, DATA, BSS) */
@@ -3294,6 +3296,10 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list_clear(&data_bytes);
     xlink_modeler_clear(&mod);
     xlink_list_clear(&models);
+    segs = xlink_binary_find_public(bin, "hash_table_segs");
+    words = xlink_binary_find_public(bin, "hash_table_words");
+    segs->offset = (bin->hash_table_memory + 65535)/65536;
+    words->offset = bin->hash_table_memory/2;
   }
   /* Stage 4: Apply relocations to the program segments */
   xlink_apply_relocations(bin->segments, s);
