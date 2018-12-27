@@ -3341,9 +3341,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream bs;
       int size;
       /* Create a context from models */
-      printf("Using hash table size = %i\n", bin->hash_table_memory/2);
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, bin->hash_table_memory/2);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3353,7 +3351,10 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
       /* Encode bytes with the context and replacement hashing */
+      printf("Using hash table size = %i\n", bin->hash_table_memory/2);
       ctx.matches.equals = NULL;
+      ctx.matches.load = 1.f;
+      xlink_context_set_capacity(&ctx, bin->hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
       size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
@@ -3539,7 +3540,6 @@ int main(int argc, char *argv[]) {
        xlink_list_length(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
-      xlink_context_set_capacity(&ctx, bin.hash_table_memory);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3549,7 +3549,10 @@ int main(int argc, char *argv[]) {
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       /* Encode bytes with the context and replacement hashing */
+      printf("Using hash table size = %i\n", bin.hash_table_memory/2);
       ctx.matches.equals = NULL;
+      ctx.matches.load = 1.f;
+      xlink_context_set_capacity(&ctx, bin.hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
       size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
