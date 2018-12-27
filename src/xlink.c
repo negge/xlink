@@ -3327,6 +3327,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
      OMF_SEGMENT_DATA, &data_bytes);
     printf("code bytes = %i\n", xlink_list_length(&code_bytes));
     printf("data bytes = %i\n", xlink_list_length(&data_bytes));
+    /* XXX: For now just append the data_bytes to code_bytes */
+    xlink_list_append(&code_bytes, &data_bytes);
     /* Stage 9: Build a context modeler for CODE segment bytes */
     xlink_modeler_init(&mod, xlink_list_length(&code_bytes));
     xlink_modeler_load_binary(&mod, &code_bytes);
