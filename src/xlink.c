@@ -3301,6 +3301,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   /* Stage 3: Lay segments in memory with proper alignment starting at 100h */
   xlink_binary_layout_segments(bin, 0, 0x100);
   s = bin->nsegments;
+  /* Stage 4: Apply relocations to the program segments */
+  xlink_apply_relocations(bin->segments, s);
   if (flags & MOD_PACK) {
     int data_idx;
     int offset;
@@ -3404,6 +3406,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       header_size = 8 + xlink_list_length(&models);
       ec_segs = xlink_segment_find_reloc(start, "ec_segs");
       ec_segs->addend.offset = -header_size;
+      /* Apply relocations again to put the fixups into effect */
+      xlink_apply_relocations(bin->segments, s);
       header = xlink_binary_find_public(bin, "XLINK_header_size");
       start->data[header->offset] = header_size;
     }
@@ -3412,8 +3416,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_modeler_clear(&mod);
     xlink_list_clear(&models);
   }
-  /* Stage 4: Apply relocations to the program segments */
-  xlink_apply_relocations(bin->segments, s);
   /* Optionally write the map file. */
   if (bin->map != NULL) {
     xlink_binary_write_map(bin);
