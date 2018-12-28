@@ -3344,6 +3344,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_modeler mod;
     xlink_list models;
     int header_size;
+    unsigned char byte;
     /* Stage 4: Resolve all symbol references, starting from 32-bit entry */
     xlink_binary_link_root_segment(bin, main);
     /* Stage 5: Sort segments by class (CODE, DATA, BSS) */
@@ -3374,14 +3375,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     XLINK_ERROR(xlink_list_length(&models) == 0,
      ("Error no context models found for CODE segment"));
     header_size = 8 + xlink_list_length(&models);
+    byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
-      unsigned char byte;
       unsigned int state;
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
-      byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
       state = xlink_compute_packed_weights(&models);
       /* If the parity of the previous condition is the same, flip it */
       if (xlink_parity(byte) == xlink_parity(state & 0xff)) {
@@ -3453,6 +3453,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_apply_relocations(bin->segments, s);
       header = xlink_binary_find_public(bin, "XLINK_header_size");
       start->data[header->offset] = header_size;
+      XLINK_ERROR(
+       byte != xlink_binary_get_relative_byte(bin, prog, -header_size),
+       ("Parity byte %i modified after relocation, %02X != %02X", header_size,
+       byte, xlink_binary_get_relative_byte(bin, prog, -header_size)));
+      if (!xlink_parity(byte)) {
+        /* Flip the direction of branch after segment done */
+        start->data[header->offset + 1] ^= 1;
+      }
     }
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
