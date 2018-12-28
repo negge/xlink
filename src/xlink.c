@@ -2666,7 +2666,6 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   while (add_index != -1 || del_index != -1);
   printf("done\n");
   qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
-  xlink_set_model_state(models, xlink_compute_packed_weights(models));
   xlink_modeler_print(mod, models);
 }
 
@@ -3377,9 +3376,18 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     header_size = 8 + xlink_list_length(&models);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
+      unsigned char byte;
+      unsigned int state;
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
+      byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
+      state = xlink_compute_packed_weights(&models);
+      /* If the parity of the previous condition is the same, flip it */
+      if (xlink_parity(byte) == xlink_parity(state & 0xff)) {
+        state ^= 1;
+      }
+      xlink_set_model_state(&models, state);
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
       /* Create a bitstream for writing */
@@ -3415,9 +3423,10 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         prog->info |= SEG_HAS_DATA;
         ((unsigned int *)prog->data)[0] =
          0xFFFEFFF0 - xlink_list_length(&code_bytes);
-        /* TODO: check parity of byte at ec_segs - ec_bits->length
-                 flip the test in the code, and toggle the parity here */
-        ((unsigned int *)prog->data)[1] = xlink_compute_packed_weights(&models);
+        /* Write the CODE segment weight states.
+           Note the partiy of state has already been flipped to match the jmp
+            instruction which will be fixed up later */
+        ((unsigned int *)prog->data)[1] = state;
         for (i = 0; i < xlink_list_length(&models); i++) {
           xlink_model *model;
           model = xlink_list_get(&models, i);
@@ -3576,6 +3585,7 @@ int main(int argc, char *argv[]) {
       /* Segment header has 4 weight bytes + n model bytes */
       printf("Required header: 4 weight bytes + %i model byte(s)\n",
        xlink_list_length(&models));
+      xlink_set_model_state(&models, xlink_compute_packed_weights(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models);
       /* Create a bitstream for writing */
