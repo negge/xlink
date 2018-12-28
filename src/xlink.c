@@ -3248,6 +3248,16 @@ unsigned char xlink_binary_get_relative_byte(xlink_binary *bin,
   return byte;
 }
 
+int xlink_parity(unsigned char byte) {
+  int bits;
+  bits = 0;
+  while (byte > 0) {
+    bits += byte & 1;
+    byte >>= 1;
+  }
+  return bits & 1;
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
