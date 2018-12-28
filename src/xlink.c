@@ -3344,6 +3344,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list data_bytes;
     xlink_modeler mod;
     xlink_list models;
+    int header_size;
     /* Stage 4: Resolve all symbol references, starting from 32-bit entry */
     xlink_binary_link_root_segment(bin, main);
     /* Stage 5: Sort segments by class (CODE, DATA, BSS) */
@@ -3373,6 +3374,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_modeler_search(&mod, &models);
     XLINK_ERROR(xlink_list_length(&models) == 0,
      ("Error no context models found for CODE segment"));
+    header_size = 8 + xlink_list_length(&models);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
       xlink_context ctx;
@@ -3384,7 +3386,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = header_size + (bs.bits + 7)/8;
       printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
@@ -3394,7 +3396,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       ctx.matches.load = 1.f;
       xlink_context_set_capacity(&ctx, bin->hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
+      size = header_size + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
@@ -3405,7 +3407,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         xlink_public *ec_bits;
         /* The packed binary data goes in the ec_bits placeholder BSS variable */
         ec_bits = xlink_binary_find_public(bin, "ec_bits");
-        ec_bits->offset = 8 + xlink_list_length(&models);
+        ec_bits->offset = header_size;
         /* Need to allocate space for the ec_segs header and ec_bits data */
         prog->length = ec_bits->offset + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
@@ -3430,14 +3432,12 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     {
       xlink_public *segs;
       xlink_public *words;
-      int header_size;
       xlink_reloc *ec_segs;
       xlink_public *header;
       segs = xlink_binary_find_public(bin, "hash_table_segs");
       words = xlink_binary_find_public(bin, "hash_table_words");
       segs->offset = (bin->hash_table_memory + 65535)/65536;
       words->offset = bin->hash_table_memory/2;
-      header_size = 8 + xlink_list_length(&models);
       ec_segs = xlink_segment_find_reloc(start, "ec_segs");
       ec_segs->addend.offset = -header_size;
       /* Apply relocations again to put the fixups into effect */
