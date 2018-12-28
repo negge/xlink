@@ -3224,6 +3224,30 @@ xlink_reloc *xlink_segment_find_reloc(xlink_segment *seg, const char *name) {
   return ret;
 }
 
+unsigned char xlink_binary_get_relative_byte(xlink_binary *bin,
+ xlink_segment *prog, int relative) {
+  int prog_idx;
+  int i;
+  unsigned char byte;
+  XLINK_ERROR(relative >= 0,
+   ("Relative byte index should be negative, %i", relative));
+  for (prog_idx = bin->nsegments; prog_idx-- > 0; ) {
+    if (bin->segments[prog_idx] == prog) {
+      break;
+    }
+  }
+  XLINK_ERROR(prog_idx < 0, ("PROG segment index not found"));
+  for (i = prog_idx; relative < 0 && i-- > 0; ) {
+    relative += bin->segments[i + 1]->start - bin->segments[i]->start;
+  }
+  XLINK_ERROR(i < 0, ("Relative byte %i bytes before program start", relative));
+  byte = 0;
+  if (relative <= bin->segments[i]->length) {
+    byte = bin->segments[i]->data[relative];
+  }
+  return byte;
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
