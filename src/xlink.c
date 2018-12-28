@@ -3417,6 +3417,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         ec_bits = xlink_binary_find_public(bin, "ec_bits");
         ec_bits->offset = header_size;
         /* Need to allocate space for the ec_segs header and ec_bits data */
+        XLINK_ERROR(size > prog->length,
+         ("Compressed binary data %i larger than reserved PROG space %i", size,
+         prog->length));
         prog->length = ec_bits->offset + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
