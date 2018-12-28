@@ -3281,9 +3281,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     char *stub;
     if (flags & MOD_PACK) {
       /* Load the 32-bit unpacking stub */
-      XLINK_ERROR(bin->init,
-       ("Packed executables with 16-bit initializers not supported yet"));
-      stub = "stub32c_";
+      stub = bin->init ? "stub32ci_" : "stub32c_";
     }
     else {
       if (flags & MOD_EXIT) {
