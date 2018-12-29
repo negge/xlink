@@ -2170,11 +2170,9 @@ void xlink_sort_segments(xlink_segment **segments, int nsegments, int *data_idx,
 
 void xlink_set_first_segment(xlink_segment **segments, xlink_segment *first) {
   int i;
-  if (segments[0] != first) {
-    for (i = 1; segments[i] != first; i++);
-    segments[i] = segments[0];
-    segments[0] = first;
-  }
+  for (i = 0; segments[i] != first; i++);
+  memmove(&segments[1], &segments[0], sizeof(*segments)*i);
+  segments[0] = first;
 }
 
 /* Layout segments in memory with proper alignment starting at offset */
