@@ -3290,11 +3290,21 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     }
     else {
       if (flags & MOD_EXIT) {
-        stub = bin->init ? "stub32ei_" : "stub32e_";
+        if (flags & MOD_BASE) {
+          stub = bin->init ? "stub32ebi_" : "stub32eb_";
+        }
+        else {
+          stub = bin->init ? "stub32ei_" : "stub32e_";
+        }
       }
       else {
-        /* If there is a 16-bit initialization function, use STUB32I */
-        stub = bin->init ? "stub32i_" : "stub32_";
+        if (flags & MOD_BASE) {
+          stub = bin->init ? "stub32bi_" : "stub32b_";
+        }
+        else {
+          /* If there is a 16-bit initialization function, use STUB32I */
+          stub = bin->init ? "stub32i_" : "stub32_";
+        }
       }
     }
     /* Load the stub segment */
@@ -3590,8 +3600,6 @@ int main(int argc, char *argv[]) {
   }
   XLINK_ERROR(flags & MOD_PACK && flags & MOD_EXIT,
    ("Specified -E --exit with -p --pack but only valid for unpacked binaries"));
-  XLINK_ERROR(!(flags & MOD_PACK) && flags & MOD_BASE,
-   ("Specified -B --base without -p --pack, only valid for packed binaries"));
   XLINK_ERROR(bin.hash_table_memory & 1,
    ("Specified -M --memory size %i must be even", bin.hash_table_memory));
   if (flags & MOD_CHECK) {

@@ -199,6 +199,12 @@ dpmi_ok:
 
 %if !XLINK_STUB_PACK
 
+%if XLINK_STUB_BASE
+  mov eax, cs
+  shl eax, 4
+  mov [_XLINK_base], eax
+%endif
+
 %if !XLINK_STUB_EXIT
   call main_
 
