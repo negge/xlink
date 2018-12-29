@@ -17,6 +17,10 @@
 %define XLINK_STUB_EXIT 0
 %endif
 
+%ifndef XLINK_STUB_BASE
+%define XLINK_STUB_BASE 0
+%endif
+
 struc stack
   .edi: resd 1
   .esi: resd 1
@@ -48,6 +52,10 @@ EXTERN ec_segs
 EXTERN ec_bits
 %else
 EXTERN main_
+%endif
+
+%if XLINK_STUB_BASE
+GLOBAL _XLINK_base
 %endif
 
 SEGMENT _MAIN USE32 CLASS=CODE
@@ -222,6 +230,10 @@ _XLINK_heap: dd XLINK_heap_base
   ; Pop the real mode 0:cs and convert to a zero based address
   pop ebx
   shl ebx, 4
+
+%if XLINK_STUB_BASE
+  mov [edi - 8], ebx
+%endif
 
   ; Compute and store the hashtable address relative to ES
   sub eax, ebx
@@ -481,7 +493,14 @@ XLINK_header_size: db 0x9
   jmp @next_model
 
 
-
 stub32_end:
+
+%if XLINK_STUB_BASE
+
+SEGMENT _BASE USE32 CLASS=BSS
+
+_XLINK_base: resd 4
+
+%endif
 
 %endif
