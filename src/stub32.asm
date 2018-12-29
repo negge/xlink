@@ -55,7 +55,7 @@ EXTERN main_
 %endif
 
 %if XLINK_STUB_BASE
-GLOBAL _XLINK_base
+EXTERN _XLINK_base
 %endif
 
 SEGMENT _MAIN USE32 CLASS=CODE
@@ -494,13 +494,5 @@ XLINK_header_size: db 0x9
 
 
 stub32_end:
-
-%if XLINK_STUB_BASE
-
-SEGMENT _BASE USE32 CLASS=BSS
-
-_XLINK_base: resd 4
-
-%endif
 
 %endif

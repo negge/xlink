@@ -13,3 +13,9 @@ GLOBAL ec_bits
 
 ec_segs:
 ec_bits: resb 8192
+
+GLOBAL _XLINK_base
+
+SEGMENT _BASE USE16 CLASS=BSS
+
+_XLINK_base: resd 1
