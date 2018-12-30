@@ -43,7 +43,10 @@ EXTERN init_
 %endif
 
 %if XLINK_STUB_PACK
-GLOBAL XLINK_header_size;
+%if !XLINK_STUB_INIT
+GLOBAL XLINK_heap_offset
+%endif
+GLOBAL XLINK_header_size
 
 EXTERN hash_table_segs
 EXTERN hash_table_words
@@ -243,8 +246,10 @@ _XLINK_heap: dd XLINK_heap_base
 
   ; Compute and store the hashtable address relative to ES
   sub eax, ebx
-%if 0
-  mov [esi + _XLINK_heap - stub32_end + 0x9], eax
+%if !XLINK_STUB_INIT
+  ;mov [esi + _XLINK_heap - stub32_end + 0x0], eax
+  db 0x89, 0x46
+XLINK_heap_offset: db 0xbe
 %else
   mov [_XLINK_heap], eax
 %endif

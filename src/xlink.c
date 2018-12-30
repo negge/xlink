@@ -3476,6 +3476,11 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       ec_segs->addend.offset = -header_size;
       /* Apply relocations again to put the fixups into effect */
       xlink_apply_relocations(bin->segments, s);
+      if (!bin->init) {
+        xlink_public *heap;
+        heap = xlink_binary_find_public(bin, "XLINK_heap_offset");
+        start->data[heap->offset] += header_size;
+      }
       header = xlink_binary_find_public(bin, "XLINK_header_size");
       start->data[header->offset] = header_size;
       XLINK_ERROR(
