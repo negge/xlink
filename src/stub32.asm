@@ -89,7 +89,7 @@ dpmi_ok:
 
   ASSERT {test bx, 1}, NZ, 'DPMI host missing 32-bit support.'
 
-%if XLINK_STUB_PACK
+%if XLINK_STUB_PACK || XLINK_STUB_BASE
   push cs
 %endif
 
@@ -203,7 +203,11 @@ dpmi_ok:
 %if !XLINK_STUB_PACK
 
 %if XLINK_STUB_BASE
-  mov eax, cs
+  ; Pop the real-to-protected mode entry point (and ignore it)
+  pop eax
+
+  ; Pop the real mode 0:cs and convert to a zero based address
+  pop eax
   shl eax, 4
   mov [_XLINK_base], eax
 %endif
