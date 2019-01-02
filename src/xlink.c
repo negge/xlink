@@ -3358,6 +3358,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list models;
     int header_size;
     unsigned char byte;
+    if (flags & MOD_BASE) {
+      xlink_segment *base;
+      base =
+       xlink_binary_find_segment_by_public(bin, "_XLINK_base", OMF_SEGMENT_BSS);
+      XLINK_ERROR(xlink_binary_has_segment(bin, base),
+       ("Error, XLINK_base in 16-bit BSS, but set by 32-bit packing stub"));
+    }
     /* Stage 4: Resolve all symbol references, starting from 32-bit entry */
     xlink_binary_link_root_segment(bin, main);
     /* Stage 5: Sort segments by class (CODE, DATA, BSS) */
