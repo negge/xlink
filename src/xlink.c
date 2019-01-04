@@ -3519,6 +3519,7 @@ const struct option OPTIONS[] = {
   { "entry", required_argument,  NULL, 'e' },
   { "init", required_argument,   NULL, 'i' },
   { "pack", no_argument,         NULL, 'p' },
+  { "exit", no_argument,         NULL, 'E' },
   { "base", no_argument,         NULL, 'B' },
   { "memory", required_argument, NULL, 'M' },
   { "split", no_argument,        NULL, 's' },
