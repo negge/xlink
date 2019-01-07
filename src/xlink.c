@@ -3269,6 +3269,22 @@ int xlink_parity(unsigned char byte) {
   return bits & 1;
 }
 
+int xlink_header_length(const xlink_list *models) {
+  XLINK_ERROR(xlink_list_length(models) == 0,
+   ("Invalid header, must have at least one context model"));
+  return 8 + xlink_list_length(models);
+}
+
+int xlink_header_size(const xlink_list *code_models,
+ const xlink_list *data_models) {
+  int header_size;
+  header_size = xlink_header_length(code_models);
+  if (xlink_list_length(data_models) > 0) {
+    header_size += xlink_header_length(data_models);
+  }
+  return header_size;
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
@@ -3416,7 +3432,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     if (xlink_list_length(&data_bytes) > 0) {
       xlink_model_search(&data_models, &data_bytes);
     }
-    header_size = 8 + xlink_list_length(&code_models);
+    header_size = xlink_header_length(&code_models);
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
@@ -3436,7 +3452,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = header_size + (bs.bits + 7)/8;
+      size = xlink_header_size(&code_models, &data_models) + (bs.bits + 7)/8;
       printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
@@ -3446,7 +3462,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       ctx.matches.load = 1.f;
       xlink_context_set_capacity(&ctx, bin->hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &code_bytes);
-      size = header_size + (bs.bits + 7)/8;
+      size = xlink_header_size(&code_models, &data_models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code_bytes)));
