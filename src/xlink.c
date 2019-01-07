@@ -3368,6 +3368,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list code_bytes;
     xlink_list data_bytes;
     xlink_list code_models;
+    xlink_list data_models;
     int header_size;
     unsigned char byte;
     if (flags & MOD_BASE) {
@@ -3408,8 +3409,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* XXX: For now just append the data_bytes to code_bytes */
     xlink_list_append(&code_bytes, &data_bytes);
     xlink_list_empty(&data_bytes);
+    xlink_list_init(&data_models, sizeof(xlink_model), 0);
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code_models, &code_bytes);
+    /* State 9a: Search for the best context to use for DATA segment bytes */
+    if (xlink_list_length(&data_bytes) > 0) {
+      xlink_model_search(&data_models, &data_bytes);
+    }
     header_size = 8 + xlink_list_length(&code_models);
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
@@ -3509,6 +3515,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
     xlink_list_clear(&code_models);
+    xlink_list_clear(&data_models);
   }
   /* Optionally write the map file. */
   if (bin->map != NULL) {
