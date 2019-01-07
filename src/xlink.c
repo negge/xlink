@@ -3285,6 +3285,13 @@ int xlink_header_size(const xlink_list *code_models,
   return header_size;
 }
 
+void xlink_binary_set_public_offset(xlink_binary *bin, const char *symb,
+ int offset) {
+  xlink_public *pub;
+  pub = xlink_binary_find_public(bin, symb);
+  pub->offset = offset;
+}
+
 void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   int bss_idx;
   xlink_segment *start;
@@ -3470,15 +3477,12 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       /* Write payload into the prog segment data */
       {
         int i;
-        xlink_public *ec_bits;
-        /* The packed binary data goes in the ec_bits placeholder BSS variable */
-        ec_bits = xlink_binary_find_public(bin, "ec_bits");
-        ec_bits->offset = header_size;
+        xlink_binary_set_public_offset(bin, "ec_bits", header_size);
         /* Need to allocate space for the ec_segs header and ec_bits data */
         XLINK_ERROR(size > prog->length,
          ("Compressed binary data %i larger than reserved PROG space %i", size,
          prog->length));
-        prog->length = ec_bits->offset + (bs.bits + 7)/8;
+        prog->length = header_size + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
         prog->info |= SEG_HAS_DATA;
@@ -3493,21 +3497,19 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
           model = xlink_list_get(&code_models, i);
           prog->data[8 + i] = model->mask;
         }
-        xlink_bitstream_copy_bits(&bs, &prog->data[ec_bits->offset], 0);
-        printf("ec_bits->offset = %i\n", ec_bits->offset);
+        xlink_bitstream_copy_bits(&bs, &prog->data[header_size], 0);
+        printf("ec_bits->offset = %i\n", header_size);
       }
       xlink_bitstream_clear(&bs);
     }
     /* Fix up the compressing stub */
     {
-      xlink_public *segs;
-      xlink_public *words;
       xlink_reloc *ec_segs;
       xlink_public *header;
-      segs = xlink_binary_find_public(bin, "hash_table_segs");
-      words = xlink_binary_find_public(bin, "hash_table_words");
-      segs->offset = (bin->hash_table_memory + 65535)/65536;
-      words->offset = bin->hash_table_memory/2;
+      xlink_binary_set_public_offset(bin, "hash_table_segs",
+       (bin->hash_table_memory + 65535)/65536);
+      xlink_binary_set_public_offset(bin, "hash_table_words",
+       bin->hash_table_memory/2);
       ec_segs = xlink_segment_find_reloc(start, "ec_segs");
       ec_segs->addend.offset = -header_size;
       /* Apply relocations again to put the fixups into effect */
