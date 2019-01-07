@@ -3355,7 +3355,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list code_bytes;
     xlink_list data_bytes;
     xlink_modeler mod;
-    xlink_list models;
+    xlink_list code_models;
     int header_size;
     unsigned char byte;
     if (flags & MOD_BASE) {
@@ -3399,11 +3399,11 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_modeler_init(&mod, xlink_list_length(&code_bytes));
     xlink_modeler_load_binary(&mod, &code_bytes);
     /* Stage 10: Search for the best context to use for CODE segment bytes */
-    xlink_list_init(&models, sizeof(xlink_model), 0);
-    xlink_modeler_search(&mod, &models);
-    XLINK_ERROR(xlink_list_length(&models) == 0,
+    xlink_list_init(&code_models, sizeof(xlink_model), 0);
+    xlink_modeler_search(&mod, &code_models);
+    XLINK_ERROR(xlink_list_length(&code_models) == 0,
      ("Error no context models found for CODE segment"));
-    header_size = 8 + xlink_list_length(&models);
+    header_size = 8 + xlink_list_length(&code_models);
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
@@ -3411,14 +3411,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
-      state = xlink_compute_packed_weights(&models);
+      state = xlink_compute_packed_weights(&code_models);
       /* If the parity of the previous condition is the same, flip it */
       if (xlink_parity(byte) == xlink_parity(state & 0xff)) {
         state ^= 1;
       }
-      xlink_set_model_state(&models, state);
+      xlink_set_model_state(&code_models, state);
       /* Create a context from models */
-      xlink_context_init(&ctx, &models);
+      xlink_context_init(&ctx, &code_models);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3459,9 +3459,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
            Note the partiy of state has already been flipped to match the jmp
             instruction which will be fixed up later */
         ((unsigned int *)prog->data)[1] = state;
-        for (i = 0; i < xlink_list_length(&models); i++) {
+        for (i = 0; i < xlink_list_length(&code_models); i++) {
           xlink_model *model;
-          model = xlink_list_get(&models, i);
+          model = xlink_list_get(&code_models, i);
           prog->data[8 + i] = model->mask;
         }
         xlink_bitstream_copy_bits(&bs, &prog->data[ec_bits->offset], 0);
@@ -3502,7 +3502,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
     xlink_modeler_clear(&mod);
-    xlink_list_clear(&models);
+    xlink_list_clear(&code_models);
   }
   /* Optionally write the map file. */
   if (bin->map != NULL) {
