@@ -3403,6 +3403,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_modeler_search(&mod, &code_models);
     XLINK_ERROR(xlink_list_length(&code_models) == 0,
      ("Error no context models found for CODE segment"));
+    xlink_modeler_clear(&mod);
     header_size = 8 + xlink_list_length(&code_models);
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
@@ -3501,7 +3502,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     }
     xlink_list_clear(&code_bytes);
     xlink_list_clear(&data_bytes);
-    xlink_modeler_clear(&mod);
     xlink_list_clear(&code_models);
   }
   /* Optionally write the map file. */
@@ -3630,6 +3630,7 @@ int main(int argc, char *argv[]) {
     /* Search for the best context to use for bytes */
     xlink_list_init(&models, sizeof(xlink_model), 0);
     xlink_modeler_search(&mod, &models);
+    xlink_modeler_clear(&mod);
     if (xlink_list_length(&models) > 0) {
       xlink_context ctx;
       xlink_bitstream bs;
@@ -3663,7 +3664,6 @@ int main(int argc, char *argv[]) {
     }
     /* Clean up */
     xlink_list_clear(&bytes);
-    xlink_modeler_clear(&mod);
     xlink_list_clear(&models);
     return EXIT_SUCCESS;
   }
