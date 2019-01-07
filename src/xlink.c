@@ -2668,6 +2668,19 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   xlink_modeler_print(mod, models);
 }
 
+void xlink_model_search(xlink_list *models, xlink_list *bytes) {
+  xlink_modeler mod;
+  /* Build a context modeler for bytes */
+  xlink_modeler_init(&mod, xlink_list_length(bytes));
+  xlink_modeler_load_binary(&mod, bytes);
+  /* Search for the best context to use for bytes */
+  xlink_list_init(models, sizeof(xlink_model), 0);
+  xlink_modeler_search(&mod, models);
+  XLINK_ERROR(xlink_list_length(models) == 0,
+   ("Error no context models found for bytes"));
+  xlink_modeler_clear(&mod);
+}
+
 #if 0
 
 typedef struct xlink_ans_encoder xlink_ans_encoder;
@@ -3354,7 +3367,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     int offset;
     xlink_list code_bytes;
     xlink_list data_bytes;
-    xlink_modeler mod;
     xlink_list code_models;
     int header_size;
     unsigned char byte;
@@ -3395,15 +3407,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     printf("data bytes = %i\n", xlink_list_length(&data_bytes));
     /* XXX: For now just append the data_bytes to code_bytes */
     xlink_list_append(&code_bytes, &data_bytes);
-    /* Stage 9: Build a context modeler for CODE segment bytes */
-    xlink_modeler_init(&mod, xlink_list_length(&code_bytes));
-    xlink_modeler_load_binary(&mod, &code_bytes);
-    /* Stage 10: Search for the best context to use for CODE segment bytes */
-    xlink_list_init(&code_models, sizeof(xlink_model), 0);
-    xlink_modeler_search(&mod, &code_models);
-    XLINK_ERROR(xlink_list_length(&code_models) == 0,
-     ("Error no context models found for CODE segment"));
-    xlink_modeler_clear(&mod);
+    xlink_list_empty(&data_bytes);
+    /* Stage 9: Search for the best context to use for CODE segment bytes */
+    xlink_model_search(&code_models, &code_bytes);
     header_size = 8 + xlink_list_length(&code_models);
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
@@ -3617,20 +3623,14 @@ int main(int argc, char *argv[]) {
    ("Specified -M --memory size %i must be even", bin.hash_table_memory));
   if (flags & MOD_CHECK) {
     xlink_list bytes;
-    xlink_modeler mod;
     xlink_list models;
     /* Read bytes from stdin */
     xlink_list_init(&bytes, sizeof(unsigned char), 0);
     while (!FEOF(stdin)) {
       xlink_list_add_byte(&bytes, getc(stdin));
     }
-    /* Build a context modeler for bytes */
-    xlink_modeler_init(&mod, xlink_list_length(&bytes));
-    xlink_modeler_load_binary(&mod, &bytes);
     /* Search for the best context to use for bytes */
-    xlink_list_init(&models, sizeof(xlink_model), 0);
-    xlink_modeler_search(&mod, &models);
-    xlink_modeler_clear(&mod);
+    xlink_model_search(&models, &bytes);
     if (xlink_list_length(&models) > 0) {
       xlink_context ctx;
       xlink_bitstream bs;
