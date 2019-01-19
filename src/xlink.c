@@ -3119,6 +3119,17 @@ struct xlink_ec_segment {
   unsigned int header_size;
 };
 
+void xlink_ec_segment_init(xlink_ec_segment *ec) {
+  memset(ec, 0, sizeof(xlink_ec_segment));
+  xlink_list_init(&ec->bytes, sizeof(unsigned char), 0);
+  xlink_list_init(&ec->models, sizeof(xlink_model), 0);
+}
+
+void xlink_ec_segment_clear(xlink_ec_segment *ec) {
+  xlink_list_clear(&ec->bytes);
+  xlink_list_clear(&ec->models);
+}
+
 void xlink_decoder_test_bytes(xlink_decoder *dec, xlink_list *bytes) {
   int i;
   for (i = 0; i < xlink_list_length(bytes); i++) {
@@ -3433,10 +3444,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* Stage 7: Apply relocations to the payload program segments */
     xlink_apply_relocations(bin->segments + s, bin->nsegments - s);
     /* Stage 8: Extract the CODE and DATA segments */
-    xlink_list_init(&code.bytes, sizeof(unsigned char), 0);
-    xlink_list_init(&data.bytes, sizeof(unsigned char), 0);
-    xlink_list_init(&code.models, sizeof(xlink_model), 0);
-    xlink_list_init(&data.models, sizeof(xlink_model), 0);
+    xlink_ec_segment_init(&code);
+    xlink_ec_segment_init(&data);
     offset = xlink_binary_extract_class(bin, s + 0, 0x10010, OMF_SEGMENT_CODE,
      &code.bytes);
     offset = xlink_binary_extract_class(bin, s + data_idx, offset,
@@ -3541,10 +3550,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         start->data[header->offset + 1] ^= 1;
       }
     }
-    xlink_list_clear(&code.bytes);
-    xlink_list_clear(&data.bytes);
-    xlink_list_clear(&code.models);
-    xlink_list_clear(&data.models);
+    xlink_ec_segment_clear(&code);
+    xlink_ec_segment_clear(&data);
   }
   /* Optionally write the map file. */
   if (bin->map != NULL) {
