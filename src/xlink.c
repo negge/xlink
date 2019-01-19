@@ -3300,16 +3300,6 @@ int xlink_header_length(const xlink_list *models) {
   return 8 + xlink_list_length(models);
 }
 
-int xlink_header_size(const xlink_list *code_models,
- const xlink_list *data_models) {
-  int header_size;
-  header_size = xlink_header_length(code_models);
-  if (xlink_list_length(data_models) > 0) {
-    header_size += xlink_header_length(data_models);
-  }
-  return header_size;
-}
-
 void xlink_binary_set_public_offset(xlink_binary *bin, const char *symb,
  int offset) {
   xlink_public *pub;
