@@ -3427,9 +3427,11 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_apply_relocations(bin->segments + s, bin->nsegments - s);
     /* Stage 8: Extract the CODE and DATA segments */
     xlink_list_init(&code_bytes, sizeof(unsigned char), 0);
+    xlink_list_init(&data_bytes, sizeof(unsigned char), 0);
+    xlink_list_init(&code_models, sizeof(xlink_model), 0);
+    xlink_list_init(&data_models, sizeof(xlink_model), 0);
     offset = xlink_binary_extract_class(bin, s + 0, 0x10010, OMF_SEGMENT_CODE,
      &code_bytes);
-    xlink_list_init(&data_bytes, sizeof(unsigned char), 0);
     offset = xlink_binary_extract_class(bin, s + data_idx, offset,
      OMF_SEGMENT_DATA, &data_bytes);
     printf("code bytes = %i\n", xlink_list_length(&code_bytes));
@@ -3437,8 +3439,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* XXX: For now just append the data_bytes to code_bytes */
     xlink_list_append(&code_bytes, &data_bytes);
     xlink_list_empty(&data_bytes);
-    xlink_list_init(&code_models, sizeof(xlink_model), 0);
-    xlink_list_init(&data_models, sizeof(xlink_model), 0);
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code_models, &code_bytes);
     /* State 9a: Search for the best context to use for DATA segment bytes */
