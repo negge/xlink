@@ -3109,11 +3109,22 @@ typedef xlink_range_decoder xlink_decoder;
 
 #endif
 
+void xlink_decoder_test_bytes(xlink_decoder *dec, xlink_list *bytes) {
+  int i;
+  for (i = 0; i < xlink_list_length(bytes); i++) {
+    unsigned char orig;
+    unsigned char byte;
+    orig = *xlink_list_get_byte(bytes, i);
+    byte = xlink_decoder_read_byte(dec);
+    XLINK_ERROR(byte != orig,
+     ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
+  }
+}
+
 void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
  xlink_list *bytes) {
   xlink_encoder enc;
   xlink_decoder dec;
-  int i;
   bs->bytes.length = 0;
   /* Reset the context */
   xlink_context_reset(ctx);
@@ -3128,14 +3139,7 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   /* Initialize the decoder with the context and bitstream */
   xlink_decoder_init(&dec, ctx, bs);
   /* Test that decoded bytes match original input */
-  for (i = 0; i < xlink_list_length(bytes); i++) {
-    unsigned char orig;
-    unsigned char byte;
-    orig = *xlink_list_get_byte(bytes, i);
-    byte = xlink_decoder_read_byte(&dec);
-    XLINK_ERROR(byte != orig,
-     ("Decoder mismatch %02x != %02x at pos = %i", byte, orig, i));
-  }
+  xlink_decoder_test_bytes(&dec, bytes);
   xlink_decoder_clear(&dec);
 }
 
