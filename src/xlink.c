@@ -3465,16 +3465,15 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
-      unsigned int state;
       xlink_context ctx;
       xlink_bitstream bs;
       int size;
-      state = xlink_compute_packed_weights(&code.models);
+      code.state = xlink_compute_packed_weights(&code.models);
       /* If the parity of the previous condition is the same, flip it */
-      if (xlink_parity(byte) == xlink_parity(state & 0xff)) {
-        state ^= 1;
+      if (xlink_parity(byte) == xlink_parity(code.state & 0xff)) {
+        code.state ^= 1;
       }
-      xlink_set_model_state(&code.models, state);
+      xlink_set_model_state(&code.models, code.state);
       /* Create a context from models */
       xlink_context_init(&ctx, &code.models);
       /* Create a bitstream for writing */
@@ -3511,7 +3510,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         /* Write the CODE segment weight states.
            Note the partiy of state has already been flipped to match the jmp
             instruction which will be fixed up later */
-        ((unsigned int *)prog->data)[1] = state;
+        ((unsigned int *)prog->data)[1] = code.state;
         for (i = 0; i < xlink_list_length(&code.models); i++) {
           xlink_model *model;
           model = xlink_list_get(&code.models, i);
