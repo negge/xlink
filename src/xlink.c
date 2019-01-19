@@ -3456,11 +3456,12 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_list_empty(&data.bytes);
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code.models, &code.bytes);
+    code.header_size = xlink_header_length(&code.models);
     /* State 9a: Search for the best context to use for DATA segment bytes */
     if (xlink_list_length(&data.bytes) > 0) {
       xlink_model_search(&data.models, &data.bytes);
+      data.header_size = xlink_header_length(&data.models);
     }
-    code.header_size = xlink_header_length(&code.models);
     byte = xlink_binary_get_relative_byte(bin, prog, -code.header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
@@ -3479,7 +3480,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
       xlink_bitstream_from_context(&bs, &ctx, &code.bytes);
-      size = xlink_header_size(&code.models, &data.models) + (bs.bits + 7)/8;
+      size = code.header_size + data.header_size + (bs.bits + 7)/8;
       printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code.bytes)));
@@ -3487,7 +3488,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       printf("Using hash table size = %i\n", bin->hash_table_memory/2);
       xlink_context_fixed_capacity(&ctx, bin->hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &code.bytes);
-      size = xlink_header_size(&code.models, &data.models) + (bs.bits + 7)/8;
+      size = code.header_size + data.header_size + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
       printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
        XLINK_RATIO(size, xlink_list_length(&code.bytes)));
@@ -3495,12 +3496,13 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       /* Write payload into the prog segment data */
       {
         int i;
-        xlink_binary_set_public_offset(bin, "ec_bits", code.header_size);
+        xlink_binary_set_public_offset(bin, "ec_bits",
+         code.header_size + data.header_size);
         /* Need to allocate space for the ec_segs header and ec_bits data */
         XLINK_ERROR(size > prog->length,
          ("Compressed binary data %i larger than reserved PROG space %i", size,
          prog->length));
-        prog->length = code.header_size + (bs.bits + 7)/8;
+        prog->length = code.header_size + data.header_size + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
         prog->info |= SEG_HAS_DATA;
@@ -3515,8 +3517,9 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
           model = xlink_list_get(&code.models, i);
           prog->data[8 + i] = model->mask;
         }
-        xlink_bitstream_copy_bits(&bs, prog->data, code.header_size*8);
-        printf("ec_bits->offset = %i\n", code.header_size);
+        xlink_bitstream_copy_bits(&bs, prog->data,
+         (code.header_size + data.header_size)*8);
+        printf("ec_bits->offset = %i\n", code.header_size + data.header_size);
       }
       xlink_bitstream_clear(&bs);
     }
