@@ -2676,7 +2676,7 @@ void xlink_model_search(xlink_list *models, xlink_list *bytes) {
   xlink_modeler_init(&mod, xlink_list_length(bytes));
   xlink_modeler_load_binary(&mod, bytes);
   /* Search for the best context to use for bytes */
-  xlink_list_init(models, sizeof(xlink_model), 0);
+  xlink_list_empty(models);
   xlink_modeler_search(&mod, models);
   XLINK_ERROR(xlink_list_length(models) == 0,
    ("Error no context models found for bytes"));
@@ -3438,6 +3438,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* XXX: For now just append the data_bytes to code_bytes */
     xlink_list_append(&code_bytes, &data_bytes);
     xlink_list_empty(&data_bytes);
+    xlink_list_init(&code_models, sizeof(xlink_model), 0);
     xlink_list_init(&data_models, sizeof(xlink_model), 0);
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code_models, &code_bytes);
@@ -3658,6 +3659,7 @@ int main(int argc, char *argv[]) {
     while (!FEOF(stdin)) {
       xlink_list_add_byte(&bytes, getc(stdin));
     }
+    xlink_list_init(&models, sizeof(xlink_model), 0);
     /* Search for the best context to use for bytes */
     xlink_model_search(&models, &bytes);
     if (xlink_list_length(&models) > 0) {
