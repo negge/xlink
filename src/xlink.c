@@ -3415,7 +3415,6 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     int offset;
     xlink_ec_segment code;
     xlink_ec_segment data;
-    int header_size;
     unsigned char byte;
     if (flags & MOD_BASE) {
       xlink_segment *base;
@@ -3461,8 +3460,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     if (xlink_list_length(&data.bytes) > 0) {
       xlink_model_search(&data.models, &data.bytes);
     }
-    header_size = xlink_header_length(&code.models);
-    byte = xlink_binary_get_relative_byte(bin, prog, -header_size);
+    code.header_size = xlink_header_length(&code.models);
+    byte = xlink_binary_get_relative_byte(bin, prog, -code.header_size);
     /* Stage 10: Compress the CODE and DATA segments independently */
     {
       xlink_context ctx;
@@ -3496,12 +3495,12 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       /* Write payload into the prog segment data */
       {
         int i;
-        xlink_binary_set_public_offset(bin, "ec_bits", header_size);
+        xlink_binary_set_public_offset(bin, "ec_bits", code.header_size);
         /* Need to allocate space for the ec_segs header and ec_bits data */
         XLINK_ERROR(size > prog->length,
          ("Compressed binary data %i larger than reserved PROG space %i", size,
          prog->length));
-        prog->length = header_size + (bs.bits + 7)/8;
+        prog->length = code.header_size + (bs.bits + 7)/8;
         printf("prog->length = %i\n", prog->length);
         prog->data = xlink_malloc(prog->length);
         prog->info |= SEG_HAS_DATA;
@@ -3516,8 +3515,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
           model = xlink_list_get(&code.models, i);
           prog->data[8 + i] = model->mask;
         }
-        xlink_bitstream_copy_bits(&bs, prog->data, header_size*8);
-        printf("ec_bits->offset = %i\n", header_size);
+        xlink_bitstream_copy_bits(&bs, prog->data, code.header_size*8);
+        printf("ec_bits->offset = %i\n", code.header_size);
       }
       xlink_bitstream_clear(&bs);
     }
@@ -3530,20 +3529,21 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       xlink_binary_set_public_offset(bin, "hash_table_words",
        bin->hash_table_memory/2);
       ec_segs = xlink_segment_find_reloc(start, "ec_segs");
-      ec_segs->addend.offset = -header_size;
+      ec_segs->addend.offset = -code.header_size;
       /* Apply relocations again to put the fixups into effect */
       xlink_apply_relocations(bin->segments, s);
       if (!bin->init) {
         xlink_public *heap;
         heap = xlink_binary_find_public(bin, "XLINK_heap_offset");
-        start->data[heap->offset] += header_size;
+        start->data[heap->offset] += code.header_size;
       }
       header = xlink_binary_find_public(bin, "XLINK_header_size");
-      start->data[header->offset] = header_size;
+      start->data[header->offset] = code.header_size;
       XLINK_ERROR(
-       byte != xlink_binary_get_relative_byte(bin, prog, -header_size),
-       ("Parity byte %i modified after relocation, %02X != %02X", header_size,
-       byte, xlink_binary_get_relative_byte(bin, prog, -header_size)));
+       byte != xlink_binary_get_relative_byte(bin, prog, -code.header_size),
+       ("Parity byte %i modified after relocation, %02X != %02X",
+       code.header_size, byte,
+       xlink_binary_get_relative_byte(bin, prog, -code.header_size)));
       if (!xlink_parity(byte)) {
         /* Flip the direction of branch after segment done */
         start->data[header->offset + 1] ^= 1;
