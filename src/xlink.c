@@ -2346,22 +2346,25 @@ void xlink_context_reset(xlink_context *ctx) {
   xlink_set_reset(&ctx->matches);
 }
 
-void xlink_context_init(xlink_context *ctx, xlink_list *models) {
-  ctx->models = models;
-  xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
-   sizeof(xlink_match), 0, 0.75);
-  xlink_context_reset(ctx);
-}
-
-void xlink_context_clear(xlink_context *ctx) {
-  xlink_set_clear(&ctx->matches);
-}
-
 void xlink_context_fixed_capacity(xlink_context *ctx, int capacity) {
   ctx->matches.equals = NULL;
   ctx->matches.load = 1.f;
   xlink_set_reset(&ctx->matches);
   xlink_set_resize(&ctx->matches, capacity);
+}
+
+void xlink_context_init(xlink_context *ctx, xlink_list *models, int capacity) {
+  ctx->models = models;
+  xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
+   sizeof(xlink_match), 0, 0.75);
+  if (capacity > 0) {
+    xlink_context_fixed_capacity(ctx, capacity);
+  }
+  xlink_context_reset(ctx);
+}
+
+void xlink_context_clear(xlink_context *ctx) {
+  xlink_set_clear(&ctx->matches);
 }
 
 void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
@@ -3465,7 +3468,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       }
       xlink_set_model_state(&code.models, code.state);
       /* Create a context from models */
-      xlink_context_init(&ctx, &code.models);
+      xlink_context_init(&ctx, &code.models, 0);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
@@ -3676,7 +3679,7 @@ int main(int argc, char *argv[]) {
        xlink_list_length(&models));
       xlink_set_model_state(&models, xlink_compute_packed_weights(&models));
       /* Create a context from models */
-      xlink_context_init(&ctx, &models);
+      xlink_context_init(&ctx, &models, 0);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */
