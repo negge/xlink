@@ -33,7 +33,7 @@ EXTERN print_hex32_32bit
 
 %macro LOG 1
 %ifdef DEBUG
-  PRINT %1
+  PRINT {%1}
 %endif
 %endmacro
 
