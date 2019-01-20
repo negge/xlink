@@ -3167,6 +3167,49 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
   xlink_decoder_clear(&dec);
 }
 
+void xlink_bitstream_from_segments(xlink_bitstream *bs, xlink_ec_segment *code,
+ xlink_ec_segment *data, int capacity) {
+  xlink_encoder enc;
+  xlink_decoder dec;
+  xlink_context ctx;
+  int i;
+  xlink_bitstream_init(bs);
+  /* Create a context from code models */
+  xlink_context_init(&ctx, &code->models, capacity);
+  /* Create an encoder from the context */
+  xlink_encoder_init(&enc, &ctx);
+  /* Encode the code bytes */
+  xlink_encoder_write_bytes(&enc, &code->bytes);
+  /* If the data segment has any bytes */
+  if (xlink_list_length(&data->bytes) > 0) {
+    /* Reset the context with the data models */
+    ctx.models = &data->models;
+    xlink_set_reset(&ctx.matches);
+    /* Encode the code bytes */
+    xlink_encoder_write_bytes(&enc, &data->bytes);
+  }
+  /* Finalize the bitstream */
+  xlink_encoder_finalize(&enc, bs);
+  xlink_encoder_clear(&enc);
+  xlink_context_clear(&ctx);
+  /* Create a context from code models */
+  xlink_context_init(&ctx, &code->models, capacity);
+  /* Initialize the decoder with the context and bitstream */
+  xlink_decoder_init(&dec, &ctx, bs);
+  /* Test that decoded code bytes match original input */
+  xlink_decoder_test_bytes(&dec, &code->bytes);
+  /* If the data segment has any bytes */
+  if (xlink_list_length(&data->bytes) > 0) {
+    /* Reset the context with the data models */
+    ctx.models = &data->models;
+    xlink_set_reset(&ctx.matches);
+    /* Test that decoded data bytes match original input */
+    xlink_decoder_test_bytes(&dec, &data->bytes);
+  }
+  xlink_decoder_clear(&dec);
+  xlink_context_clear(&ctx);
+}
+
 void xlink_binary_load_modules(xlink_binary *bin) {
   int i;
   for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
@@ -3409,6 +3452,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_ec_segment code;
     xlink_ec_segment data;
     unsigned char byte;
+    xlink_bitstream bs;
+    int size;
     if (flags & MOD_BASE) {
       xlink_segment *base;
       base =
@@ -3444,78 +3489,83 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
      OMF_SEGMENT_DATA, &data.bytes);
     printf("code bytes = %i\n", xlink_list_length(&code.bytes));
     printf("data bytes = %i\n", xlink_list_length(&data.bytes));
-    /* XXX: For now just append the data.bytes to code.bytes */
-    xlink_list_append(&code.bytes, &data.bytes);
-    xlink_list_empty(&data.bytes);
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code.models, &code.bytes);
     code.header_size = xlink_header_length(&code.models);
-    /* State 9a: Search for the best context to use for DATA segment bytes */
+    code.state = xlink_compute_packed_weights(&code.models);
     if (xlink_list_length(&data.bytes) > 0) {
+      /* State 9a: Search for the best context to use for DATA segment bytes */
       xlink_model_search(&data.models, &data.bytes);
       data.header_size = xlink_header_length(&data.models);
+      data.state = xlink_compute_packed_weights(&data.models);
     }
     byte = xlink_binary_get_relative_byte(bin, prog, -code.header_size);
-    /* Stage 10: Compress the CODE and DATA segments independently */
-    {
-      xlink_context ctx;
-      xlink_bitstream bs;
-      int size;
-      code.state = xlink_compute_packed_weights(&code.models);
-      /* If the parity of the previous condition is the same, flip it */
+    /* Set the parity of the CODE and DATA state based on byte */
+    if (xlink_list_length(&data.bytes) == 0) {
       if (xlink_parity(byte) == xlink_parity(code.state & 0xff)) {
         code.state ^= 1;
       }
-      xlink_set_model_state(&code.models, code.state);
-      /* Create a context from models */
-      xlink_context_init(&ctx, &code.models, 0);
-      /* Create a bitstream for writing */
-      xlink_bitstream_init(&bs);
-      /* Encode bytes with the context and perfect hashing */
-      xlink_bitstream_from_context(&bs, &ctx, &code.bytes);
-      size = code.header_size + data.header_size + (bs.bits + 7)/8;
-      printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
-      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
-       XLINK_RATIO(size, xlink_list_length(&code.bytes)));
-      /* Encode bytes with the context and replacement hashing */
-      printf("Using hash table size = %i\n", bin->hash_table_memory/2);
-      xlink_context_fixed_capacity(&ctx, bin->hash_table_memory/2);
-      xlink_bitstream_from_context(&bs, &ctx, &code.bytes);
-      size = code.header_size + data.header_size + (bs.bits + 7)/8;
-      printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
-      printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
-       XLINK_RATIO(size, xlink_list_length(&code.bytes)));
-      xlink_context_clear(&ctx);
-      /* Write payload into the prog segment data */
-      {
-        int i;
-        xlink_binary_set_public_offset(bin, "ec_bits",
-         code.header_size + data.header_size);
-        /* Need to allocate space for the ec_segs header and ec_bits data */
-        XLINK_ERROR(size > prog->length,
-         ("Compressed binary data %i larger than reserved PROG space %i", size,
-         prog->length));
-        prog->length = code.header_size + data.header_size + (bs.bits + 7)/8;
-        printf("prog->length = %i\n", prog->length);
-        prog->data = xlink_malloc(prog->length);
-        prog->info |= SEG_HAS_DATA;
-        ((unsigned int *)prog->data)[0] =
-         0xFFFEFFF0 - xlink_list_length(&code.bytes);
-        /* Write the CODE segment weight states.
-           Note the partiy of state has already been flipped to match the jmp
-            instruction which will be fixed up later */
-        ((unsigned int *)prog->data)[1] = code.state;
-        for (i = 0; i < xlink_list_length(&code.models); i++) {
-          xlink_model *model;
-          model = xlink_list_get(&code.models, i);
-          prog->data[8 + i] = model->mask;
-        }
-        xlink_bitstream_copy_bits(&bs, prog->data,
-         (code.header_size + data.header_size)*8);
-        printf("ec_bits->offset = %i\n", code.header_size + data.header_size);
-      }
-      xlink_bitstream_clear(&bs);
     }
+    else {
+      if (xlink_parity(byte) != xlink_parity(code.state & 0xff)) {
+        code.state ^= 1;
+      }
+      if (xlink_parity(byte) == xlink_parity(data.state & 0xff)) {
+        data.state ^= 1;
+      }
+    }
+    /* Update the model states based on the segment states */
+    xlink_set_model_state(&code.models, code.state);
+    xlink_set_model_state(&data.models, data.state);
+    /* Stage 10: Compress the CODE and DATA segments with perfect hashing */
+    xlink_bitstream_from_segments(&bs, &code, &data, 0);
+    size = code.header_size + data.header_size + (bs.bits + 7)/8;
+    printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+    printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
+     XLINK_RATIO(size, code.bytes.length + data.bytes.length));
+    xlink_bitstream_clear(&bs);
+    /* Stage 10: Compress the CODE and DATA segments with replacement hashing */
+    xlink_bitstream_from_segments(&bs, &code, &data, bin->hash_table_memory/2);
+    size = code.header_size + data.header_size + (bs.bits + 7)/8;
+    printf("Replacement hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
+    printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
+     XLINK_RATIO(size, code.bytes.length + data.bytes.length));
+    /* Write payload into the prog segment data */
+    {
+      int i;
+      xlink_binary_set_public_offset(bin, "ec_bits",
+       code.header_size + data.header_size);
+      /* Need to allocate space for the ec_segs header and ec_bits data */
+      XLINK_ERROR(size > prog->length,
+       ("Compressed binary data %i larger than reserved PROG space %i", size,
+       prog->length));
+      prog->length = code.header_size + data.header_size + (bs.bits + 7)/8;
+      printf("prog->length = %i\n", prog->length);
+      prog->data = xlink_malloc(prog->length);
+      prog->info |= SEG_HAS_DATA;
+      ((unsigned int *)prog->data)[0] =
+       0xFFFEFFF0 - code.bytes.length;
+      ((unsigned int *)prog->data)[1] = code.state;
+      for (i = 0; i < xlink_list_length(&code.models); i++) {
+        xlink_model *model;
+        model = xlink_list_get(&code.models, i);
+        prog->data[8 + i] = model->mask;
+      }
+      if (xlink_list_length(&data.bytes) > 0) {
+        ((unsigned int *)&prog->data[code.header_size])[0] =
+         0xFFFEFFF0 - code.bytes.length - data.bytes.length;
+        ((unsigned int *)&prog->data[code.header_size])[1] = data.state;
+        for (i = 0; i < xlink_list_length(&data.models); i++) {
+          xlink_model *model;
+          model = xlink_list_get(&data.models, i);
+          prog->data[code.header_size + 8 + i] = model->mask;
+        }
+      }
+      xlink_bitstream_copy_bits(&bs, prog->data,
+       (code.header_size + data.header_size)*8);
+      printf("ec_bits->offset = %i\n", code.header_size + data.header_size);
+    }
+    xlink_bitstream_clear(&bs);
     /* Fix up the compressing stub */
     {
       xlink_reloc *ec_segs;
