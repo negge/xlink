@@ -1716,8 +1716,9 @@ int xlink_omf_record_load_iterated(xlink_omf_record *rec, unsigned char *data,
 #define MOD_SPLIT (0x4)
 #define MOD_CHECK (0x8)
 #define MOD_PACK  (0x10)
-#define MOD_EXIT  (0x20)
-#define MOD_BASE  (0x40)
+#define MOD_ONE   (0x20)
+#define MOD_EXIT  (0x40)
+#define MOD_BASE  (0x80)
 
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
@@ -3487,6 +3488,11 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
      &code.bytes);
     offset = xlink_binary_extract_class(bin, s + data_idx, offset,
      OMF_SEGMENT_DATA, &data.bytes);
+    if (flags & MOD_ONE) {
+      /* If only one EC segment, append the data.bytes to code.bytes */
+      xlink_list_append(&code.bytes, &data.bytes);
+      xlink_list_empty(&data.bytes);
+    }
     printf("code bytes = %i\n", xlink_list_length(&code.bytes));
     printf("data bytes = %i\n", xlink_list_length(&data.bytes));
     /* Stage 9: Search for the best context to use for CODE segment bytes */
@@ -3606,13 +3612,14 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_binary_write_com(bin, s);
 }
 
-const char *OPTSTRING = "o:e:i:pEBM:smdCh";
+const char *OPTSTRING = "o:e:i:p1EBM:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
   { "entry", required_argument,  NULL, 'e' },
   { "init", required_argument,   NULL, 'i' },
   { "pack", no_argument,         NULL, 'p' },
+  { "one", no_argument,          NULL, '1' },
   { "exit", no_argument,         NULL, 'E' },
   { "base", no_argument,         NULL, 'B' },
   { "memory", required_argument, NULL, 'M' },
@@ -3631,6 +3638,7 @@ static void usage(const char *argv0) {
    "  -e --entry <function>           Entry point for binary (default: main).\n"
    "  -i --init <function>            Optional 16-bit initialization routine.\n"
    "  -p --pack                       Create a compressed binary.\n"
+   "  -1 --one                        Use only one EC segment with -p --pack.\n"
    "  -E --exit                       Program will explicitly call exit().\n"
    "  -B --base                       Compute and export XLINK_base symbol.\n"
    "  -M --memory <size>              Hash table memory size (default: 12MB).\n"
@@ -3668,6 +3676,10 @@ int main(int argc, char *argv[]) {
       }
       case 'p' : {
         flags |= MOD_PACK;
+        break;
+      }
+      case '1' : {
+        flags |= MOD_ONE;
         break;
       }
       case 'E' : {
@@ -3709,6 +3721,8 @@ int main(int argc, char *argv[]) {
    ("Specified -E --exit with -p --pack but only valid for unpacked binaries"));
   XLINK_ERROR(bin.hash_table_memory & 1,
    ("Specified -M --memory size %i must be even", bin.hash_table_memory));
+  XLINK_ERROR(flags & MOD_ONE && !(flags & MOD_PACK),
+   ("Specified -1 --one without -p --pack but only valid for packed binaries"));
   if (flags & MOD_CHECK) {
     xlink_list bytes;
     xlink_list models;
