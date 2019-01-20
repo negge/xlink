@@ -1717,8 +1717,9 @@ int xlink_omf_record_load_iterated(xlink_omf_record *rec, unsigned char *data,
 #define MOD_CHECK (0x8)
 #define MOD_PACK  (0x10)
 #define MOD_ONE   (0x20)
-#define MOD_EXIT  (0x40)
-#define MOD_BASE  (0x80)
+#define MOD_LOW   (0x40)
+#define MOD_EXIT  (0x80)
+#define MOD_BASE  (0x100)
 
 xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
@@ -2338,6 +2339,41 @@ unsigned int match_simple_hash_code(const void *m) {
   return hash;
 }
 
+unsigned int xlink_rotate_left(unsigned int val, int bits) {
+  return (val << bits) | (val >> (32 - bits));
+}
+
+unsigned int match_fast_hash_code(const void *m) {
+  const xlink_match *mat;
+  unsigned int hash;
+  unsigned char byte;
+  int i;
+  mat = (xlink_match *)m;
+  /* Use current weight state to salt the hash */
+  hash = mat->salt;
+  /* Combine the mask */
+  hash = (hash & 0xffffff00) | mat->mask;
+  /* Combine the partial */
+  byte = (hash & 0x000000ff);
+  hash = (hash & 0xffffff00) | (byte ^ mat->partial);
+  hash = xlink_rotate_left(hash, 9);
+  byte = (hash & 0x000000ff);
+  hash = (hash & 0xffffff00) | ((byte + mat->partial) & 0x000000ff);
+  hash--;
+  /* Combine the history */
+  for (i = 0; i < 8; i++) {
+    if (mat->mask & (1 << (7 - i))) {
+      byte = (hash & 0x000000ff);
+      hash = (hash & 0xffffff00) | (byte ^ mat->buf[i]);
+      hash = xlink_rotate_left(hash, 9);
+      byte = (hash & 0x000000ff);
+      hash = (hash & 0xffffff00) | ((byte + mat->buf[i]) & 0x000000ff);
+      hash--;
+    }
+  }
+  return hash;
+}
+
 int match_equals(const void *a, const void *b) {
   return match_comp(a, b) == 0;
 }
@@ -2354,12 +2390,16 @@ void xlink_context_fixed_capacity(xlink_context *ctx, int capacity) {
   xlink_set_resize(&ctx->matches, capacity);
 }
 
-void xlink_context_init(xlink_context *ctx, xlink_list *models, int capacity) {
+void xlink_context_init(xlink_context *ctx, xlink_list *models, int capacity,
+ int fast) {
   ctx->models = models;
   xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
    sizeof(xlink_match), 0, 0.75);
   if (capacity > 0) {
     xlink_context_fixed_capacity(ctx, capacity);
+  }
+  if (fast) {
+    ctx->matches.hash_code = match_fast_hash_code;
   }
   xlink_context_reset(ctx);
 }
@@ -3169,14 +3209,14 @@ void xlink_bitstream_from_context(xlink_bitstream *bs, xlink_context *ctx,
 }
 
 void xlink_bitstream_from_segments(xlink_bitstream *bs, xlink_ec_segment *code,
- xlink_ec_segment *data, int capacity) {
+ xlink_ec_segment *data, int capacity, int fast) {
   xlink_encoder enc;
   xlink_decoder dec;
   xlink_context ctx;
   int i;
   xlink_bitstream_init(bs);
   /* Create a context from code models */
-  xlink_context_init(&ctx, &code->models, capacity);
+  xlink_context_init(&ctx, &code->models, capacity, fast);
   /* Create an encoder from the context */
   xlink_encoder_init(&enc, &ctx);
   /* Encode the code bytes */
@@ -3194,7 +3234,7 @@ void xlink_bitstream_from_segments(xlink_bitstream *bs, xlink_ec_segment *code,
   xlink_encoder_clear(&enc);
   xlink_context_clear(&ctx);
   /* Create a context from code models */
-  xlink_context_init(&ctx, &code->models, capacity);
+  xlink_context_init(&ctx, &code->models, capacity, fast);
   /* Initialize the decoder with the context and bitstream */
   xlink_decoder_init(&dec, &ctx, bs);
   /* Test that decoded code bytes match original input */
@@ -3377,13 +3417,25 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   else {
     char *stub;
     if (flags & MOD_PACK) {
-      if (flags & MOD_BASE) {
-        /* Load the 32-bit unpacking stub */
-        stub = bin->init ? "stub32cbi_" : "stub32cb_";
+      if (flags & MOD_LOW) {
+        if (flags & MOD_BASE) {
+          /* Load the 32-bit unpacking stub */
+          stub = bin->init ? "stub32cfbi_" : "stub32cfb_";
+        }
+        else {
+          /* Load the 32-bit unpacking stub */
+          stub = bin->init ? "stub32cfi_" : "stub32cf_";
+        }
       }
       else {
-        /* Load the 32-bit unpacking stub */
-        stub = bin->init ? "stub32ci_" : "stub32c_";
+        if (flags & MOD_BASE) {
+          /* Load the 32-bit unpacking stub */
+          stub = bin->init ? "stub32cbi_" : "stub32cb_";
+        }
+        else {
+          /* Load the 32-bit unpacking stub */
+          stub = bin->init ? "stub32ci_" : "stub32c_";
+        }
       }
     }
     else {
@@ -3524,14 +3576,15 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     xlink_set_model_state(&code.models, code.state);
     xlink_set_model_state(&data.models, data.state);
     /* Stage 10: Compress the CODE and DATA segments with perfect hashing */
-    xlink_bitstream_from_segments(&bs, &code, &data, 0);
+    xlink_bitstream_from_segments(&bs, &code, &data, 0, flags & MOD_LOW);
     size = code.header_size + data.header_size + (bs.bits + 7)/8;
     printf("Perfect hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
     printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
      XLINK_RATIO(size, code.bytes.length + data.bytes.length));
     xlink_bitstream_clear(&bs);
     /* Stage 10: Compress the CODE and DATA segments with replacement hashing */
-    xlink_bitstream_from_segments(&bs, &code, &data, bin->hash_table_memory/2);
+    xlink_bitstream_from_segments(&bs, &code, &data, bin->hash_table_memory/2,
+     flags & MOD_LOW);
     size = code.header_size + data.header_size + (bs.bits + 7)/8;
     printf("Replacement hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
     printf("Compressed size: %i bytes -> %2.3lf%% smaller\n", size,
@@ -3612,7 +3665,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_binary_write_com(bin, s);
 }
 
-const char *OPTSTRING = "o:e:i:p1EBM:smdCh";
+const char *OPTSTRING = "o:e:i:p1LEBM:smdCh";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
@@ -3620,6 +3673,7 @@ const struct option OPTIONS[] = {
   { "init", required_argument,   NULL, 'i' },
   { "pack", no_argument,         NULL, 'p' },
   { "one", no_argument,          NULL, '1' },
+  { "low", no_argument,          NULL, 'L' },
   { "exit", no_argument,         NULL, 'E' },
   { "base", no_argument,         NULL, 'B' },
   { "memory", required_argument, NULL, 'M' },
@@ -3639,6 +3693,7 @@ static void usage(const char *argv0) {
    "  -i --init <function>            Optional 16-bit initialization routine.\n"
    "  -p --pack                       Create a compressed binary.\n"
    "  -1 --one                        Use only one EC segment with -p --pack.\n"
+   "  -L --low                        Use low complexity hashing function.\n"
    "  -E --exit                       Program will explicitly call exit().\n"
    "  -B --base                       Compute and export XLINK_base symbol.\n"
    "  -M --memory <size>              Hash table memory size (default: 12MB).\n"
@@ -3682,6 +3737,10 @@ int main(int argc, char *argv[]) {
         flags |= MOD_ONE;
         break;
       }
+      case 'L' : {
+        flags |= MOD_LOW;
+        break;
+      }
       case 'E' : {
         flags |= MOD_EXIT;
         break;
@@ -3723,6 +3782,8 @@ int main(int argc, char *argv[]) {
    ("Specified -M --memory size %i must be even", bin.hash_table_memory));
   XLINK_ERROR(flags & MOD_ONE && !(flags & MOD_PACK),
    ("Specified -1 --one without -p --pack but only valid for packed binaries"));
+  XLINK_ERROR(flags & MOD_LOW && !(flags & MOD_PACK || flags & MOD_CHECK),
+   ("Specified -L --low without -p --pack or -C --check command line option"));
   if (flags & MOD_CHECK) {
     xlink_list bytes;
     xlink_list models;
@@ -3743,7 +3804,7 @@ int main(int argc, char *argv[]) {
        xlink_list_length(&models));
       xlink_set_model_state(&models, xlink_compute_packed_weights(&models));
       /* Create a context from models */
-      xlink_context_init(&ctx, &models, 0);
+      xlink_context_init(&ctx, &models, 0, flags & MOD_LOW);
       /* Create a bitstream for writing */
       xlink_bitstream_init(&bs);
       /* Encode bytes with the context and perfect hashing */

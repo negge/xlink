@@ -21,6 +21,10 @@
 %define XLINK_STUB_BASE 0
 %endif
 
+%ifndef XLINK_STUB_FAST
+%define XLINK_STUB_FAST 0
+%endif
+
 struc stack
   .edi: resd 1
   .esi: resd 1
@@ -426,8 +430,11 @@ XLINK_heap_offset: db 0xbd
   ; EDI = location of byte we are decoding on first pass
   ; [EDI] = partially decoded byte or previously decoded byte
   xor al, [edi]
+%if XLINK_STUB_FAST
+  rol eax, 9
+%else
   imul eax, 0x6f
-  ;rol eax, 9
+%endif
   add al, [edi]
   dec eax
 @skip_byte:
