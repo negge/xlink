@@ -253,7 +253,7 @@ _XLINK_heap: dd XLINK_heap_base
 %if !XLINK_STUB_INIT
   ;mov [esi + _XLINK_heap - stub32_end + 0x0], eax
   db 0x89, 0x46
-XLINK_heap_offset: db 0xbe
+XLINK_heap_offset: db 0xbd
 %else
   mov [_XLINK_heap], eax
 %endif
@@ -470,7 +470,7 @@ XLINK_header_size: db 0x9
 
   ; EDX = computed hash
   ; EDI = hash table offset
-  lea edi, [edi + 2*edx]
+  lea edi, [edi + 2*edx + 1]
 
   ;TODO don't recompute EDI and instead just store it
   ;store edi somewhere indexed by ESI
