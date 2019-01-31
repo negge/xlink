@@ -3420,21 +3420,21 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       if (flags & MOD_LOW) {
         if (flags & MOD_BASE) {
           /* Load the 32-bit unpacking stub */
-          stub = bin->init ? "stub32cfbi_" : "stub32cfb_";
+          stub = bin->init ? "stub32pfbi_" : "stub32pfb_";
         }
         else {
           /* Load the 32-bit unpacking stub */
-          stub = bin->init ? "stub32cfi_" : "stub32cf_";
+          stub = bin->init ? "stub32pfi_" : "stub32pf_";
         }
       }
       else {
         if (flags & MOD_BASE) {
           /* Load the 32-bit unpacking stub */
-          stub = bin->init ? "stub32cbi_" : "stub32cb_";
+          stub = bin->init ? "stub32pbi_" : "stub32pb_";
         }
         else {
           /* Load the 32-bit unpacking stub */
-          stub = bin->init ? "stub32ci_" : "stub32c_";
+          stub = bin->init ? "stub32pi_" : "stub32p_";
         }
       }
     }
@@ -3490,7 +3490,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   }
   if (flags & MOD_PACK) {
     XLINK_ERROR(bss_idx == bin->nsegments,
-     ("Error no BSS segment contained in stub32c"));
+     ("Error no BSS segment contained in stub32p"));
     /* Stage 2b: Set _PROG as the first BSS segment */
     xlink_set_first_segment(&bin->segments[bss_idx], prog);
   }
