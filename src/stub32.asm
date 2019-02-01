@@ -257,7 +257,7 @@ _XLINK_heap: dd XLINK_heap_base
 %if !XLINK_STUB_INIT
   ;mov [esi + _XLINK_heap - stub32_end + 0x0], eax
   db 0x89, 0x46
-XLINK_heap_offset: db 0xbd
+XLINK_heap_offset: db _XLINK_heap - stub32_end
 %else
   mov [_XLINK_heap], eax
 %endif
