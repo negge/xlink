@@ -3665,7 +3665,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
   xlink_binary_write_com(bin, s);
 }
 
-const char *OPTSTRING = "o:e:i:p1LEBM:smdCh";
+const char *OPTSTRING = "o:e:i:p1LEBM:smdch";
 
 const struct option OPTIONS[] = {
   { "output", required_argument, NULL, 'o' },
@@ -3700,7 +3700,7 @@ static void usage(const char *argv0) {
    "  -m --map                        Generate a linker map file.\n"
    "  -d --dump                       Dump module contents only.\n"
    "  -s --split                      Split segments into linkable pieces.\n"
-   "  -C --check                      Compress stdin and print stats.\n"
+   "  -c --check                      Compress stdin and print stats.\n"
    "  -h --help                       Display this help and exit.\n",
    argv0);
 }
@@ -3765,7 +3765,7 @@ int main(int argc, char *argv[]) {
         flags |= MOD_SPLIT;
         break;
       }
-      case 'C' : {
+      case 'c' : {
         flags |= MOD_CHECK;
         break;
       }
@@ -3783,7 +3783,7 @@ int main(int argc, char *argv[]) {
   XLINK_ERROR(flags & MOD_ONE && !(flags & MOD_PACK),
    ("Specified -1 --one without -p --pack but only valid for packed binaries"));
   XLINK_ERROR(flags & MOD_LOW && !(flags & MOD_PACK || flags & MOD_CHECK),
-   ("Specified -L --low without -p --pack or -C --check command line option"));
+   ("Specified -L --low without -p --pack or -c --check command line option"));
   if (flags & MOD_CHECK) {
     xlink_list bytes;
     xlink_list models;
