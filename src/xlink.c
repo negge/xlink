@@ -3489,6 +3489,7 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         }
       }
     }
+    printf("Using %s\n", stub);
     /* Load the stub segment */
     xlink_binary_load_stub(bin, stub);
     /* Find the stub segment */
