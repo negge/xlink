@@ -25,6 +25,10 @@
 %define XLINK_STUB_FAST 0
 %endif
 
+%ifndef XLINK_STUB_CEIL
+%define XLINK_STUB_CEIL 0
+%endif
+
 struc stack
   .edi: resd 1
   .esi: resd 1
@@ -508,6 +512,11 @@ XLINK_header_size: db 0x9
 @floor_fine:
   not ebx
   inc byte [edi + ebx]
+%if XLINK_STUB_CEIL
+  jnz @ceil_fine
+  dec byte [edi + ebx]
+@ceil_fine:
+%endif
 
 @skip_update:
   popad
