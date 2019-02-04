@@ -300,12 +300,6 @@ XLINK_heap_offset: db _XLINK_heap - stub32_end
   ; ZF = 0 and SF = OF
   jg @decode_bit
 
-;  ; if EBX == 0 or EBX > 0x7fffffff (EBX = 0 or -1 if we've decoded a bit)
-;  dec ebx
-;  popad
-;  ; ZF = 0 and SF = OF
-;  jns @decode_bit
-
 @init_byte:
   rcl byte [edi], 1
   jnc @next_bit
