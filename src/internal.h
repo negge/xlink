@@ -22,4 +22,8 @@ void xlink_log(const char *fmt, ...);
 void *xlink_malloc(size_t size);
 void *xlink_realloc(void *ptr, size_t size);
 
+#define XLINK_SET_BIT(buf, i, b) ((buf)[(i) >> 3] = \
+ (((buf)[(i) >> 3] & ~(1 << ((i) & 7))) | (!!(b) << ((i) & 7))))
+#define XLINK_GET_BIT(buf, i)    ((buf)[(i) >> 3] >> ((i) & 7) & 1)
+
 #endif

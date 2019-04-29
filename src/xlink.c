@@ -299,10 +299,6 @@ struct xlink_segment {
 
 #define CEIL2(len, bits) (((len) + ((1 << (bits)) - 1)) >> (bits))
 
-#define XLINK_SET_BIT(buf, i, b) ((buf)[(i) >> 3] = \
- (((buf)[(i) >> 3] & ~(1 << ((i) & 7))) | (!!(b) << ((i) & 7))))
-#define XLINK_GET_BIT(buf, i)    ((buf)[(i) >> 3] >> ((i) & 7) & 1)
-
 #define ALIGN2(len, bits) (((len) + ((1 << (bits)) - 1)) & ~((1 << (bits)) - 1))
 
 struct xlink_group {
