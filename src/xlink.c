@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <float.h>
+#include "ec.h"
 #include "internal.h"
 #include "io.h"
 #include "util.h"
@@ -455,13 +456,6 @@ struct xlink_context {
   xlink_list *models;
   xlink_set matches;
   int clamp;
-};
-
-typedef struct xlink_bitstream xlink_bitstream;
-
-struct xlink_bitstream {
-  xlink_list bytes;
-  int bits;
 };
 
 typedef unsigned char xlink_counts[256][2];
@@ -2099,19 +2093,6 @@ void xlink_context_update_bit(xlink_context *ctx, unsigned char partial,
   }
 }
 
-void xlink_bitstream_init(xlink_bitstream *bs) {
-  memset(bs, 0, sizeof(xlink_bitstream));
-  xlink_list_init(&bs->bytes, sizeof(unsigned char), 0);
-}
-
-void xlink_bitstream_clear(xlink_bitstream *bs) {
-  xlink_list_clear(&bs->bytes);
-}
-
-void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
-  xlink_list_add(&bs->bytes, &byte);
-}
-
 #define xlink_list_add_byte(list, byte) \
   do { \
     unsigned char b_; \
@@ -2121,15 +2102,6 @@ void xlink_bitstream_write_byte(xlink_bitstream *bs, unsigned char byte) {
   while (0)
 
 #define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
-
-void xlink_bitstream_copy_bits(xlink_bitstream *bs, unsigned char *dst,
- int pos) {
-  int i;
-  /* Intentionally skip the first bit */
-  for (i = 1; i < bs->bits; i++, pos++) {
-    XLINK_SET_BIT(dst, pos, XLINK_GET_BIT(bs->bytes.data, i));
-  }
-}
 
 void xlink_modeler_init(xlink_modeler *mod, int bytes) {
   xlink_list_init(&mod->bytes, sizeof(unsigned char), bytes);
