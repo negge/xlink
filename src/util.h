@@ -24,5 +24,6 @@ void xlink_list_insert(xlink_list *list, int index, const void *element);
 void xlink_list_remove(xlink_list *list, int index);
 void xlink_list_swap(xlink_list *list, int i, int j);
 void xlink_list_reverse(xlink_list *list, int start, int end);
+void xlink_list_sort(xlink_list *list, int (*cmp)(const void *, const void *));
 
 #endif

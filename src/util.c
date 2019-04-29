@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "internal.h"
 #include "util.h"
 
@@ -104,4 +105,8 @@ void xlink_list_reverse(xlink_list *list, int start, int end) {
   for (i = start, j = end; i < j; i++, j--) {
     xlink_list_swap(list, i, j);
   }
+}
+
+void xlink_list_sort(xlink_list *list, int (*cmp)(const void *, const void *)) {
+  qsort(list->data, list->length, list->size, cmp);
 }
