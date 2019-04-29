@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <float.h>
+#include "internal.h"
 
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
@@ -550,9 +551,6 @@ void *xlink_realloc(void *ptr, size_t size) {
   XLINK_ERROR(ptr == NULL, ("Insufficient memory for %i byte realloc", size));
   return ptr;
 }
-
-#define XLINK_MIN(a, b) ((a) <= (b) ? (a) : (b))
-#define XLINK_MAX(a, b) ((a) >= (b) ? (a) : (b))
 
 void xlink_list_init(xlink_list *list, size_t size, int capacity) {
   memset(list, 0, sizeof(xlink_list));
