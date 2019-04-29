@@ -2568,7 +2568,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   }
   while (add_index != -1 || del_index != -1);
   printf("done\n");
-  qsort(models->data, xlink_list_length(models), sizeof(xlink_model), mod_comp);
+  xlink_list_sort(models, mod_comp);
   xlink_modeler_print(mod, models);
 }
 
