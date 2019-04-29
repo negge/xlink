@@ -41,7 +41,7 @@ $(SRC_DIR)/stubs.h: $(MODS)
 	)
 	@echo '};' >> $@; \
 
-$(BIN_DIR)/%: $(SRC_DIR)/%.c $(SRC_DIR)/stubs.h
+$(BIN_DIR)/%: $(SRC_DIR)/%.c $(SRC_DIR)/stubs.h $(OBJS)
 	$(guard)
 	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LIBS)
 
