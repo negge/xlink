@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <string.h>
 #include <getopt.h>
 #include <math.h>
@@ -517,26 +516,6 @@ struct xlink_modeler {
   xlink_list counts;
   xlink_set matches;
 };
-
-void xlink_log(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  fprintf(stderr, "Error: ");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  va_end(ap);
-}
-
-#define XLINK_LOG(err) xlink_log err
-
-#define XLINK_ERROR(cond, err) \
-  do { \
-    if (cond) { \
-      XLINK_LOG(err); \
-      exit(-1); \
-    } \
-  } \
-  while (0)
 
 void *xlink_malloc(size_t size) {
   void *ptr;
