@@ -26,4 +26,37 @@ void xlink_list_swap(xlink_list *list, int i, int j);
 void xlink_list_reverse(xlink_list *list, int start, int end);
 void xlink_list_sort(xlink_list *list, int (*cmp)(const void *, const void *));
 
+typedef struct xlink_entry xlink_entry;
+
+struct xlink_entry {
+  unsigned int hash;
+  int down;
+};
+
+typedef unsigned int (*xlink_hash_code_func)(const void *);
+typedef int (*xlink_equals_func)(const void *, const void *);
+
+typedef struct xlink_set xlink_set;
+
+struct xlink_set {
+  xlink_hash_code_func hash_code;
+  xlink_equals_func equals;
+  int capacity;
+  float load;
+  int *table;
+  int size;
+  xlink_list entries;
+  xlink_list values;
+};
+
+void xlink_set_init(xlink_set *set, xlink_hash_code_func hash_code,
+ xlink_equals_func equals, size_t value_size, int capacity, float load);
+void xlink_set_clear(xlink_set *set);
+void xlink_set_reset(xlink_set *set);
+void xlink_set_resize(xlink_set *set, int capacity);
+void *xlink_set_add(xlink_set *set, const void *value);
+int xlink_set_remove(xlink_set *set, const void *key);
+void *xlink_set_get(xlink_set *set, void *key);
+void *xlink_set_put(xlink_set *set, void *value);
+
 #endif
