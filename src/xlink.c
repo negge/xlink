@@ -6,6 +6,7 @@
 #include <math.h>
 #include <float.h>
 #include "internal.h"
+#include "io.h"
 #include "util.h"
 
 typedef enum {
@@ -241,15 +242,6 @@ static const char *xlink_omf_record_get_desc(xlink_omf_record_type type) {
     default : return "Unknown or Unsupported";
   }
 }
-
-typedef struct xlink_file xlink_file;
-
-struct xlink_file {
-  const char *name;
-  unsigned int size;
-  unsigned int pos;
-  const unsigned char *buf;
-};
 
 #include "stubs.h"
 
@@ -942,26 +934,6 @@ void xlink_segment_apply_relocations(xlink_segment *segment) {
       }
     }
   }
-}
-
-unsigned char *xlink_file_init(xlink_file *file, const char *name) {
-  FILE *fp;
-  int size;
-  unsigned char *buf;
-  fp = fopen(name, "rb");
-  XLINK_ERROR(fp == NULL, ("Could not open OMF file %s", name));
-  file->name = name;
-  fseek(fp, 0, SEEK_END);
-  file->size = ftell(fp);
-  buf = xlink_malloc(file->size);
-  file->buf = buf;
-  fseek(fp, 0, SEEK_SET);
-  size = fread(buf, 1, file->size, fp);
-  XLINK_ERROR(size != file->size,
-   ("Problem reading OMF file, got %i of %i bytes", size, file->size));
-  fclose(fp);
-  file->pos = 0;
-  return buf;
 }
 
 static void xlink_omf_record_reset(xlink_omf_record *rec) {
@@ -3562,10 +3534,9 @@ int main(int argc, char *argv[]) {
     bin.map = mapfile;
   }
   for (c = optind; c < argc; c++) {
-    unsigned char *buf;
     xlink_file file;
-    buf = xlink_file_init(&file, argv[c]);
-    switch (buf[0]) {
+    xlink_file_init(&file, argv[c]);
+    switch (file.buf[0]) {
       case OMF_THEADR :
       case OMF_LHEADR : {
         xlink_module *mod;
@@ -3581,10 +3552,10 @@ int main(int argc, char *argv[]) {
       }
       default : {
         XLINK_ERROR(1,
-         ("Unsupported file format, unknown record type %02X", buf[0]));
+         ("Unsupported file format, unknown record type %02X", file.buf[0]));
       }
     }
-    free(buf);
+    xlink_file_clear(&file);
   }
   if (!(flags & MOD_DUMP)) {
     xlink_binary_link(&bin, flags);
