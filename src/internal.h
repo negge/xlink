@@ -19,4 +19,7 @@ void xlink_log(const char *fmt, ...);
   } \
   while (0)
 
+void *xlink_malloc(size_t size);
+void *xlink_realloc(void *ptr, size_t size);
+
 #endif

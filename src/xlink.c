@@ -517,20 +517,6 @@ struct xlink_modeler {
   xlink_set matches;
 };
 
-void *xlink_malloc(size_t size) {
-  void *ptr;
-  ptr = malloc(size);
-  XLINK_ERROR(ptr == NULL, ("Insufficient memory for %i byte malloc", size));
-  memset(ptr, 0, size);
-  return ptr;
-}
-
-void *xlink_realloc(void *ptr, size_t size) {
-  ptr = realloc(ptr, size);
-  XLINK_ERROR(ptr == NULL, ("Insufficient memory for %i byte realloc", size));
-  return ptr;
-}
-
 void xlink_list_init(xlink_list *list, size_t size, int capacity) {
   memset(list, 0, sizeof(xlink_list));
   list->size = size;
