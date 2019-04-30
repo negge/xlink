@@ -441,7 +441,7 @@ struct xlink_model {
 typedef struct xlink_match xlink_match;
 
 struct xlink_match {
-  /* Used in the match_simple_hash_code() function */
+  /* Used in the match_hash_code_simple() function */
   unsigned int salt;
   unsigned char partial;
   unsigned char mask;
@@ -1940,7 +1940,7 @@ unsigned int match_hash_code(const void *m) {
   return hash ^ (hash >> 7) ^ (hash >> 4);
 }
 
-unsigned int match_simple_hash_code(const void *m) {
+unsigned int match_hash_code_simple(const void *m) {
   const xlink_match *mat;
   unsigned int hash;
   unsigned char byte;
@@ -1975,7 +1975,7 @@ static unsigned int xlink_rotate_left(unsigned int val, int bits) {
   return (val << bits) | (val >> (32 - bits));
 }
 
-unsigned int match_fast_hash_code(const void *m) {
+unsigned int match_hash_code_fast(const void *m) {
   const xlink_match *mat;
   unsigned int hash;
   unsigned char byte;
@@ -2025,13 +2025,13 @@ void xlink_context_fixed_capacity(xlink_context *ctx, int capacity) {
 void xlink_context_init(xlink_context *ctx, xlink_list *models, int capacity,
  int fast, int clamp) {
   ctx->models = models;
-  xlink_set_init(&ctx->matches, match_simple_hash_code, match_equals,
+  xlink_set_init(&ctx->matches, match_hash_code_simple, match_equals,
    sizeof(xlink_match), 0, 0.75);
   if (capacity > 0) {
     xlink_context_fixed_capacity(ctx, capacity);
   }
   if (fast) {
-    ctx->matches.hash_code = match_fast_hash_code;
+    ctx->matches.hash_code = match_hash_code_fast;
   }
   xlink_context_reset(ctx);
   ctx->clamp = clamp;
