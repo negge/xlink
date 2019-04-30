@@ -2015,7 +2015,7 @@ void xlink_context_reset(xlink_context *ctx) {
   xlink_set_reset(&ctx->matches);
 }
 
-void xlink_context_fixed_capacity(xlink_context *ctx, int capacity) {
+void xlink_context_set_fixed_capacity(xlink_context *ctx, int capacity) {
   ctx->matches.equals = NULL;
   ctx->matches.load = 1.f;
   xlink_set_reset(&ctx->matches);
@@ -2028,7 +2028,7 @@ void xlink_context_init(xlink_context *ctx, xlink_list *models, int capacity,
   xlink_set_init(&ctx->matches, match_hash_code_simple, match_equals,
    sizeof(xlink_match), 0, 0.75);
   if (capacity > 0) {
-    xlink_context_fixed_capacity(ctx, capacity);
+    xlink_context_set_fixed_capacity(ctx, capacity);
   }
   if (fast) {
     ctx->matches.hash_code = match_hash_code_fast;
@@ -3465,7 +3465,7 @@ int main(int argc, char *argv[]) {
        XLINK_RATIO(size, xlink_list_length(&bytes)));
       /* Encode bytes with the context and replacement hashing */
       printf("Using hash table size = %i\n", bin.hash_table_memory/2);
-      xlink_context_fixed_capacity(&ctx, bin.hash_table_memory/2);
+      xlink_context_set_fixed_capacity(&ctx, bin.hash_table_memory/2);
       xlink_bitstream_from_context(&bs, &ctx, &bytes);
       size = 8 + xlink_list_length(&models) + (bs.bits + 7)/8;
       printf("Replace hashing: %i bits, %i bytes\n", bs.bits, (bs.bits + 7)/8);
