@@ -1971,7 +1971,7 @@ unsigned int match_simple_hash_code(const void *m) {
   return hash;
 }
 
-unsigned int xlink_rotate_left(unsigned int val, int bits) {
+static unsigned int xlink_rotate_left(unsigned int val, int bits) {
   return (val << bits) | (val >> (32 - bits));
 }
 
