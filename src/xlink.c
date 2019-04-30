@@ -1867,7 +1867,7 @@ void xlink_model_init(xlink_model *model, unsigned char mask) {
   }
 }
 
-int mod_comp(const void *a, const void *b) {
+int model_comp(const void *a, const void *b) {
   const xlink_model *mod_a;
   const xlink_model *mod_b;
   int mask_a;
@@ -2325,7 +2325,7 @@ void xlink_modeler_search(xlink_modeler *mod, xlink_list *models) {
   }
   while (add_index != -1 || del_index != -1);
   printf("done\n");
-  xlink_list_sort(models, mod_comp);
+  xlink_list_sort(models, model_comp);
   xlink_modeler_print(mod, models);
 }
 
