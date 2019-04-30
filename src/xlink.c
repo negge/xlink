@@ -2429,8 +2429,8 @@ void xlink_range_encoder_clear(xlink_range_encoder *enc) {
   xlink_list_clear(&enc->bytes);
 }
 
-int xlink_range_decoder_read_bit(xlink_range_decoder *dec, unsigned int c0,
- unsigned int c1) {
+int xlink_range_decoder_read_bit(xlink_range_decoder *dec, xlink_word c0,
+ xlink_word c1) {
   int bit;
   xlink_word s;
   XLINK_ERROR(c0 == 0 || c1 == 0 || (c0 > EC_MASK - c1),
