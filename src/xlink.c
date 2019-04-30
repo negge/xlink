@@ -1072,14 +1072,13 @@ static void xlink_file_load_omf_record(xlink_file *file,
   unsigned char checksum;
   XLINK_ERROR(file->size < 3,
    ("Need 3 bytes for a record but only have %i", file->size));
-  rec->buf = file->buf;
+  rec->buf = &file->buf[file->pos];
   rec->idx = 0;
   rec->type = xlink_omf_record_read_byte(rec);
   rec->size = xlink_omf_record_read_word(rec);
   XLINK_ERROR(file->size - 3 < rec->size,
    ("Record extends %i bytes past the end of file %s",
    rec->size - file->size + 3, file->name));
-  file->buf += 3 + rec->size;
   file->pos += 3 + rec->size;
   file->size -= 3 + rec->size;
   checksum = rec->buf[3 + rec->size - 1];
@@ -1740,7 +1739,7 @@ xlink_library *xlink_file_load_library(xlink_file *file, unsigned int flags) {
   lib = xlink_malloc(sizeof(xlink_library));
   done = 0;
   while (file->size > 0 && !done) {
-    switch (file->buf[0]) {
+    switch (file->buf[file->pos]) {
       case OMF_LIBHDR : {
         xlink_omf_record rec;
         xlink_file_load_omf_record(file, &rec);
@@ -1763,13 +1762,12 @@ xlink_library *xlink_file_load_library(xlink_file *file, unsigned int flags) {
         mask = lib->page_size - 1;
         /* Compute the number of bytes to skip to reach the next page */
         skip = ((file->pos + mask) & ~mask) - file->pos;
-        file->buf += skip;
         file->pos += skip;
         file->size -= skip;
         break;
       }
       default : {
-        XLINK_ERROR(1, ("Unknown record type %02X", file->buf[0]));
+        XLINK_ERROR(1, ("Unknown record type %02X", file->buf[file->pos]));
       }
     }
   }
