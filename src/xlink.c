@@ -2183,7 +2183,7 @@ void xlink_binary_load_modules(xlink_binary *bin) {
   for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
     xlink_file file;
     file = XLINK_STUB_MODULES[i];
-    if (strstr(file.name, "stub") == NULL) {
+    if (strstr(file.name, "stub32") == NULL) {
       xlink_module *mod;
       mod = xlink_file_load_module(&file, 0);
       XLINK_LIST_ADD(binary, module, bin, mod);
@@ -2195,7 +2195,7 @@ void xlink_binary_load_stub(xlink_binary *bin, const char *stub) {
   char buf[1024];
   xlink_module *mod;
   int i;
-  sprintf(buf, "%s.o", stub);
+  sprintf(buf, "stubs/%s.o", stub);
   mod = NULL;
   for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
     xlink_file file;
