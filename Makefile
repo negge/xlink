@@ -10,7 +10,7 @@ MODS := $(patsubst $(SRC_DIR)/%.asm,$(BIN_DIR)/%.o,$(wildcard $(SRC_DIR)/*.asm))
 
 CFLAGS := -O2 -Wno-parenthesis -Wno-overlength-strings
 
-ASFLAGS := -f obj -i src/
+ASFLAGS := -f obj
 
 LIBS := -lm
 
@@ -24,7 +24,7 @@ $(BIN_DIR)/%.o: $(SRC_DIR)/%.c
 
 $(BIN_DIR)/%.o: $(SRC_DIR)/%.asm
 	$(guard)
-	$(AS) $(ASFLAGS) -o $@ $<
+	$(AS) $(ASFLAGS) -i $(dir $<) -o $@ $<
 
 $(SRC_DIR)/stubs.h: $(MODS)
 	@echo '/* Generated file, do not commit */' > $@
