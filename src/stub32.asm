@@ -2,7 +2,7 @@
 %include 'debug.inc'
 
 %ifndef XLINK_STUB_NAME
-%define XLINK_STUB_NAME stub32_
+%define XLINK_STUB_NAME stub32
 %endif
 
 %ifndef XLINK_STUB_INIT

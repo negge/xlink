@@ -2195,8 +2195,7 @@ void xlink_binary_load_stub(xlink_binary *bin, const char *stub) {
   char buf[1024];
   xlink_module *mod;
   int i;
-  strcpy(buf, stub);
-  sprintf(&buf[strlen(stub) - 1], ".o");
+  sprintf(buf, "%s.o", stub);
   mod = NULL;
   for (i = 0; i < sizeof(XLINK_STUB_MODULES)/sizeof(xlink_file); i++) {
     xlink_file file;
@@ -2348,21 +2347,21 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         if (flags & MOD_LOW) {
           if (flags & MOD_BASE) {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pcfbi_" : "stub32pcfb_";
+            stub = bin->init ? "stub32pcfbi" : "stub32pcfb";
           }
           else {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pcfi_" : "stub32pcf_";
+            stub = bin->init ? "stub32pcfi" : "stub32pcf";
           }
         }
         else {
           if (flags & MOD_BASE) {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pcbi_" : "stub32pcb_";
+            stub = bin->init ? "stub32pcbi" : "stub32pcb";
           }
           else {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pci_" : "stub32pc_";
+            stub = bin->init ? "stub32pci" : "stub32pc";
           }
         }
       }
@@ -2370,21 +2369,21 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
         if (flags & MOD_LOW) {
           if (flags & MOD_BASE) {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pfbi_" : "stub32pfb_";
+            stub = bin->init ? "stub32pfbi" : "stub32pfb";
           }
           else {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pfi_" : "stub32pf_";
+            stub = bin->init ? "stub32pfi" : "stub32pf";
           }
         }
         else {
           if (flags & MOD_BASE) {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pbi_" : "stub32pb_";
+            stub = bin->init ? "stub32pbi" : "stub32pb";
           }
           else {
             /* Load the 32-bit unpacking stub */
-            stub = bin->init ? "stub32pi_" : "stub32p_";
+            stub = bin->init ? "stub32pi" : "stub32p";
           }
         }
       }
@@ -2392,19 +2391,19 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     else {
       if (flags & MOD_EXIT) {
         if (flags & MOD_BASE) {
-          stub = bin->init ? "stub32ebi_" : "stub32eb_";
+          stub = bin->init ? "stub32ebi" : "stub32eb";
         }
         else {
-          stub = bin->init ? "stub32ei_" : "stub32e_";
+          stub = bin->init ? "stub32ei" : "stub32e";
         }
       }
       else {
         if (flags & MOD_BASE) {
-          stub = bin->init ? "stub32bi_" : "stub32b_";
+          stub = bin->init ? "stub32bi" : "stub32b";
         }
         else {
           /* If there is a 16-bit initialization function, use STUB32I */
-          stub = bin->init ? "stub32i_" : "stub32_";
+          stub = bin->init ? "stub32i" : "stub32";
         }
       }
     }
