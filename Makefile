@@ -6,7 +6,8 @@ AS = nasm
 BINS := $(BIN_DIR)/xlink
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BIN_DIR)/%.o,$(filter-out \
  $(patsubst $(BIN_DIR)/%,$(SRC_DIR)/%.c,$(BINS)),$(wildcard $(SRC_DIR)/*.c)))
-MODS := $(patsubst $(SRC_DIR)/%.asm,$(BIN_DIR)/%.o,$(wildcard $(SRC_DIR)/*.asm))
+ASMS := $(shell find $(SRC_DIR) -type f -name "*.asm")
+MODS := $(patsubst $(SRC_DIR)/%.asm,$(BIN_DIR)/%.o,$(ASMS))
 
 CFLAGS := -O2 -Wno-parenthesis -Wno-overlength-strings
 
