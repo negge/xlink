@@ -109,8 +109,6 @@ void xlink_encoder_clear(xlink_encoder *enc) {
   xlink_list_clear(&enc->bytes);
 }
 
-#define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
-
 void xlink_encoder_write_bytes(xlink_encoder *enc, xlink_list *bytes) {
   int i, j;
   for (j = 0; j < xlink_list_length(bytes); j++) {
