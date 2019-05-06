@@ -1944,7 +1944,7 @@ double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models) {
   }
 }
 
-unsigned int xlink_compute_packed_weights(xlink_list *models) {
+unsigned int xlink_model_compute_packed_weights(xlink_list *models) {
   unsigned int packed;
   int i, j;
   int last;
@@ -1980,7 +1980,8 @@ void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
       printf("(%02x, %i) ", model->mask, model->weight);
     }
     printf("\n");
-    printf("Packed weights = %08x\n", xlink_compute_packed_weights(models));
+    printf("Packed weights = %08x\n",
+     xlink_model_compute_packed_weights(models));
   }
   else {
     printf("No context found.\n");
@@ -2501,12 +2502,12 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
     /* Stage 9: Search for the best context to use for CODE segment bytes */
     xlink_model_search(&code.models, &code.bytes);
     code.header_size = xlink_header_length(&code.models);
-    code.state = xlink_compute_packed_weights(&code.models);
+    code.state = xlink_model_compute_packed_weights(&code.models);
     if (xlink_list_length(&data.bytes) > 0) {
       /* State 9a: Search for the best context to use for DATA segment bytes */
       xlink_model_search(&data.models, &data.bytes);
       data.header_size = xlink_header_length(&data.models);
-      data.state = xlink_compute_packed_weights(&data.models);
+      data.state = xlink_model_compute_packed_weights(&data.models);
     }
     byte = xlink_binary_get_relative_byte(bin, prog, -code.header_size);
     /* Set the parity of the CODE and DATA state based on byte */
@@ -2762,7 +2763,8 @@ int main(int argc, char *argv[]) {
       /* Segment header has 4 weight bytes + n model bytes */
       printf("Required header: 4 weight bytes + %i model byte(s)\n",
        xlink_list_length(&models));
-      xlink_set_model_state(&models, xlink_compute_packed_weights(&models));
+      xlink_set_model_state(&models,
+       xlink_model_compute_packed_weights(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models, 0, flags & MOD_LOW, flags & MOD_CLAMP);
       /* Create a bitstream for writing */
