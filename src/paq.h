@@ -12,6 +12,8 @@ struct xlink_model {
 };
 
 void xlink_model_init(xlink_model *model, unsigned char mask);
+unsigned int xlink_model_compute_packed_weights(xlink_list *models);
+void xlink_model_set_state(xlink_list *models, unsigned int state);
 int model_comp(const void *a, const void *b);
 
 typedef struct xlink_match xlink_match;

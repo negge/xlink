@@ -13,6 +13,48 @@ void xlink_model_init(xlink_model *model, unsigned char mask) {
   }
 }
 
+unsigned int xlink_model_compute_packed_weights(xlink_list *models) {
+  unsigned int packed;
+  int i, j;
+  int last;
+  packed = 0xffffffffu;
+  i = 0;
+  last = 0;
+  for (j = 0; j < xlink_list_length(models); j++, i++) {
+    xlink_model *model;
+    model = xlink_list_get(models, j);
+    i += model->weight - last;
+    XLINK_ERROR(i > 31, ("Invalid list of models, i = %i", i));
+    packed &= ~(1 << (31 - i));
+    last = model->weight;
+  }
+  return packed;
+}
+
+/* Compute the weight state for each model in order */
+void xlink_model_set_state(xlink_list *models, unsigned int state) {
+  int weight;
+  int i;
+  weight = 0;
+  for (i = 0; state != 0; i++) {
+    int test;
+    xlink_model *model;
+    weight--;
+    do {
+      weight++;
+      test = state >= 0x80000000u;
+      state += state;
+    }
+    while (test);
+    if (state == 0) break;
+    model = xlink_list_get(models, i);
+    XLINK_ERROR(model->weight != weight,
+     ("Mismatch when decoding model %02x weight: got %i expected %i",
+     model->mask, weight, model->weight));
+    model->state = state;
+  }
+}
+
 int model_comp(const void *a, const void *b) {
   const xlink_model *mod_a;
   const xlink_model *mod_b;
