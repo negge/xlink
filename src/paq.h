@@ -52,4 +52,20 @@ void xlink_context_get_counts(xlink_context *ctx, unsigned char partial,
 void xlink_context_update_bit(xlink_context *ctx, unsigned char partial,
  int bit);
 
+typedef unsigned char xlink_counts[256][2];
+
+typedef struct xlink_modeler xlink_modeler;
+
+struct xlink_modeler {
+  xlink_list bytes;
+  xlink_list counts;
+  xlink_set matches;
+};
+
+void xlink_modeler_init(xlink_modeler *mod, int bytes);
+void xlink_modeler_clear(xlink_modeler *mod);
+void xlink_modeler_load_binary(xlink_modeler *mod, xlink_list *bytes);
+double xlink_modeler_get_entropy(xlink_modeler *mod, xlink_list *models);
+void xlink_modeler_search(xlink_modeler *mod, xlink_list *models);
+
 #endif
