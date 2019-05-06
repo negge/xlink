@@ -1989,7 +1989,7 @@ void xlink_modeler_print(xlink_modeler *mod, xlink_list *models) {
 }
 
 /* Compute the weight state for each model in order */
-void xlink_set_model_state(xlink_list *models, unsigned int state) {
+void xlink_model_set_state(xlink_list *models, unsigned int state) {
   int weight;
   int i;
   weight = 0;
@@ -2525,8 +2525,8 @@ void xlink_binary_link(xlink_binary *bin, unsigned int flags) {
       }
     }
     /* Update the model states based on the segment states */
-    xlink_set_model_state(&code.models, code.state);
-    xlink_set_model_state(&data.models, data.state);
+    xlink_model_set_state(&code.models, code.state);
+    xlink_model_set_state(&data.models, data.state);
     /* Stage 10: Compress the CODE and DATA segments with perfect hashing */
     xlink_bitstream_from_segments(&bs, &code, &data, 0, flags & MOD_LOW,
      flags & MOD_CLAMP);
@@ -2763,7 +2763,7 @@ int main(int argc, char *argv[]) {
       /* Segment header has 4 weight bytes + n model bytes */
       printf("Required header: 4 weight bytes + %i model byte(s)\n",
        xlink_list_length(&models));
-      xlink_set_model_state(&models,
+      xlink_model_set_state(&models,
        xlink_model_compute_packed_weights(&models));
       /* Create a context from models */
       xlink_context_init(&ctx, &models, 0, flags & MOD_LOW, flags & MOD_CLAMP);
