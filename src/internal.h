@@ -26,4 +26,6 @@ void *xlink_realloc(void *ptr, size_t size);
  (((buf)[(i) >> 3] & ~(1 << ((i) & 7))) | (!!(b) << ((i) & 7))))
 #define XLINK_GET_BIT(buf, i)    ((buf)[(i) >> 3] >> ((i) & 7) & 1)
 
+#define XLINK_FEOF(fp) (ungetc(getc(fp), fp) == EOF)
+
 #endif

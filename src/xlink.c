@@ -2297,8 +2297,6 @@ static void usage(const char *argv0) {
    argv0);
 }
 
-#define FEOF(fp) (ungetc(getc(fp), fp) == EOF)
-
 int main(int argc, char *argv[]) {
   xlink_binary bin;
   int c;
@@ -2387,7 +2385,7 @@ int main(int argc, char *argv[]) {
     xlink_list models;
     /* Read bytes from stdin */
     xlink_list_init(&bytes, sizeof(unsigned char), 0);
-    while (!FEOF(stdin)) {
+    while (!XLINK_FEOF(stdin)) {
       xlink_list_add_byte(&bytes, getc(stdin));
     }
     xlink_list_init(&models, sizeof(xlink_model), 0);
