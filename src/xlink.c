@@ -1694,16 +1694,6 @@ int xlink_binary_extract_class(xlink_binary *bin, int index, int offset,
 
 #define xlink_list_get_model(list, i) ((xlink_model *)xlink_list_get(list, i))
 
-#define xlink_list_add_byte(list, byte) \
-  do { \
-    unsigned char b_; \
-    b_ = byte; \
-    xlink_list_add(list, &b_); \
-  } \
-  while (0)
-
-#define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
-
 #define XLINK_RATIO(packed, bytes) (100*(1 - (((double)(packed))/(bytes))))
 
 void xlink_model_search(xlink_list *models, xlink_list *bytes) {

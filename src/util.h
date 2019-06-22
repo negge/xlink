@@ -26,6 +26,14 @@ void xlink_list_swap(xlink_list *list, int i, int j);
 void xlink_list_reverse(xlink_list *list, int start, int end);
 void xlink_list_sort(xlink_list *list, int (*cmp)(const void *, const void *));
 
+#define xlink_list_add_byte(list, byte) \
+  do { \
+    unsigned char b_; \
+    b_ = byte; \
+    xlink_list_add(list, &b_); \
+  } \
+  while (0)
+
 #define xlink_list_get_byte(list, i) ((unsigned char *)xlink_list_get(list, i))
 
 typedef struct xlink_entry xlink_entry;
