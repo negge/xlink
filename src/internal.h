@@ -1,6 +1,7 @@
 #ifndef _XLINK_internal_h
 #define _XLINK_internal_h
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #define XLINK_MIN(a, b) ((a) <= (b) ? (a) : (b))
