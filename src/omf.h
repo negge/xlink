@@ -1,6 +1,8 @@
 #ifndef _XLINK_omf_h
 #define _XLINK_omf_h
 
+#include <stdint.h>
+
 typedef enum {
   OMF_THEADR  = 0x80,  // Translator Header Record
   OMF_LHEADR  = 0x82,  // Library Module Header Record
