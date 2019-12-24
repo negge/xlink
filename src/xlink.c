@@ -1189,7 +1189,7 @@ int xlink_omf_record_load_iterated(xlink_omf_record *rec, unsigned char *data,
 #define MOD_EXIT  (0x100)
 #define MOD_BASE  (0x200)
 
-xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
+xlink_module *xlink_file_load_omf_module(xlink_file *file, unsigned int flags) {
   xlink_module *mod;
   xlink_omf omf;
   xlink_data *dat;
@@ -1530,7 +1530,8 @@ xlink_module *xlink_file_load_module(xlink_file *file, unsigned int flags) {
   return mod;
 }
 
-xlink_library *xlink_file_load_library(xlink_file *file, unsigned int flags) {
+xlink_library *xlink_file_load_omf_library(xlink_file *file,
+ unsigned int flags) {
   xlink_library *lib;
   int done;
   lib = xlink_malloc(sizeof(xlink_library));
@@ -1553,7 +1554,7 @@ xlink_library *xlink_file_load_library(xlink_file *file, unsigned int flags) {
         int skip;
         xlink_module *mod;
         /* TODO: Find embedded module name in dictionary, set file->name here */
-        mod = xlink_file_load_module(file, flags);
+        mod = xlink_file_load_omf_module(file, flags);
         XLINK_LIST_ADD(library, module, lib, mod);
         /* Page size is always a power of two */
         mask = lib->page_size - 1;
@@ -1813,7 +1814,7 @@ void xlink_binary_load_modules(xlink_binary *bin) {
     file = XLINK_STUB_MODULES[i];
     if (strstr(file.name, "stub32") == NULL) {
       xlink_module *mod;
-      mod = xlink_file_load_module(&file, 0);
+      mod = xlink_file_load_omf_module(&file, 0);
       XLINK_LIST_ADD(binary, module, bin, mod);
     }
   }
@@ -1829,7 +1830,7 @@ void xlink_binary_load_stub(xlink_binary *bin, const char *stub) {
     xlink_file file;
     file = XLINK_STUB_MODULES[i];
     if (strcmp(file.name, buf) == 0) {
-      mod = xlink_file_load_module(&file, 0);
+      mod = xlink_file_load_omf_module(&file, 0);
       XLINK_LIST_ADD(binary, module, bin, mod);
       break;
     }
@@ -2445,13 +2446,13 @@ int main(int argc, char *argv[]) {
       case OMF_THEADR :
       case OMF_LHEADR : {
         xlink_module *mod;
-        mod = xlink_file_load_module(&file, flags);
+        mod = xlink_file_load_omf_module(&file, flags);
         XLINK_LIST_ADD(binary, module, &bin, mod);
         break;
       }
       case OMF_LIBHDR : {
         xlink_library *lib;
-        lib = xlink_file_load_library(&file, flags);
+        lib = xlink_file_load_omf_library(&file, flags);
         XLINK_LIST_ADD(binary, library, &bin, lib);
         break;
       }
